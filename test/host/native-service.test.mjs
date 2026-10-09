@@ -92,7 +92,7 @@ test('native skill summary stays short, resources are generated, and dedicated p
   await ctx.plugin(SkillSDK.default); await ctx.plugin(SystemPromptSDK.default);
   installSkill(ctx);
   const list = await ctx.skills.list(); assert.equal(list.length, 1); assert.ok(list[0].description.length < 160); assert.equal(list[0].name, 'intelligent-ui');
-  const loaded = await ctx.skills.get('intelligent-ui'); assert.equal(loaded.content, skillContent()); assert.ok(loaded.resourceBase.path.endsWith('skills/intelligent-ui/'));
+  const loaded = await ctx.skills.get('intelligent-ui'); assert.equal(loaded.content, skillContent()); assert.ok(loaded.resourceBase.path.replaceAll('\\','/').endsWith('skills/intelligent-ui/'));
   assert.ok(loaded.content.length < 10000); assert.ok(loaded.content.includes('Calculator('));
   for (const group of groups) assert.ok(renderCatalog(group).includes('Schema:'));
   const before = await ctx.systemPrompt.assemble();

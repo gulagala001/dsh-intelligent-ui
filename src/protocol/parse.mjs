@@ -5,12 +5,12 @@ import { verifyExpression } from './syntax.mjs';
 // These low-level OpenUI exports do not invoke its parser/runtime telemetry or evaluator.
 export function checkedTokens(source, { streaming = false } = {}) {
   if (typeof source !== 'string' || source.length > LIMITS.source) throw new UIError('SOURCE_LIMIT', '交互内容过长');
-  let depth = 0, unary = 0, quote = null, comment = false; const brackets=[];
+  let depth = 0, unary = 0, quote = null, comment = false; const brackets=[],cleaned=source.split('');
   for (let i = 0; i < source.length; i++) {
     const c = source[i];
-    if (comment) { if (c === '\n') comment = false; continue; }
+    if (comment) { if (c === '\n') comment = false;else cleaned[i]=' '; continue; }
     if (quote) { if (c === '\\') { i++; continue; } if (c === quote) quote = null; continue; }
-    if (c === '/' && source[i + 1] === '/') { comment = true; i++; continue; }
+    if (c === '/' && source[i + 1] === '/') { comment = true; cleaned[i]=' ';cleaned[i+1]=' ';i++; continue; }
     if (c === '"' || c === "'") { quote = c; continue; }
     if ('([{'.includes(c)) { brackets.push(c);if (++depth > LIMITS.depth) throw new UIError('DEPTH', '交互内容嵌套过深'); }
     else if (')]}'.includes(c)) { if (--depth < 0 || brackets.pop() !== {'\u0029':'(',']':'[','}':'{'}[c]) throw new UIError('SYNTAX', '括号不匹配'); }
@@ -18,7 +18,7 @@ export function checkedTokens(source, { streaming = false } = {}) {
     if (!/[A-Za-z0-9_$\s()[\]{},.:;+*/%!?<>=&|\-]/.test(c)) throw new UIError('SYNTAX', `不支持的符号 ${c}`);
   }
   if (!streaming && (depth || quote)) throw new UIError('INCOMPLETE', '交互内容尚未完整');
-  const closed = streaming ? autoClose(source).text : source;
+  const commentFree=cleaned.join('');const closed = streaming ? autoClose(commentFree).text : commentFree;
   const tokens = tokenize(closed);
   if (tokens.length > LIMITS.tokens) throw new UIError('TOKEN_LIMIT', '交互内容项目过多');
   // OpenUI's full parser normally tags builtins before parsing; use the same call tag.
@@ -32,6 +32,7 @@ export function parseFormula(source) {
   return parseExpression(verifyExpression(tokens));
 }
 export function parseProgram(source, { streaming = false } = {}) {
+  const marker=source.match(/^\s*\/\/\s*iui:(\d+)\b/);if(marker&&marker[1]!=='1')throw new UIError('PROTOCOL','此作品使用了尚未支持的协议版本');
   const tokens=checkedTokens(source,{streaming}),rows = split(tokens);
   if(tokens.filter(t=>t.t!==0&&t.t!==13).length!==rows.reduce((n,row)=>n+2+row.tokens.filter(t=>t.t!==0&&t.t!==13).length,0))throw new UIError('SYNTAX','交互声明格式不正确');
   if (rows.length > LIMITS.statements) throw new UIError('STATEMENT_LIMIT', '交互声明过多');

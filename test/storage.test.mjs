@@ -1,10 +1,47 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, stat, writeFile, symlink, readFile, readdir, realpath } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, stat, writeFile, symlink, readFile, readdir, realpath, link } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { spawn } from 'node:child_process';
+import { join, basename } from 'node:path';
+import { spawn, execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { StateStorage, sourceHash, validateState, identity, LIMITS } from '../src/host/storage.mjs';
+
+const runFile = promisify(execFile);
+async function windowsAclScript(script, paths) {
+  const { stdout } = await runFile(join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'), ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], {
+    shell: false, windowsHide: true, timeout: 30000, env: { ...process.env, IUI_TEST_ACL_PATHS: JSON.stringify(paths) },
+  });
+  return stdout;
+}
+async function windowsAcls(paths) {
+  return JSON.parse(await windowsAclScript(String.raw`
+    $ErrorActionPreference = 'Stop'
+    [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+    $items = @()
+    foreach ($path in (ConvertFrom-Json $env:IUI_TEST_ACL_PATHS)) {
+      $acl = Get-Acl -LiteralPath $path
+      $rules = @($acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]) | ForEach-Object {
+        @{ sid = $_.IdentityReference.Value; rights = [int]$_.FileSystemRights; type = $_.AccessControlType.ToString(); inherited = $_.IsInherited; inheritance = [int]$_.InheritanceFlags; propagation = [int]$_.PropagationFlags }
+      })
+      $items += @{ owner = $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value; protected = $acl.AreAccessRulesProtected; sddl = $acl.Sddl; rules = $rules }
+    }
+    @{ user = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value; items = $items } | ConvertTo-Json -Depth 6 -Compress
+  `, paths));
+}
+function assertPrivateWindowsAcl(snapshot, index, directory = false) {
+  const acl = snapshot.items[index];
+  const allowed = new Set([snapshot.user, 'S-1-5-18', 'S-1-5-32-544']);
+  const broad = new Set(['S-1-1-0', 'S-1-5-32-545', 'S-1-5-11']); // Everyone, Users, Authenticated Users
+  assert.ok(allowed.has(acl.owner), 'actual owner is the current user, SYSTEM or Administrators');
+  assert.ok(acl.rules.every(rule => !broad.has(rule.sid) && allowed.has(rule.sid) && rule.type === 'Allow'), 'actual ACL grants no access to broad or unrelated principals');
+  for (const sid of allowed) assert.ok(acl.rules.some(rule => rule.sid === sid && (rule.rights & 0x1f01ff) === 0x1f01ff && !(rule.propagation & 2)), `actual ACL gives ${sid} full control`);
+  if (directory) {
+    assert.equal(acl.owner, snapshot.user);
+    assert.equal(acl.protected, true);
+    assert.ok(acl.rules.every(rule => !rule.inherited && rule.inheritance === 3 && rule.propagation === 0), 'directory protects private OI/CI rules from parent inheritance');
+  } else assert.ok(acl.rules.every(rule => rule.inherited), 'new plugin files inherit the private directory ACL');
+}
 
 async function fixture(t) {
   const root = await mkdtemp(join(await realpath(tmpdir()), 'iui-storage-'));
@@ -22,10 +59,96 @@ test('CAS serializes concurrent writes, preserves the winning state across resta
   assert.equal(a.status, 'fulfilled'); assert.equal(a.value.revision, 1);
   assert.equal(b.status, 'rejected'); assert.equal(b.reason.statusCode, 409); assert.deepEqual(b.reason.record.state, { checked: true });
   const restarted = new StateStorage(store.directory);
+  await restarted.initialize();
   assert.equal((await restarted.get('session-A', '1:2:0:0')).source, source);
-  assert.equal((await stat(store.path('session-A', '1:2:0:0'))).mode & 0o777, 0o600);
-  assert.deepEqual(await readdir(store.directory), ['.writer.sqlite', store.path('session-A', '1:2:0:0').split('/').at(-1)]);
-  assert.equal((await stat(join(store.directory, '.writer.sqlite'))).mode & 0o777, 0o600);
+  const recordPath = store.path('session-A', '1:2:0:0'), lockPath = join(store.directory, '.writer.sqlite');
+  if (process.platform === 'win32') {
+    const acls = await windowsAcls([store.directory, recordPath, lockPath]);
+    assertPrivateWindowsAcl(acls, 0, true); assertPrivateWindowsAcl(acls, 1); assertPrivateWindowsAcl(acls, 2);
+  } else {
+    assert.equal((await stat(recordPath)).mode & 0o777, 0o600);
+    assert.equal((await stat(lockPath)).mode & 0o777, 0o600);
+  }
+  assert.deepEqual((await readdir(store.directory)).sort(), ['.writer.sqlite', basename(recordPath)].sort());
+  assert.equal((await restarted.save(input({ expectedRevision: 1, state: { checked: false } }))).revision, 2);
+  assert.deepEqual((await restarted.get('session-A', '1:2:0:0')).state, { checked: false }, 'private permissions still permit CAS read and write after restart');
+});
+
+test('initialization makes legacy inherited records private without changing their parent ACL or data', async t => {
+  const root = await mkdtemp(join(await realpath(tmpdir()), 'iui-legacy-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const store = new StateStorage(join(root, "state [quoted] '; $literal"));
+  await mkdir(store.directory, { mode: 0o700 });
+  const recordPath = store.path('session-A', '1:2:0:0');
+  const record = { protocolVersion: 1, session: 'session-A', block: '1:2:0:0', revision: 1, source, sourceRevision: sourceHash(source), state: { checked: true } };
+  await writeFile(recordPath, JSON.stringify(record), { mode: 0o600 });
+  let parentBefore;
+  if (process.platform === 'win32') {
+    await windowsAclScript(String.raw`
+      $ErrorActionPreference = 'Stop'
+      $path = @(ConvertFrom-Json $env:IUI_TEST_ACL_PATHS)[0]
+      $acl = Get-Acl -LiteralPath $path
+      $sid = [Security.Principal.SecurityIdentifier]::new('S-1-1-0')
+      $flags = [Security.AccessControl.InheritanceFlags]::ObjectInherit -bor [Security.AccessControl.InheritanceFlags]::ContainerInherit
+      $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($sid, [Security.AccessControl.FileSystemRights]::ReadAndExecute, $flags, [Security.AccessControl.PropagationFlags]::None, [Security.AccessControl.AccessControlType]::Allow))
+      Set-Acl -LiteralPath $path -AclObject $acl
+    `, [root]);
+    const old = await windowsAcls([root, recordPath]);
+    parentBefore = old.items[0].sddl;
+    assert.ok(old.items[1].rules.some(rule => rule.sid === 'S-1-1-0' && rule.inherited), 'legacy record starts with a real broad inherited ACL');
+  }
+  await store.initialize();
+  assert.equal(await readFile(recordPath, 'utf8'), JSON.stringify(record));
+  assert.deepEqual(await store.get('session-A', '1:2:0:0'), {...record,componentsVersion:1});
+  if (process.platform === 'win32') {
+    const secured = await windowsAcls([root, store.directory, recordPath]);
+    assert.equal(secured.items[0].sddl, parentBefore, 'parent ACL is unchanged');
+    assertPrivateWindowsAcl(secured, 1, true); assertPrivateWindowsAcl(secured, 2);
+  } else assert.equal((await stat(recordPath)).mode & 0o777, 0o600);
+  assert.equal((await store.save(input({ expectedRevision: 1 }))).revision, 2);
+});
+
+test('Windows initialization refuses explicitly shared legacy records without repairing child ACLs', async t => {
+  const { store } = await fixture(t);
+  await store.save(input());
+  const recordPath = store.path('session-A', '1:2:0:0');
+  const before = await readFile(recordPath, 'utf8');
+  if (process.platform === 'win32') {
+    await windowsAclScript(String.raw`
+      $ErrorActionPreference = 'Stop'
+      $path = @(ConvertFrom-Json $env:IUI_TEST_ACL_PATHS)[0]
+      $acl = Get-Acl -LiteralPath $path
+      $acl.SetAccessRuleProtection($true, $true)
+      $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new('S-1-1-0'), [Security.AccessControl.FileSystemRights]::Read, [Security.AccessControl.AccessControlType]::Allow))
+      Set-Acl -LiteralPath $path -AclObject $acl
+    `, [recordPath]);
+    const explicit = await windowsAcls([store.directory, recordPath]);
+    await assert.rejects(new StateStorage(store.directory).initialize(), error => error.statusCode === 500 && error.message === 'Unable to secure private state storage');
+    const after = await windowsAcls([store.directory, recordPath]);
+    assert.deepEqual(after, explicit, 'refusal leaves directory and explicit child ACLs unchanged');
+  } else await new StateStorage(store.directory).initialize();
+  assert.equal(await readFile(recordPath, 'utf8'), before);
+});
+
+test('Windows ACL initialization refuses unrelated entries and alternate links before any permission write', async t => {
+  const { root, store } = await fixture(t);
+  const target = join(root, 'outside.json'); await writeFile(target, 'private target');
+  const before = process.platform === 'win32' ? await windowsAcls([root, store.directory, target]) : undefined;
+  const unsafe = [
+    { path: join(store.directory, 'unrelated.txt'), create: path => writeFile(path, 'unrelated') },
+    { path: join(store.directory, 'child'), create: path => mkdir(path) },
+    { path: store.path('session-A', '1:2:0:0'), create: path => symlink(target, path) },
+    { path: store.path('session-A', '1:2:0:0'), create: path => link(target, path) },
+  ];
+  for (const entry of unsafe) {
+    await entry.create(entry.path);
+    if (process.platform === 'win32') {
+      await assert.rejects(new StateStorage(store.directory).initialize(), error => error.statusCode === 500 && error.message === 'Unable to secure private state storage');
+      assert.deepEqual(await windowsAcls([root, store.directory, target]), before, 'refusal preserves outside and parent ACLs');
+    } else await new StateStorage(store.directory).initialize();
+    await rm(entry.path, { recursive: true });
+  }
+  assert.equal(await readFile(target, 'utf8'), 'private target');
 });
 
 test('forged source hash and failed ownership check cannot mutate an existing record', async t => {
@@ -34,6 +157,14 @@ test('forged source hash and failed ownership check cannot mutate an existing re
   await assert.rejects(store.save(input()), error => error.statusCode === 409);
   await assert.rejects(store.save(input({ expectedRevision: 1, state: {} }), async () => { throw Error('missing assistant block'); }), /missing assistant/);
   assert.equal((await store.get('session-A', '1:2:0:0')).revision, 1);
+});
+
+test('records retain their component contract and refuse unknown versions without overwriting source', async t => {
+  const {store}=await fixture(t);const saved=await store.save(input());assert.equal(saved.componentsVersion,1);
+  const path=store.path('session-A','1:2:0:0');const newer={...saved,componentsVersion:2};await writeFile(path,JSON.stringify(newer));
+  await assert.rejects(store.get('session-A','1:2:0:0'),/Invalid stored record/);
+  await assert.rejects(store.save(input({expectedRevision:1})),/Invalid stored record/);
+  assert.deepEqual(JSON.parse(await readFile(path,'utf8')),newer);
 });
 
 test('state and identity validation reject traversal, unsafe object keys and bounded-data violations', () => {

@@ -52,7 +52,7 @@ export function createApiHandler(ctx, storage, { version, hostVersion, sdkVersio
       const url = new URL(req.url, 'http://localhost');
       if (url.pathname === '/intelligent-ui/api/health') {
         if (req.method !== 'GET') throw new StateError(405, 'Method not allowed');
-        sendJson(res, 200, { version, hostVersion, sdkVersion, protocolVersion: 1, features: { statePersistence: true, localInteractions: true, nativeLoop: true } }); return;
+        sendJson(res, 200, { version, hostVersion, sdkVersion, protocolVersion: 1, componentsVersion: 1, features: { statePersistence: true, localInteractions: true, nativeLoop: true } }); return;
       }
       if (url.pathname !== '/intelligent-ui/api/state') throw new StateError(404, 'Unknown endpoint');
       if (req.method === 'GET') {
@@ -60,7 +60,7 @@ export function createApiHandler(ctx, storage, { version, hostVersion, sdkVersio
         const original = await verifyBlock(ctx, session, block);
         const record = await storage.get(session, block);
         if (record && record.source !== original.source) throw new StateError(409, 'Stored source no longer matches the assistant block');
-        sendJson(res, 200, record ?? { revision: 0, sourceRevision: original.sourceRevision, source: original.source, state: {}, protocolVersion: 1 }); return;
+        sendJson(res, 200, record ?? { revision: 0, sourceRevision: original.sourceRevision, source: original.source, state: {}, protocolVersion: 1, componentsVersion: 1 }); return;
       }
       if (req.method === 'POST') {
         const input = await readBody(req);

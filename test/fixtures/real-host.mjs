@@ -1,6 +1,7 @@
 import { readFile, mkdir, writeFile, readdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import YAML from 'yaml';
+import { createHash } from 'node:crypto';
 import { hostFixture } from './host.mjs';
 
 /** Only the explicitly selected route is read. Credentials never enter the host or evidence. */
@@ -15,13 +16,14 @@ async function loadAuthorizedRoute({ settingsPath, profileRouteFile, provider, m
     const config = await yaml(profileRouteFile); let selected;
     const walk = value => { if (!value || typeof value !== 'object') return; if (value.providers?.[provider]) selected = value.providers[provider]; for (const child of Object.values(value)) if (typeof child === 'object') walk(child); };
     walk(config);
-    if (!selected?.models?.some(entry => entry.id === model)) throw new Error('Explicit model is absent from selected configured provider');
+    const configuredModel = selected?.models?.find(entry => entry.id === model);
+    if (!configuredModel) throw new Error('Explicit model is absent from selected configured provider');
     let key;
     for (const path of [join(dirname(profileRouteFile), '.credentials.yaml'), join(dirname(dirname(dirname(profileRouteFile))), '.credentials.yaml')]) {
       try { const data = await yaml(path); const value = data?.refs?.[selected.apiKeyEnv]; if (typeof value === 'string' && value) { key = value; break; } }
       catch (error) { if (error.code !== 'ENOENT') throw error; }
     }
-    return { api: selected.api, baseURL: selected.baseURL, model, key, headers: Object.fromEntries(Object.entries(selected.headers ?? {}).filter(([,value]) => typeof value === 'string')) };
+    return { api: selected.api, baseURL: selected.baseURL, model, key, offeredReasoningEfforts: Object.keys(configuredModel.reasoningEfforts ?? {}), headers: Object.fromEntries(Object.entries(selected.headers ?? {}).filter(([,value]) => typeof value === 'string')) };
   }
   if (!settingsPath) throw new Error('Provide IUI_REAL_SETTINGS or an authorized --profile-route-file reference');
   const { main } = JSON.parse(await readFile(settingsPath, 'utf8'));
@@ -41,11 +43,14 @@ export async function realHostFixture(t, options = {}) {
     // Native title generation is deliberately local and counted separately.
     if (!payload.tools?.length) { auxiliary.push({ kind: 'native-title', timestamp: Date.now() }); yield { delta: { content: '交互测试' }, finish_reason: 'stop' }; return; }
     if (!activeCase) throw new Error('No authorized test case is active');
-    const preceding = calls.filter(call => call.case === activeCase).reduce((sum, call) => sum + usedTokens(call), 0);
+    const preceding = (options.priorGeneratedTokens?.[activeCase] ?? 0) + calls.filter(call => call.case === activeCase).reduce((sum, call) => sum + usedTokens(call), 0);
     const remaining = 16384 - preceding;
-    if (remaining < 128 || calls.filter(call => call.case === activeCase).length >= 10) throw new Error('Explicit per-case budget exhausted');
+    if (remaining < 128) throw new Error('Explicit per-case generated-token budget exhausted');
+    const requestCap = options.requestCap ?? 10;
+    if (calls.filter(call => call.case === activeCase).length >= requestCap) throw new Error(`Explicit per-case model request cap (${requestCap}) reached`);
     const number = calls.length + 1;
     const call = { number, case: activeCase, model: route.model, started: Date.now(), text: '', reasoning: '', toolCalls: [], usage: null, finished: false, outputTokenLimit: remaining,
+      reasoningEffort: payload.reasoning_effort ?? null,
       nativeToolResults: payload.messages.filter(message => message.role === 'tool') };
     calls.push(call);
     const body = { ...payload, model: route.model, max_tokens: remaining, stream: true, stream_options: { include_usage: true } };
@@ -102,6 +107,7 @@ export async function realHostFixture(t, options = {}) {
     }
   };
   const fixture = await hostFixture(t, { reply });
+  const packageSha256 = createHash('sha256').update(await readFile(fixture.tar)).digest('hex');
   const scrubEvidence = async () => {
     const matches = [];
     for (const name of await readdir(evidenceDirectory)) {
@@ -111,5 +117,5 @@ export async function realHostFixture(t, options = {}) {
     }
     return { exactCredentialMatchesRedacted: matches.length, files: matches };
   };
-  return { ...fixture, calls, auxiliary, model: route.model, setCase: id => { activeCase = id; }, writeEvidence: write, scrub, scrubEvidence, usedTokens };
+  return { ...fixture, calls, auxiliary, model: route.model, offeredReasoningEfforts: route.offeredReasoningEfforts ?? [], packageSha256, setCase: id => { activeCase = id; }, writeEvidence: write, scrub, scrubEvidence, usedTokens };
 }

@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {hostFixture,until} from '../fixtures/host.mjs';import {examples} from '../../src/catalog.mjs';
 test('packaged native Web: small plus, mixed inline controls, save/reload, submit, expand and uninstall', {timeout:300000},async t=>{
   const source=examples[9],reply='这是自然观察工具。\n\n```openui\n'+source+'\n```\n\n可以继续记录观察。';
-  const f=await hostFixture(t,{reply,artifacts:process.env.IUI_ARTIFACTS==='1'});const {page}=f;
+  const f=await hostFixture(t,{reply,artifacts:process.env.IUI_ARTIFACTS==='1',extraPackages:process.env.IUI_TEST_OMD_PACKAGE?['file:'+process.env.IUI_TEST_OMD_PACKAGE]:[]});const {page}=f;
   await page.getByRole('button',{name:'新建智能聊天',exact:true}).first().click();
   await page.getByRole('button',{name:'Intelligent UI',exact:true}).waitFor({state:'visible',timeout:15000});
   const box=page.locator('[contenteditable="true"]').first();await box.waitFor({state:'visible'});await box.fill('IUI_MAIN_TEST 生成自然观察工具');await box.press('Enter');

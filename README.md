@@ -15,17 +15,17 @@
 
 ## 安装
 
-安装与你的 **完整 DSH 版本一致**的构建。发行渠道为本仓库 GitHub Releases；两种构建使用不同版本和资产，不能互换。
+当前成品正在本地验收，**尚未正式发布**。安装与你的 **完整 DSH 版本一致**的本地构建；两种构建使用不同版本和资产，不能互换。正式渠道将在确认发布后开放。
 
 ```sh
 # DSH 0.2.0-rc.2
-dsh plugin --profile web add https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.0-rc.2.iui.1.0.0/dsh-intelligent-ui-0.2.0-rc.2.iui.1.0.0.tgz
+dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.0-rc.2.iui.1.0.0.tgz
 
 # DSH 0.2.1-alpha.1
-dsh plugin --profile web add https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-alpha.1.iui.1.0.0/dsh-intelligent-ui-0.2.1-alpha.1.iui.1.0.0.tgz
+dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.1-alpha.1.iui.1.0.0.tgz
 ```
 
-安装后重启对应 DSH profile。使用其他 profile 时把命令中的 `web` 替换为它的名称。OMD 用户也可通过其推荐插件入口安装对应构建。运行需要 Node 22.19 或更新版本。
+将路径换成实际安装包的绝对路径，安装后重启对应 DSH profile。使用其他 profile 时把命令中的 `web` 替换为它的名称。OMD 的推荐入口已接入，公开下载会在正式发布后开放。运行需要 Node 22.19 或更新版本。
 
 ## 数据与卸载
 

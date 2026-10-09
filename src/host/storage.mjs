@@ -4,6 +4,7 @@ import { resolve, parse, join, isAbsolute } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { LIMITS as RUNTIME_LIMITS, badKey } from '../runtime/limits.mjs';
+import { secureWindowsDirectory } from './windows-private.mjs';
 
 export class StateError extends Error {
   constructor(statusCode, message, record) { super(message); this.statusCode = statusCode; this.record = record; }
@@ -116,7 +117,13 @@ export class StateStorage {
     if (!isAbsolute(directory) || directory.split(/[\\/]/).includes('..')) throw new StateError(400, 'Storage directory must be an absolute canonical path');
     this.directory = resolve(directory);
   }
-  async initialize() { await safeDirectory(this.directory, true); }
+  async initialize() {
+    await safeDirectory(this.directory, true);
+    if (process.platform === 'win32') {
+      try { await secureWindowsDirectory(this.directory); }
+      catch { throw new StateError(500, 'Unable to secure private state storage'); }
+    }
+  }
   path(session, block) { identity(session, block); return join(this.directory, sourceHash(`${session}\0${block}`) + '.json'); }
   async get(session, block) {
     const file = this.path(session, block);
@@ -127,9 +134,10 @@ export class StateStorage {
       const stat = await handle.stat();
       if (!stat.isFile() || stat.nlink !== 1 || stat.size > LIMITS.recordBytes) throw new StateError(413, 'Invalid stored record');
       const record = JSON.parse(await handle.readFile('utf8'));
-      const fields = new Set(['protocolVersion', 'session', 'block', 'revision', 'sourceRevision', 'source', 'state']);
-      if (!record || typeof record !== 'object' || Array.isArray(record) || Object.keys(record).some(key => !fields.has(key)) || record.session !== session || record.block !== block || record.protocolVersion !== 1 || !Number.isSafeInteger(record.revision) || record.revision < 1 || typeof record.source !== 'string' || record.source.length > LIMITS.sourceChars || sourceHash(record.source) !== record.sourceRevision) throw new StateError(500, 'Invalid stored record');
+      const fields = new Set(['protocolVersion', 'componentsVersion', 'session', 'block', 'revision', 'sourceRevision', 'source', 'state']);
+      if (!record || typeof record !== 'object' || Array.isArray(record) || Object.keys(record).some(key => !fields.has(key)) || record.session !== session || record.block !== block || record.protocolVersion !== 1 || (record.componentsVersion ?? 1) !== 1 || !Number.isSafeInteger(record.revision) || record.revision < 1 || typeof record.source !== 'string' || record.source.length > LIMITS.sourceChars || sourceHash(record.source) !== record.sourceRevision) throw new StateError(500, 'Invalid stored record');
       validateState(record.state);
+      record.componentsVersion ??= 1;
       return record;
     } catch (error) { if (error.code === 'ENOENT') return undefined; throw error; }
     finally { await handle?.close(); }
@@ -155,7 +163,7 @@ export class StateStorage {
       await verify?.(input);
       const current = await this.get(input.session, input.block);
       if ((current?.revision ?? 0) !== input.expectedRevision) throw new StateError(409, 'State revision conflict', current);
-      const record = { protocolVersion: 1, session: input.session, block: input.block, revision: (current?.revision ?? 0) + 1, sourceRevision: input.sourceRevision, source: input.source, state: input.state };
+      const record = { protocolVersion: 1, componentsVersion: 1, session: input.session, block: input.block, revision: (current?.revision ?? 0) + 1, sourceRevision: input.sourceRevision, source: input.source, state: input.state };
       const bytes = Buffer.from(JSON.stringify(record));
       if (bytes.length > LIMITS.recordBytes) throw new StateError(413, 'Record exceeds limit');
       let total = 0, records = 0;

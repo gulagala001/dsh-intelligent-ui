@@ -31,11 +31,11 @@ export function IntelligentSurface({source='',streaming=false,sessionId,blockId,
   return <div className="iui-surface" data-iui-block={blockId} aria-busy={streaming}>
     <Boundary source={source}><Tree node={snapshot.tree} api={api}/></Boundary>
     {!snapshot.tree&&!snapshot.error&&<div className="iui-skeleton" aria-label="正在生成交互内容"/>}
-    {snapshot.error&&<p role="alert" className="iui-error">{snapshot.error}{snapshot.status==='conflict'&&<button type="button" onClick={()=>void store.save({resolveConflict:true})}>保留当前设置并保存</button>}{snapshot.status==='save-error'&&<button type="button" onClick={()=>void store.save()}>重试保存</button>}{snapshot.status==='load-error'&&<button type="button" onClick={()=>{store.snapshot={...store.snapshot,source:''};store.update(source,streaming);}}>重试读取</button>}</p>}
+    {snapshot.error&&<p role="alert" className="iui-error">{snapshot.error}{snapshot.status==='invalid'&&onSubmit&&<button type="button" onClick={()=>{void Promise.resolve(onSubmit(`这段交互内容无法显示：${snapshot.error.slice(0,1200)}。请读取所需组件与表达式说明，修复这段交互内容并保持原来的功能。`)).then(()=>setNotice('修复请求已发送'),error=>setNotice(error.message));}}>修复</button>}{snapshot.status==='conflict'&&<button type="button" onClick={()=>void store.save({resolveConflict:true})}>保留当前设置并保存</button>}{snapshot.status==='save-error'&&<button type="button" onClick={()=>void store.save()}>重试保存</button>}{snapshot.status==='load-error'&&<button type="button" onClick={()=>{store.snapshot={...store.snapshot,source:''};store.update(source,streaming);}}>重试读取</button>}</p>}
     <div className="iui-surface-toolbar"><span role="status">{notice||states[snapshot.status]}</span>
       {onExpand&&!expanded&&<button type="button" title="展开" aria-label="展开交互内容" onClick={()=>onExpand({source,sessionId,blockId})}>↗</button>}
       <button type="button" title="复制源文" aria-label="复制交互源文" onClick={copy}>复制</button>
-      <button type="button" title="导出完整源文与当前设置" onClick={()=>download('intelligent-ui.json',JSON.stringify({protocolVersion:1,source,state:snapshot.state},null,2))}>导出</button>
+      <button type="button" title="导出完整源文与当前设置" onClick={()=>download('intelligent-ui.json',JSON.stringify({protocolVersion:1,componentsVersion:1,source,state:snapshot.state},null,2))}>导出</button>
       <button type="button" aria-expanded={showSource} onClick={()=>setShowSource(!showSource)}>源文</button>
     </div>
     {showSource&&<pre className="iui-source"><code>{source}</code></pre>}

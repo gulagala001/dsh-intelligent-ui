@@ -11,7 +11,7 @@ Place each interface in an `openui` fenced block, mixed with ordinary Markdown a
 root = Stack([Heading("Packing checklist"), Checkbox("Passport", "passport", false), Checkbox("Charger", "charger", false)])
 ```
 
-OpenUI is a declarative language, not JavaScript. Use `root = Component(arguments)`, arrays, objects, scalars and optional named data assignments. Component names and positional argument order are case-sensitive. An optional `// iui:1` first line records the protocol. Emit one valid complete document per fence; never wrap it in HTML or an iframe. Do not invent components or positional fields. Use a small number of focused controls and label each control clearly.
+OpenUI is a declarative language, not JavaScript. Use `root = Component(arguments)`, arrays, objects, scalars and optional named data assignments. Component names and positional argument order are case-sensitive. Optional gap uses none/xs/sm/md/lg, or a number of pixels from 0 to 48; omit it for standard spacing. An optional `// iui:1` first line records the protocol. Emit one valid complete document per fence; never wrap it in HTML or an iframe. Do not invent components or positional fields. Use a small number of focused controls and label each control clearly.
 
 `bind` names identify local state. Give distinct controls distinct names unless they intentionally share a value. Initial `value` is a default, not an instruction to overwrite the user's edits. Local input changes do not send a message or call a model. Calculator formulas are quoted strings over field names, e.g. `"bill / people"`; fields are objects with `name`, `label`, `type`, `value`, and optional `min`, `max`, `step`, `unit`. Use only the bounded expression functions documented in references. Formula strings are never JavaScript.
 
@@ -20,6 +20,8 @@ root = Calculator([{name:"bill",label:"Bill",type:"number",value:120,min:0},{nam
 ```
 
 Only an explicit user click on a submit action or form can continue the conversation. A Button action is JSON data: `{type:"set",name:"field",value:123}`, `{type:"reset",name:"field"}`, or `{type:"submit",text:"Continue with these choices",fields:["field"]}`. Never include arbitrary code, automatic submission, network requests, tool calls, file access, credentials or host objects in a document. Unknown or invalid content displays an error and preserves the source; do not promise silent automatic repair.
+
+For composing an answer, the installed catalog and reference files define the supported interface. Use these contracts to compose the answer inside the conversation; implementation-source inspection is useful when debugging or extending the plugin. Do not create an application on disk merely to answer an interactive question.
 
 The installed base catalog below is sufficient without file-reading tools. For other components, use an already available filesystem read tool to load only the relevant file relative to this skill's resource base:
 

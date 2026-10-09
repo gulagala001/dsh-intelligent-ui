@@ -11,9 +11,9 @@ function ImageContent({ props: p }) {
 }
 
 const implementations = {
-  Stack: ({ props: p, children }) => <div className={`iui-stack iui-gap-${p.gap || 'md'}`}>{children}</div>,
-  Row: ({ props: p, children }) => <div className={`iui-row iui-gap-${p.gap || 'md'} iui-align-${p.align || 'center'}`}>{children}</div>,
-  Grid: ({ props: p, children }) => <div className={`iui-grid iui-gap-${p.gap || 'md'}`} style={{ '--iui-columns': p.columns || 2 }}>{children}</div>,
+  Stack: ({ props: p, children }) => <div className={`iui-stack iui-gap-${p.gap ?? 'md'}`} style={typeof p.gap==='number'?{gap:p.gap}:undefined}>{children}</div>,
+  Row: ({ props: p, children }) => <div className={`iui-row iui-gap-${p.gap ?? 'md'} iui-align-${p.align || 'center'}`} style={typeof p.gap==='number'?{gap:p.gap}:undefined}>{children}</div>,
+  Grid: ({ props: p, children }) => <div className={`iui-grid iui-gap-${p.gap || 'md'}`} style={{ '--iui-columns': p.columns || 2, ...(typeof p.gap==='number'?{gap:p.gap}:{}) }}>{children}</div>,
   Card: ({ props: p, children }) => <section className={`iui-card iui-card-${p.variant || 'default'}`}>{p.title && <h3 className="iui-card-title">{p.title}</h3>}{p.description && <p className="iui-muted iui-card-description">{p.description}</p>}<div className="iui-card-content">{children}</div></section>,
   Text: ({ props: p }) => <p className={`iui-text iui-text-${p.size || 'md'} iui-tone-${p.tone || 'neutral'}`}>{p.text}</p>,
   Heading: ({ props: p }) => React.createElement(`h${p.level || 2}`, { className: 'iui-heading' }, p.text),

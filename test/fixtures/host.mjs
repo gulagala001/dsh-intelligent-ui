@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';import {join} from 'node:path';import {fileURLToP
 import {once} from 'node:events';import {chromium} from 'playwright';import WebSocket from 'ws';
 const repo=fileURLToPath(new URL('../../',import.meta.url));
 export async function until(fn,ms=30000){const deadline=Date.now()+ms;while(Date.now()<deadline){const v=await fn();if(v)return v;await new Promise(r=>setTimeout(r,70));}throw Error('Host fixture timed out');}
-export async function hostFixture(t,{reply='完成。',plugin=true,extraPackages=[],artifacts=false}={}){
+export async function hostFixture(t,{reply='完成。',plugin=true,extraPackages=process.env.IUI_TEST_OMD_PACKAGE?['file:'+process.env.IUI_TEST_OMD_PACKAGE]:[],pluginFirst=process.env.IUI_TEST_PLUGIN_LAST!=='1',artifacts=false}={}){
   const root=await realpath(await mkdtemp(join(tmpdir(),'iui-host-'))),home=join(root,'home'),cwd=join(root,'workspace');await mkdir(home);await mkdir(cwd);
   const cli=process.env.IUI_TEST_CLI??join(repo,'node_modules/@deepseek-ai/dsh/lib/bin.js'),env={...process.env,DSH_HOME:home};delete env.DSH_PERMISSION_MODE;
   let stop,child,log='',base,cookie,browser,page;const requests=[],errors=[];
@@ -19,10 +19,11 @@ export async function hostFixture(t,{reply='完成。',plugin=true,extraPackages
   const cliRun=args=>execFileSync(process.execPath,[cli,...args],{cwd,env,encoding:'utf8',timeout:180000,maxBuffer:12*1024*1024});
   t.after(async()=>{if(!t.passed&&page&&!page.isClosed()){t.diagnostic((await page.locator('body').innerText()).slice(0,4000));await page.screenshot({path:root+'/failure.png'});}await browser?.close();await stop?.();provider.closeAllConnections();await new Promise(r=>provider.close(r));if(errors.length)t.diagnostic(JSON.stringify(errors));if(!t.passed)t.diagnostic(log.slice(-8000).replace(/token=\S+/g,'token=[redacted]'));if(!artifacts)await rm(root,{recursive:true,force:true});});
   cliRun(['--profile','iui-test','--from-default-profile','web','--dump-config']);
+  if(!pluginFirst)for(const spec of extraPackages)cliRun(['plugin','--profile','iui-test','add',spec]);
   let tar;
   if(plugin&&process.env.IUI_TEST_PACKAGE){tar=process.env.IUI_TEST_PACKAGE;cliRun(['plugin','--profile','iui-test','add','file:'+tar]);}
   else if(plugin){const [pack]=JSON.parse(execFileSync('npm',['pack','--ignore-scripts','--json','--pack-destination',root],{cwd:repo,encoding:'utf8'}));tar=join(root,pack.filename);cliRun(['plugin','--profile','iui-test','add','file:'+tar]);}
-  for(const spec of extraPackages)cliRun(['plugin','--profile','iui-test','add',spec]);
+  if(pluginFirst)for(const spec of extraPackages)cliRun(['plugin','--profile','iui-test','add',spec]);
   stop=async()=>{if(!child||child.exitCode!==null)return;child.kill('SIGTERM');await Promise.race([once(child,'exit'),new Promise(r=>setTimeout(r,5000).unref())]);if(child.exitCode===null){child.kill('SIGKILL');await once(child,'exit');}};
   const boot=async()=>{log='';child=spawn(process.execPath,[cli,'--profile','iui-test','--no-open','--port','0'],{cwd,env,stdio:['ignore','pipe','pipe']});child.stdout.on('data',b=>log+=b);child.stderr.on('data',b=>log+=b);const url=await until(()=>{if(child.exitCode!==null)throw Error(log.replace(/token=\S+/g,'token=[redacted]'));return log.match(/http:\/\/127\.0\.0\.1:\d+\/\?token=[\w-]+/)?.[0];},60000);base=new URL(url).origin;const login=await fetch(url,{redirect:'manual'});cookie=login.headers.getSetCookie().map(x=>x.split(';')[0]).join('; ');return url;};
   const rpc=async(method,args)=>{const r=await fetch(`${base}/api/${method}`,{method:'POST',headers:{'Content-Type':'application/json',cookie},body:JSON.stringify({type:'client-request',rpcId:crypto.randomUUID(),method,payload:{args}})});const body=await r.json();if(!body.result?.ok)throw Error(JSON.stringify(body));return body.result.value;};

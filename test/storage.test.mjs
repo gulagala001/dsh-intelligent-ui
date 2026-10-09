@@ -35,7 +35,7 @@ async function windowsAcls(paths) {
     @{ user = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value; items = $items } | ConvertTo-Json -Depth 6 -Compress
   `, paths));
 }
-function assertPrivateWindowsAcl(snapshot, index, directory = false) {
+function assertPrivateWindowsAcl(snapshot, index, { directory = false, newFile = true } = {}) {
   const acl = snapshot.items[index];
   const allowed = new Set([snapshot.user, 'S-1-5-18', 'S-1-5-32-544']);
   const broad = new Set(['S-1-1-0', 'S-1-5-32-545', 'S-1-5-11']); // Everyone, Users, Authenticated Users
@@ -46,7 +46,7 @@ function assertPrivateWindowsAcl(snapshot, index, directory = false) {
     assert.equal(acl.owner, snapshot.user);
     assert.equal(acl.protected, true);
     assert.ok(acl.rules.every(rule => !rule.inherited && rule.inheritance === 3 && rule.propagation === 0), 'directory protects private OI/CI rules from parent inheritance');
-  } else assert.ok(acl.rules.every(rule => rule.inherited), 'new plugin files inherit the private directory ACL');
+  } else if (newFile) assert.ok(acl.rules.every(rule => rule.inherited), 'new plugin files inherit the private directory ACL');
 }
 
 async function fixture(t) {
@@ -70,7 +70,7 @@ test('CAS serializes concurrent writes, preserves the winning state across resta
   const recordPath = store.path('session-A', '1:2:0:0'), lockPath = join(store.directory, '.writer.sqlite');
   if (process.platform === 'win32') {
     const acls = await windowsAcls([store.directory, recordPath, lockPath]);
-    assertPrivateWindowsAcl(acls, 0, true); assertPrivateWindowsAcl(acls, 1); assertPrivateWindowsAcl(acls, 2);
+    assertPrivateWindowsAcl(acls, 0, { directory: true }); assertPrivateWindowsAcl(acls, 1); assertPrivateWindowsAcl(acls, 2);
   } else {
     assert.equal((await stat(recordPath)).mode & 0o777, 0o600);
     assert.equal((await stat(lockPath)).mode & 0o777, 0o600);
@@ -109,9 +109,19 @@ test('initialization makes legacy inherited records private without changing the
   if (process.platform === 'win32') {
     const secured = await windowsAcls([root, store.directory, recordPath]);
     assert.equal(secured.items[0].sddl, parentBefore, 'parent ACL is unchanged');
-    assertPrivateWindowsAcl(secured, 1, true); assertPrivateWindowsAcl(secured, 2);
+    assertPrivateWindowsAcl(secured, 1, { directory: true });
+    // Windows keeps directly applied, already-private ACEs on the old inode.
+    // Every owner/SID/right is still checked; only new files require all ACEs
+    // to be inherited from the protected plugin directory.
+    assertPrivateWindowsAcl(secured, 2, { newFile: false });
+    t.diagnostic(`Legacy fixture private Windows DACL: ${secured.items[2].sddl}`);
   } else assert.equal((await stat(recordPath)).mode & 0o777, 0o600);
   assert.equal((await store.save(input({ expectedRevision: 1 }))).revision, 2);
+  if (process.platform === 'win32') {
+    const replaced = await windowsAcls([recordPath]);
+    assertPrivateWindowsAcl(replaced, 0);
+    t.diagnostic(`CAS replacement inherited Windows DACL: ${replaced.items[0].sddl}`);
+  }
 });
 
 test('Windows initialization refuses explicitly shared legacy records without repairing child ACLs', async t => {

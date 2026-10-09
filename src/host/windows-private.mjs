@@ -12,6 +12,9 @@ const failure = () => new Error('Unable to secure private state storage');
 const script = String.raw`
 $ErrorActionPreference = 'Stop'
 try {
+  # PowerShell 7 -> Node -> Windows PowerShell otherwise inherits PS7 module
+  # paths. Pin this built-in module instead of autoloading an incompatible one.
+  Import-Module ([IO.Path]::Combine($PSHOME, 'Modules', 'Microsoft.PowerShell.Security', 'Microsoft.PowerShell.Security.psd1')) -ErrorAction Stop
   $target = [Environment]::GetEnvironmentVariable('IUI_PRIVATE_STATE_DIRECTORY')
   $item = Get-Item -LiteralPath $target -Force
   if (!$item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Unsafe directory' }
@@ -67,10 +70,17 @@ const encodedScript = Buffer.from(script, 'utf16le').toString('base64');
 
 export function windowsPrivateCommand(directory, systemRoot = process.env.SystemRoot) {
   if (typeof directory !== 'string' || !win32.isAbsolute(directory) || win32.resolve(directory) !== directory || directory === win32.parse(directory).root || directory.includes('\0') || !systemRoot || !win32.isAbsolute(systemRoot)) throw failure();
+  const powershellRoot = win32.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0');
+  const env = { ...process.env };
+  // Node chooses the lexicographically first casing of a Windows env key.
+  // Remove ambient variants before adding these child-only values.
+  for (const key of Object.keys(env)) if (['PSMODULEPATH', 'IUI_PRIVATE_STATE_DIRECTORY'].includes(key.toUpperCase())) delete env[key];
+  env.PSModulePath = win32.join(powershellRoot, 'Modules');
+  env.IUI_PRIVATE_STATE_DIRECTORY = directory;
   return {
-    executable: win32.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+    executable: win32.join(powershellRoot, 'powershell.exe'),
     arguments: ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encodedScript],
-    options: { shell: false, windowsHide: true, timeout: 30000, maxBuffer: 65536, env: { ...process.env, IUI_PRIVATE_STATE_DIRECTORY: directory } },
+    options: { shell: false, windowsHide: true, timeout: 30000, maxBuffer: 65536, env },
   };
 }
 

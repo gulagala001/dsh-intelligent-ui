@@ -24,6 +24,7 @@ try {
   let script = Buffer.from(command.arguments.at(-1), 'base64').toString('utf16le');
   script = "$iuiDiagnosticStage = 'start'\n" + script;
   for (const [needle, stage] of [
+    ["  Import-Module", 'import-built-in-security-module'],
     ["  $item = Get-Item", 'get-directory'],
     ["  $user = [Security.Principal.WindowsIdentity]", 'current-user'],
     ["  $children = @(Get-ChildItem", 'list-children'],

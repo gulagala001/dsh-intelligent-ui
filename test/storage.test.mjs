@@ -9,8 +9,14 @@ import { StateStorage, sourceHash, validateState, identity, LIMITS } from '../sr
 
 const runFile = promisify(execFile);
 async function windowsAclScript(script, paths) {
-  const { stdout } = await runFile(join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'), ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], {
-    shell: false, windowsHide: true, timeout: 30000, env: { ...process.env, IUI_TEST_ACL_PATHS: JSON.stringify(paths) },
+  const powershellRoot = join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0');
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) if (['PSMODULEPATH', 'IUI_TEST_ACL_PATHS'].includes(key.toUpperCase())) delete env[key];
+  env.PSModulePath = join(powershellRoot, 'Modules');
+  env.IUI_TEST_ACL_PATHS = JSON.stringify(paths);
+  const fixedScript = "Import-Module ([IO.Path]::Combine($PSHOME, 'Modules', 'Microsoft.PowerShell.Security', 'Microsoft.PowerShell.Security.psd1')) -ErrorAction Stop\n" + script;
+  const { stdout } = await runFile(join(powershellRoot, 'powershell.exe'), ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(fixedScript, 'utf16le').toString('base64')], {
+    shell: false, windowsHide: true, timeout: 30000, env,
   });
   return stdout;
 }

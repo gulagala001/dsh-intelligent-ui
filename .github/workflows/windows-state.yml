@@ -16,3 +16,4 @@ jobs:
         with:
           node-version: '24'
       - run: node scripts/windows-state-diagnostic.mjs
+      - run: node --test test/storage.test.mjs test/windows-private.test.mjs

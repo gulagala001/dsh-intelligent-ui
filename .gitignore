@@ -1,0 +1,13 @@
+node_modules/
+work/
+.cache/
+.env
+.env.*
+**/.credentials.*
+**/auth.json
+!.env.example
+AGENTS.md
+PROMPT_MAINTENANCE.md
+PROMPT_CHANGES.md
+*.log
+.DS_Store

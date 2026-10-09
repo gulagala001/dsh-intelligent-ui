@@ -1,0 +1,23 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {hostFixture,until} from '../fixtures/host.mjs';import {examples} from '../../src/catalog.mjs';
+test('packaged native Web: small plus, mixed inline controls, save/reload, submit, expand and uninstall', {timeout:300000},async t=>{
+  const source=examples[9],reply='这是自然观察工具。\n\n```openui\n'+source+'\n```\n\n可以继续记录观察。';
+  const f=await hostFixture(t,{reply,artifacts:process.env.IUI_ARTIFACTS==='1'});const {page}=f;
+  await page.getByRole('button',{name:'新建智能聊天',exact:true}).first().click();
+  await page.getByRole('button',{name:'Intelligent UI',exact:true}).waitFor({state:'visible',timeout:15000});
+  const box=page.locator('[contenteditable="true"]').first();await box.waitFor({state:'visible'});await box.fill('IUI_MAIN_TEST 生成自然观察工具');await box.press('Enter');
+  await page.getByLabel('观察地点',{exact:true}).waitFor({state:'visible',timeout:30000});
+  await until(async()=>await page.getByLabel('观察地点',{exact:true}).isEnabled());
+  assert.ok((await page.locator('body').innerText()).includes('可以继续记录观察。'));
+  const surface=page.locator('[data-iui-block]').first(),block=await surface.getAttribute('data-iui-block');assert.match(block,/^\d+:\d+:\d+:\d+$/);
+  const count=f.requests.length;await page.getByLabel('观察地点',{exact:true}).fill('河边公园');await page.getByLabel('准备好记录本',{exact:true}).check();
+  await until(async()=>{const text=await surface.innerText();return!text.includes('等待保存')&&!text.includes('正在保存')&&!text.includes('尚未保存');});
+  assert.equal(f.requests.length,count,'local controls do not request another model response');
+  await page.reload();await page.getByLabel('观察地点',{exact:true}).waitFor();await until(async()=>await page.getByLabel('观察地点',{exact:true}).isEnabled());assert.equal(await page.getByLabel('观察地点',{exact:true}).inputValue(),'河边公园');assert.equal(await page.getByLabel('准备好记录本',{exact:true}).isChecked(),true);
+  await page.getByRole('button',{name:'展开交互内容',exact:true}).first().click();await page.locator('.iui-artifact-pane .iui-surface').waitFor();assert.equal(await page.locator('.iui-artifact-pane').getByLabel('观察地点',{exact:true}).inputValue(),'河边公园');
+  await page.setViewportSize({width:420,height:850});assert.ok(await page.locator('.iui-surface').first().isVisible());await page.setViewportSize({width:1280,height:850});
+  await page.screenshot({path:f.root+'/intelligent-ui.png',fullPage:true});
+  const beforeSubmit=f.requests.length;await page.locator('.iui-artifact-pane').getByRole('button',{name:'整理观察记录',exact:true}).click();await until(()=>f.requests.length>beforeSubmit);assert.ok(f.requests.some(p=>JSON.stringify(p.messages).includes('河边公园')));
+  assert.deepEqual(f.errors,[]);
+  await f.stop();f.cliRun(['plugin','--profile','iui-test','remove','dsh-intelligent-ui']);const restart=await f.boot();await page.goto(restart);await page.waitForLoadState('networkidle');assert.equal(await page.locator('[data-iui-entrance]').count(),0);assert.equal((await f.api('/health')).status,404);
+});

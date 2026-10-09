@@ -28,6 +28,10 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
       - run: npm run build
+      - name: Windows private state diagnostic
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        run: node scripts/windows-state-diagnostic.mjs
       - run: npm test
       - name: Build against exact host SDK and install the package
         run: node scripts/package-host.mjs ${{ matrix.host }}
@@ -39,4 +43,4 @@ jobs:
           export IUI_TEST_SDK_ROOT="$PWD/work/builds/$HOST"
           export IUI_TEST_CLI="$PWD/work/builds/$HOST/node_modules/@deepseek-ai/dsh/lib/bin.js"
           export IUI_TEST_PACKAGE="$PWD/work/packages/dsh-intelligent-ui-$HOST.iui.1.0.0.tgz"
-          node --test --test-concurrency=1 test/host/native-service.test.mjs test/host/ui-adapter*.test.mjs test/host/web-product.test.mjs
+          node --test --test-concurrency=1 test/host/*.test.mjs

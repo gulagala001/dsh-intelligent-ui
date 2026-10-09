@@ -32,7 +32,7 @@ export function parseFormula(source) {
   return parseExpression(verifyExpression(tokens));
 }
 export function parseProgram(source, { streaming = false } = {}) {
-  const marker=source.match(/^\s*\/\/\s*iui:(\d+)\b/);if(marker&&marker[1]!=='1')throw new UIError('PROTOCOL','此作品使用了尚未支持的协议版本');
+  const marker=typeof source==='string'&&source.match(/^\s*\/\/\s*iui:([^\r\n]*)/);if(marker&&marker[1].trim()!=='1')throw new UIError('PROTOCOL','此作品使用了尚未支持的协议版本');
   const tokens=checkedTokens(source,{streaming}),rows = split(tokens);
   if(tokens.filter(t=>t.t!==0&&t.t!==13).length!==rows.reduce((n,row)=>n+2+row.tokens.filter(t=>t.t!==0&&t.t!==13).length,0))throw new UIError('SYNTAX','交互声明格式不正确');
   if (rows.length > LIMITS.statements) throw new UIError('STATEMENT_LIMIT', '交互声明过多');

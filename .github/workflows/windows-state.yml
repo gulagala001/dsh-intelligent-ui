@@ -1,0 +1,18 @@
+name: Windows private state
+on:
+  push:
+    branches: [main]
+    paths: ['src/host/windows-private.mjs', 'scripts/windows-state-diagnostic.mjs', '.github/workflows/windows-state.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  private-acl:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: node scripts/windows-state-diagnostic.mjs

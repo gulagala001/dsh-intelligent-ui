@@ -40,6 +40,12 @@ try {
     [Console]::Error.WriteLine('IUI_ACL_DIAGNOSTIC message=' + $_.Exception.Message)
     [Console]::Error.WriteLine('IUI_ACL_DIAGNOSTIC category=' + $_.FullyQualifiedErrorId)
     [Console]::Error.WriteLine('IUI_ACL_DIAGNOSTIC position=' + $_.InvocationInfo.PositionMessage)
+    [Console]::Error.WriteLine('IUI_ACL_DIAGNOSTIC powershell=' + $PSVersionTable.PSVersion.ToString())
+    try {
+      $iuiObserved = Get-Acl -LiteralPath $target
+      [Console]::Error.WriteLine('IUI_ACL_DIAGNOSTIC fixture-sddl=' + $iuiObserved.Sddl)
+      [Console]::Error.WriteLine('IUI_ACL_DIAGNOSTIC fixture-protected=' + $iuiObserved.AreAccessRulesProtected)
+    } catch {}
     exit 1
   }`);
   command.arguments[command.arguments.length - 1] = Buffer.from(script, 'utf16le').toString('base64');

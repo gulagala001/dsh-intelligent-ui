@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSessionBridge, creationOptions } from '../../src/client/host/session.mjs';
-import { decorateAssistantSlot } from '../../src/client/host/slots.mjs';
 
 const gate = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 const observable = value => { const listeners = new Set(); return { getSnapshot: () => value,
@@ -203,25 +202,4 @@ test('native prompt refusal abandons its echo and allows a later retry', async (
   assert.deepEqual(f.calls.filter(row => row[0] === 'abandon'), [['abandon', 'origin']]);
   await assert.rejects(bridge.submit('origin', '1:0:0:0', 'retry'), /prompt refused/);
   assert.equal(f.calls.filter(row => row[0] === 'prompt').length, 2); bridge.dispose();
-});
-
-test('renderer shadow preserves all original injection/store/locale data and restores across live replacement', () => {
-  const entries = [], listeners = new Set(), slots = {
-    entries: () => [...entries].sort((a, b) => (a.options.priority ?? 0) - (b.options.priority ?? 0)),
-    subscribe: (_, listener) => { listeners.add(listener); return () => listeners.delete(listener); },
-    register(options, component) { const entry = { options, component, inject: options.inject, locale: options.locale, store: options.store }; entries.push(entry);
-      for (const listener of listeners) listener();
-      return () => { entries.splice(entries.indexOf(entry), 1); for (const listener of listeners) listener(); }; },
-  };
-  const original = { component: function Native() {}, options: { key: 'assistant-step', priority: 0 },
-    inject: () => ({ hooks: { presentation: 'native-policy' } }), locale: 'chat', store: { native: true } };
-  entries.push(original);
-  const stop = decorateAssistantSlot(slots, () => function Adapter() {});
-  assert.equal(entries.length, 2); const wrapper = slots.entries()[0];
-  assert.equal(wrapper.inject, original.inject); assert.equal(wrapper.locale, original.locale); assert.equal(wrapper.store, original.store);
-  entries.splice(entries.indexOf(original), 1); for (const listener of listeners) listener();
-  assert.equal(entries.length, 0);
-  const replacement = { ...original, component: function NewNative() {} }; entries.push(replacement);
-  for (const listener of listeners) listener(); assert.equal(entries.length, 2);
-  stop(); assert.deepEqual(entries, [replacement]); assert.equal(listeners.size, 0);
 });

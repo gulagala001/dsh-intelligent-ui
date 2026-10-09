@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AssistantNodeView as Alpha, AssistantMarkdown as AlphaMarkdown } from './native-alpha1.jsx';
+import { AssistantNodeView as Alpha2, AssistantMarkdown as Alpha2Markdown } from './native-alpha2.jsx';
 import { AssistantNodeView as RC2, AssistantMarkdown as RC2Markdown } from './native-rc2.jsx';
 import { primitives } from './native-support.jsx';
 import { createAssistantAdapter } from '../../../src/client/host/assistant.jsx';
@@ -8,8 +9,8 @@ import { IntelligentEntrance, entranceStyles } from '../../../src/client/host/en
 import { installArtifactPane } from '../../../src/client/host/pane.jsx';
 
 window.submissions = []; window.expands = []; window.images = []; window.originalClicks = 0;
-window.adapterDiagnostics = [];
-if (window.minifyNativeNames) [Alpha.type, AlphaMarkdown.type, RC2.type, RC2Markdown.type, primitives.MarkdownText.type]
+window.adapterDiagnostics = []; window.reasoningSlotCalls = [];
+if (window.minifyNativeNames) [Alpha.type, AlphaMarkdown.type, Alpha2.type, Alpha2Markdown.type, RC2.type, RC2Markdown.type, primitives.MarkdownText.type]
   .forEach((component, index) => Object.defineProperty(component, 'name', { value: `_${index}`, configurable: true }));
 function Surface({ source, streaming, sessionId, blockId, onSubmit, onExpand }) {
   return <section className="iui-surface" data-source={source} data-session={sessionId}
@@ -21,9 +22,19 @@ function Surface({ source, streaming, sessionId, blockId, onSubmit, onExpand }) 
 const bridge = { submit: async (...args) => { window.submissions.push(args); } };
 const nativeOptions = { Surface, bridge, MarkdownText: primitives.MarkdownText,
   onUnsupported: metadata => window.adapterDiagnostics.push(metadata), expand: item => window.expands.push(item) };
-const adapters = { alpha1: createAssistantAdapter(Alpha, nativeOptions), rc2: createAssistantAdapter(RC2, nativeOptions) };
+const adapters = { alpha1: createAssistantAdapter(Alpha, nativeOptions), alpha2: createAssistantAdapter(Alpha2, nativeOptions), rc2: createAssistantAdapter(RC2, nativeOptions) };
 const initial = { text: 'ordinary response', status: 'running', groupPart: undefined, processOpen: true, preview: true };
 function useDisclosure() { const [expanded, setExpanded] = useState(false); return { expanded, setExpanded, toggle: () => setExpanded(value => !value) }; }
+function useGroupAction(hidden, reveal) {
+  const ref = useRef(null);
+  useLayoutEffect(() => { if (hidden) ref.current?.setAttribute('hidden', 'until-found'); else ref.current?.removeAttribute('hidden'); }, [hidden]);
+  useEffect(() => { const element = ref.current; element?.addEventListener('beforematch', reveal); return () => element?.removeEventListener('beforematch', reveal); }, [reveal]);
+  return ref;
+}
+function renderSlot(name, props) {
+  window.reasoningSlotCalls.push({ name, ...props });
+  return <primitives.MarkdownText text={props.text} streaming={props.running} variant="compact" />;
+}
 function App() {
   const [state, setState] = useState(initial);
   window.updateResponse = patch => setState(value => ({ ...value, ...patch }));
@@ -36,7 +47,7 @@ function App() {
         { kind: 'image', attachment: { id: 'image1' } }, { kind: 'image', attachment: { id: 'image2' } },
         { kind: 'unknown', block: { keep: 'native unknown' } }] } };
   return <Native node={node} sessionId="session-alpha" groupPart={state.groupPart}
-    useTurnData={() => ({ closing: { finalNode: { seq: 13 } } })} useDisclosure={useDisclosure}
+    useTurnData={() => ({ closing: { finalNode: { seq: 13 } } })} useDisclosure={useDisclosure} useGroupAction={useGroupAction} renderSlot={renderSlot}
     usePresentation={selector => selector({ settledReasoningPreview: state.preview })}
     turnProcess={{ foldable: true, spec: { answerStep: 2, inlineReasoning: true }, open: state.processOpen,
       setOpen: processOpen => setState(value => ({ ...value, processOpen })) }}

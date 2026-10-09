@@ -13,7 +13,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-for (const host of ['rc2', 'alpha1']) {
+for (const host of ['rc2', 'alpha1', 'alpha2']) {
   test(`${host} exact native renderer excerpts preserve hooks, disclosure, grouping, images, file mentions and stop through streaming UI transitions`, async () => {
     const page = await browser.newPage(); const errors = [];
     page.on('pageerror', error => errors.push(error.message));
@@ -22,6 +22,7 @@ for (const host of ['rc2', 'alpha1']) {
     await page.addScriptTag({ content: script });
     await page.locator('.native-reasoning-toggle').click();
     assert.equal(await page.locator('.native-reasoning').getAttribute('data-expanded'), 'true');
+    if (host === 'alpha2') assert.deepEqual(await page.evaluate(() => window.reasoningSlotCalls.map(item => item.name)), ['conversation.chat.reasoning.body']);
     assert.equal(await page.locator('.iui-surface').count(), 0);
     const prefix = 'Some native prose.\n\n```openui\n';
     await page.evaluate(text => window.updateResponse({ text }), prefix);

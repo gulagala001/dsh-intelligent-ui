@@ -1,4 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
+import {mkdir} from 'node:fs/promises';import {join} from 'node:path';
 import {hostFixture,until} from '../fixtures/host.mjs';import {examples} from '../../src/catalog.mjs';
 test('packaged native Web: small plus, mixed inline controls, save/reload, submit, expand and uninstall', {timeout:300000},async t=>{
   const source=examples[9],reply='这是自然观察工具。\n\n```openui\n'+source+'\n```\n\n可以继续记录观察。';
@@ -16,7 +17,7 @@ test('packaged native Web: small plus, mixed inline controls, save/reload, submi
   await page.reload();await page.getByLabel('观察地点',{exact:true}).waitFor();await until(async()=>await page.getByLabel('观察地点',{exact:true}).isEnabled());assert.equal(await page.getByLabel('观察地点',{exact:true}).inputValue(),'河边公园');assert.equal(await page.getByLabel('准备好记录本',{exact:true}).isChecked(),true);
   await page.getByRole('button',{name:'展开交互内容',exact:true}).first().click();await page.locator('.iui-artifact-pane .iui-surface').waitFor();assert.equal(await page.locator('.iui-artifact-pane').getByLabel('观察地点',{exact:true}).inputValue(),'河边公园');
   await page.setViewportSize({width:420,height:850});assert.ok(await page.locator('.iui-surface').first().isVisible());await page.setViewportSize({width:1280,height:850});
-  await page.screenshot({path:f.root+'/intelligent-ui.png',fullPage:true});
+  const screenRoot=process.env.IUI_WEB_EVIDENCE??f.root;await mkdir(screenRoot,{recursive:true});await page.screenshot({path:join(screenRoot,'intelligent-ui.png'),fullPage:true});
   const firstSession=(await f.rpc('session/list',{_request:{}})).items.find(item=>!item.blank);assert.ok(firstSession);
   const originalRow=()=>page.locator(`[data-row-key="session:${firstSession.sessionId}"]`);
   await f.rpc('session/rename',{request:{sessionId:firstSession.sessionId,title:'持久化验收作品'}});

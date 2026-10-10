@@ -1,6 +1,6 @@
 {
   "name": "dsh-intelligent-ui",
-  "version": "0.2.1-alpha.2.iui.1.0.1",
+  "version": "0.2.1-alpha.2.iui.1.0.2",
   "type": "module",
   "description": "DSH 原生交互式回答：智能聊天与按需技能。",
   "license": "MIT",
@@ -36,7 +36,8 @@
     "THIRD_PARTY_NOTICES.md",
     "docs/resource-research.md",
     "docs/usage.md",
-    "release-manifest.json"
+    "release-manifest.json",
+    "docs/images"
   ],
   "dsh": {
     "bundle": {

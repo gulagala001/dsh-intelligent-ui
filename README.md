@@ -13,23 +13,34 @@
 
 详细用法见 [使用说明](docs/usage.md)。资源与选型见 [资源调查](docs/resource-research.md)。
 
+## 当前界面
+
+以下为 macOS 隔离 profile 中 DSH 0.2.1-alpha.2 与 OMD 0.13 的原生实拍，使用 localhost 合成模型；表单是工程验收示例，不代表真实模型生成质量。1.0.2 仍是本地候选。
+
+![小＋与已保存的原生交互回答](docs/images/native-small-plus-saved.png)
+
+![真实宿主冷重启后恢复已保存的交互预览](docs/images/native-cold-saved.png)
+
 ## 安装
 
-当前成品正在本地验收，**尚未正式发布**。安装与你的 **完整 DSH 版本一致**的本地构建；两种构建使用不同版本和资产，不能互换。正式渠道将在确认发布后开放。
+当前成品正在本地验收，**尚未正式发布**。安装与你的 **完整 DSH 版本一致**的本地构建；各宿主构建使用不同版本和资产，不能互换。正式渠道将在确认发布后开放。
 
 ```sh
 # DSH 0.2.0-rc.2
-dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.0-rc.2.iui.1.0.0.tgz
+dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.0-rc.2.iui.1.0.2.tgz
 
 # DSH 0.2.1-alpha.1
-dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.1-alpha.1.iui.1.0.0.tgz
+dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.1-alpha.1.iui.1.0.2.tgz
+
+# DSH 0.2.1-alpha.2
+dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.1-alpha.2.iui.1.0.2.tgz
 ```
 
 将路径换成实际安装包的绝对路径，安装后重启对应 DSH profile。使用其他 profile 时把命令中的 `web` 替换为它的名称。OMD 的推荐入口已接入，公开下载会在正式发布后开放。运行需要 Node 22.19 或更新版本。
 
 ## 数据与卸载
 
-设置保存在 DSH 数据目录的 `intelligent-ui/state`，每个作品按会话和原始消息分开。保存失败或并发修改会显示状态，保留本地编辑供重试；未保存时不要把关闭页面当作保存成功。
+设置保存在 DSH 数据目录的 `intelligent-ui/state`，每个作品按会话和原始消息分开。保存失败或并发修改会显示状态，保留本地编辑供重试；未保存时不要把关闭页面当作保存成功。复制与导出反馈独立显示，不会遮住保存或冲突状态；修复请求等待期间会禁用重复提交。触屏设备的小＋和回答工具栏提供更大的点击区域。
 
 ```sh
 dsh plugin --profile web remove dsh-intelligent-ui

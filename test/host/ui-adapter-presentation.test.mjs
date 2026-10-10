@@ -9,7 +9,7 @@ before(async () => {
   const bundle = await build({ entryPoints: [fileURLToPath(new URL('../fixtures/host-adapter/browser.jsx', import.meta.url))],
     bundle: true, format: 'iife', platform: 'browser', jsx: 'transform', keepNames: true, write: false });
   script = bundle.outputFiles[0].text;
-  browser = await chromium.launch({ headless: true });
+  browser = await chromium.launch({ headless: true, ...(process.env.CFT_EXECUTABLE ? { executablePath: process.env.CFT_EXECUTABLE } : {}), args: ['--use-mock-keychain','--password-store=basic'] });
 });
 after(async () => { await browser?.close(); });
 

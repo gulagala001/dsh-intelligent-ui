@@ -31,11 +31,14 @@
     "skills",
     "cordis.patch.yml",
     "README.md",
+    "README_EN.md",
     "CHANGELOG.md",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",
     "docs/resource-research.md",
     "docs/usage.md",
+    "docs/contracts.md",
+    "docs/images",
     "release-manifest.json"
   ],
   "dsh": {

@@ -17,7 +17,7 @@
 
 ## 当前界面
 
-以下为 macOS 隔离 profile 中 DSH 0.2.1-alpha.2 与 OMD 0.13 的原生实拍，使用 localhost 合成模型；表单是工程验收示例，不代表真实模型生成质量。图片来自先前的 1.0.3 验收；1.2.0 正在进行普通 DSH 独立验收。
+以下为 macOS 隔离 profile 中 DSH 0.2.1-alpha.2 与 OMD 0.13 的原生实拍，使用 localhost 合成模型；表单是工程验收示例，不代表真实模型生成质量。图片来自先前的 1.0.3 验收；1.3.0 正在进行普通 DSH 独立验收。
 
 ![小＋与已保存的原生交互回答](docs/images/native-small-plus-saved.png)
 
@@ -29,13 +29,13 @@
 
 ```sh
 # DSH 0.2.0-rc.2
-dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.0-rc.2.iui.1.2.0.tgz
+dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.0-rc.2.iui.1.3.0.tgz
 
 # DSH 0.2.1-alpha.1
-dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.1-alpha.1.iui.1.2.0.tgz
+dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.1-alpha.1.iui.1.3.0.tgz
 
 # DSH 0.2.1-alpha.2
-dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.1-alpha.2.iui.1.2.0.tgz
+dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.1-alpha.2.iui.1.3.0.tgz
 ```
 
 将路径换成实际安装包的绝对路径，安装后重启对应 DSH profile。使用其他 profile 时把命令中的 `web` 替换为它的名称。OMD 的推荐入口已接入，公开下载会在正式发布后开放。运行需要 Node 22.19 或更新版本。

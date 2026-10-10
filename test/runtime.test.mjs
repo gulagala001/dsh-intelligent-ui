@@ -3,7 +3,7 @@ import {examples} from '../src/catalog.mjs';
 import {compile,evaluateDocument,safeEvaluate,safePublicURL} from '../src/runtime/evaluate.mjs';
 import {splitResponse} from '../src/protocol/split.mjs';
 import {collectDefaults} from '../src/runtime/defaults.mjs';
-import {sceneTransition,sceneView,initialScene} from '../src/runtime/scene.mjs';
+import {sceneTransition,sceneView,initialScene,sceneRestart} from '../src/runtime/scene.mjs';
 test('mixed Markdown fences preserve source and ignore nested code, every streaming prefix terminates',()=>{
   const ui='root = Stack([Text("你好🌏")])\n';const raw='Before\n```openui\n'+ui+'```\nMiddle\n````md\n```openui\nignored\n```\n````\n~~~intelligent-ui\nroot = Text("ok")\n~~~\nAfter';
   const parts=splitResponse(raw);assert.deepEqual(parts.filter(x=>x.kind==='ui').map(x=>x.text),[ui,'root = Text("ok")\n']);assert.equal(parts.at(-1).text,'After');
@@ -55,4 +55,15 @@ test('drag updates are atomic and reject invalid phases, targets and coordinates
   for(const invalid of [{phase:'unknown'},{id:'label'},{id:'missing'},{x:201},{x:-1},{y:101},{dx:201},{dy:NaN},{dx:undefined},{extra:1}])assert.throws(()=>sceneTransition(scene,original,'drag',{...payload,...invalid}));
   const broken={...scene,events:{drag:[{name:'x',value:'x + 25'},{name:'held',value:'1/0'}]}};
   assert.throws(()=>sceneTransition(broken,original,'drag',payload));assert.deepEqual(original.values,{x:40,held:false});
+});
+test('restart retains declared parameters, resets dynamic state and seed, and remains atomic',()=>{
+  const scene={initial:{v0:30,a:10,x:20,v:30,t:0,noise:0},seed:7,events:{reset:[{name:'v',value:'v0'},{name:'noise',value:'rand()'}],tick:[{name:'x',value:'x + v * event.dt + 0.5 * a * event.dt * event.dt'},{name:'v',value:'v + a * event.dt'}]},marks:[],width:600,height:200};
+  const original={values:{v0:40,a:20,x:190,v:55,t:9,noise:0.8},seed:99};
+  const restarted=sceneRestart(scene,original,['v0','a','v0']);assert.equal(restarted.values.x,20);assert.equal(restarted.values.v,40);assert.equal(restarted.values.a,20);assert.equal(restarted.values.t,0);assert.notEqual(restarted.seed,99);
+  assert.deepEqual(sceneRestart(scene,original,['v0','a']),restarted,'restarting resets seeded randomness');
+  const moved=sceneTransition(scene,restarted,'tick',{dt:0.1});assert.ok(Math.abs(moved.values.x-24.1)<1e-9);assert.equal(moved.values.v,42);
+  const reset=sceneTransition(scene,original,'reset');assert.equal(reset.values.v0,30);assert.equal(reset.values.v,30);assert.equal(reset.values.a,10);
+  assert.deepEqual(original.values,{v0:40,a:20,x:190,v:55,t:9,noise:0.8});
+  for(const fields of [['missing'],['__proto__'],[2],Array(101).fill('v0'),null])assert.throws(()=>sceneRestart(scene,original,fields));
+  assert.throws(()=>sceneRestart({...scene,events:{reset:[{name:'v',value:'v0'},{name:'x',value:'1/0'}]}},original,['v0']));assert.equal(original.values.x,190);
 });

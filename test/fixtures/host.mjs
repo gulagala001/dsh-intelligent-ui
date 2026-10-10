@@ -6,7 +6,7 @@ import {once} from 'node:events';import {chromium} from 'playwright';import WebS
 import {decodeZstdJSONL} from './zstd-jsonl.mjs';
 const repo=fileURLToPath(new URL('../../',import.meta.url));
 export async function until(fn,ms=30000){const deadline=Date.now()+ms;while(Date.now()<deadline){const v=await fn();if(v)return v;await new Promise(r=>setTimeout(r,70));}throw Error('Host fixture timed out');}
-export async function hostFixture(t,{reply='完成。',plugin=true,extraPackages=process.env.IUI_TEST_OMD_PACKAGE?['file:'+process.env.IUI_TEST_OMD_PACKAGE]:[],pluginFirst=process.env.IUI_TEST_PLUGIN_LAST!=='1',artifacts=false,stateWriteFault=false}={}){
+export async function hostFixture(t,{reply='完成。',plugin=true,extraPackages=process.env.IUI_TEST_OMD_PACKAGE?['file:'+process.env.IUI_TEST_OMD_PACKAGE]:[],pluginFirst=process.env.IUI_TEST_PLUGIN_LAST!=='1',artifacts=false,stateWriteFault=false,modelDefinition={},providerDefinition={},reasoningEffort}={}){
   const root=await realpath(await mkdtemp(join(tmpdir(),'iui-host-'))),home=join(root,'home'),cwd=join(root,'workspace');await mkdir(home);await mkdir(cwd);
   const cli=process.env.IUI_TEST_CLI??join(repo,'node_modules/@deepseek-ai/dsh/lib/bin.js'),env={...process.env,HOME:home,USERPROFILE:home,DSH_HOME:home};delete env.DSH_PERMISSION_MODE;
   let stop,child,tar,log='',base,cookie,browser,page;const requests=[],errors=[],groups=[];
@@ -18,10 +18,10 @@ export async function hostFixture(t,{reply='完成。',plugin=true,extraPackages
   const remainingGroups=()=>process.platform==='win32'?null:groups.flatMap(group=>groupRows(group.pgid));
   const provider=createServer(async(req,res)=>{let input='';for await(const b of req)input+=b;const payload=JSON.parse(input);requests.push(payload);res.writeHead(200,{'Content-Type':'text/event-stream'});
     const custom=typeof reply==='function'?await reply(payload):[{delta:{role:'assistant',content:payload.tools?.length?reply:'交互测试'},finish_reason:'stop'}];
-    for await(const choice of custom[Symbol.asyncIterator]?custom:custom){res.write('data: '+JSON.stringify({id:'test',object:'chat.completion.chunk',model:'fixture',choices:[{index:0,...choice}]})+'\n\n');}
+    for await(const choice of custom[Symbol.asyncIterator]?custom:custom){const chunk=Array.isArray(choice.choices)?{...choice,model:'fixture'}:{id:'test',object:'chat.completion.chunk',model:'fixture',choices:[{index:0,...choice}]};res.write('data: '+JSON.stringify(chunk)+'\n\n');}
     res.end('data: [DONE]\n\n');
   });await new Promise(r=>provider.listen(0,'127.0.0.1',r));
-  const settings={'locale':{preference:'zh'},'llm-pi-ai':{providers:{fixture:{api:'openai-completions',baseURL:`http://127.0.0.1:${provider.address().port}/v1`,apiKeyEnv:'IUI_FIXTURE',models:[{id:'fixture',name:'交互测试模型',contextWindow:1000000,maxTokens:16384,input:['text']}]}}},'agent-default-model':{provider:'fixture',model:'fixture'}};
+  const settings={'locale':{preference:'zh'},'llm-pi-ai':{providers:{fixture:{...providerDefinition,api:'openai-completions',baseURL:`http://127.0.0.1:${provider.address().port}/v1`,apiKeyEnv:'IUI_FIXTURE',models:[{contextWindow:1000000,maxTokens:16384,input:['text'],...modelDefinition,id:'fixture',name:'交互测试模型'}]}}},'agent-default-model':{provider:'fixture',model:'fixture',...(reasoningEffort?{reasoningEffort}:{})}};
   await writeFile(join(home,'settings.yaml'),JSON.stringify(settings));await writeFile(join(home,'.credentials.yaml'),JSON.stringify({version:1,refs:{IUI_FIXTURE:'local-test-only'}}),{mode:0o600});
   const cliRun=args=>execFileSync(process.execPath,[cli,...args],{cwd,env,encoding:'utf8',timeout:180000,maxBuffer:12*1024*1024});
   t.after(async()=>{

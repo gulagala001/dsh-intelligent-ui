@@ -8,7 +8,7 @@ Calculator(fields: object[] (max 100), formula: string, title?: string|null, res
 Diagram(nodes: object[] (max 100), edges: object[] (max 200), title?: string|null, bind?: string) — Interactive labeled graph; selecting a node displays its details.
 Scene(scene: object, bind: string, title?: string|null) — General bounded SVG scene with click, key and drag interaction. Events update local state through safe formulas; playback is explicit and pauses while hidden.
 Simulation(scene: object, bind: string, title?: string|null, fields: object[] (max 100) = [], metrics: object[] (max 20) = []) — General scene simulation with parameter controls and calculated metrics.
-Game(scene: object, bind: string, title?: string|null, instructions?: string|null) — General scene game using click, key or drag rules and deterministic bounded state.
+Game(scene: object, bind: string, title?: string|null, instructions?: string|null, fields: object[] (max 100) = [], metrics: object[] (max 20) = []) — General scene game using click, key or drag rules and deterministic bounded state, with optional parameter controls and live score or progress metrics.
 
 ## Examples
 
@@ -37,7 +37,7 @@ root = Simulation({initial:{x:50,v:45},seed:1,events:{tick:[{name:"x",value:"mod
 ```
 
 ```openui
-root = Game({initial:{score:0,x:80,y:100},seed:7,events:{click:[{name:"score",value:"event.id == 'target' ? score + 1 : score"},{name:"x",value:"event.id == 'target' ? 40 + rand() * 520 : x"},{name:"y",value:"event.id == 'target' ? 40 + rand() * 220 : y"}],key:[{name:"score",value:"event.key == 'Enter' ? score + 1 : score"},{name:"x",value:"event.key == 'Enter' ? 40 + rand() * 520 : x"},{name:"y",value:"event.key == 'Enter' ? 40 + rand() * 220 : y"}]},marks:[{id:"score",type:"text",x:24,y:28,text:{expr:"concat('得分：', score)"},fill:"gray"},{id:"target",type:"circle",x:{expr:"x"},y:{expr:"y"},r:22,fill:"blue",label:"点击目标",interactive:true}],width:600,height:320},"targetGame","点中目标","点击蓝色圆点，或聚焦场景后按 Enter。")
+root = Game({initial:{score:0,x:80,y:100},seed:7,events:{click:[{name:"score",value:"event.id == 'target' ? score + 1 : score"},{name:"x",value:"event.id == 'target' ? 40 + rand() * 520 : x"},{name:"y",value:"event.id == 'target' ? 40 + rand() * 220 : y"}],key:[{name:"score",value:"event.key == 'Enter' ? score + 1 : score"},{name:"x",value:"event.key == 'Enter' ? 40 + rand() * 520 : x"},{name:"y",value:"event.key == 'Enter' ? 40 + rand() * 220 : y"}]},marks:[{id:"target",type:"circle",x:{expr:"x"},y:{expr:"y"},r:22,fill:"blue",label:"点击目标",interactive:true}],width:600,height:320},"targetGame","点中目标","点击蓝色圆点，或聚焦场景后按 Enter。",[],[{label:"得分",formula:"score",precision:0}])
 ```
 
 ## Complete argument schemas
@@ -1322,7 +1322,7 @@ Schema:
   "additionalProperties": false
 }
 
-Game(scene: object, bind: string, title?: string|null, instructions?: string|null) — General scene game using click, key or drag rules and deterministic bounded state.
+Game(scene: object, bind: string, title?: string|null, instructions?: string|null, fields: object[] (max 100) = [], metrics: object[] (max 20) = []) — General scene game using click, key or drag rules and deterministic bounded state, with optional parameter controls and live score or progress metrics.
 Schema:
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1356,11 +1356,223 @@ Schema:
           "type": "null"
         }
       ]
+    },
+    "fields": {
+      "default": [],
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 16000
+          },
+          "type": {
+            "default": "number",
+            "type": "string",
+            "enum": [
+              "text",
+              "number",
+              "select",
+              "checkbox",
+              "slider",
+              "textarea"
+            ]
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16000
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "placeholder": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "min": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "max": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "options": {
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 16000
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "disabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "label",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "metrics": {
+      "default": [],
+      "maxItems": 20,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 16000
+          },
+          "formula": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "precision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "label",
+          "formula"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "required": [
     "scene",
-    "bind"
+    "bind",
+    "fields",
+    "metrics"
   ],
   "additionalProperties": false
 }

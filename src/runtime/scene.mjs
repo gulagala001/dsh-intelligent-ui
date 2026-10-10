@@ -37,7 +37,14 @@ export function sceneView(scene, record) {
   charge(b); return { state:next.record.values,marks,width:next.scene.width,height:next.scene.height };
 }
 export function sceneTransition(scene, record, event, payload = {}) {
-  const next=currentScene(scene,event==='reset'?undefined:record), b=sceneBudget();
+  return transition(scene,record,event,payload);
+}
+export function sceneRestart(scene, record, fields = []) {
+  if(!Array.isArray(fields)||fields.length>100||fields.some(name=>typeof name!=='string'||badKey(name)))throw new UIError('SCENE_FIELD','重新开始需要有效的参数列表');
+  return transition(scene,record,'reset',{},fields.length?[...new Set(fields)]:undefined);
+}
+function transition(scene, record, event, payload = {}, preservedFields) {
+  const next=currentScene(scene,event==='reset'&&!preservedFields?undefined:record), b=sceneBudget();
   if (!['tick','click','key','reset','drag'].includes(event)) throw new UIError('EVENT','场景事件无效');
   assertJSON(payload); const allowed = event==='drag'?['id','x','y','dx','dy','phase']:['id','x','y','key','dt'];
   if (Object.keys(payload).some(k=>!allowed.includes(k))) throw new UIError('EVENT','场景事件字段无效');
@@ -50,6 +57,10 @@ export function sceneTransition(scene, record, event, payload = {}) {
     if(!next.scene.marks.some(mark=>mark.id===payload.id&&mark.interactive))throw new UIError('EVENT','拖拽目标需要可交互图形');
   }
   const recordNext = event==='reset' ? initialScene(next.scene) : structuredClone(next.record);
+  for(const name of preservedFields??[]){
+    if(!Object.hasOwn(next.scene.initial,name))throw new UIError('SCENE_FIELD','重新开始只能保留已声明的参数');
+    recordNext.values[name]=structuredClone(next.record.values[name]);
+  }
   const input={...payload,dt:Math.max(0,Math.min(.1,payload.dt??0))};
   const random=()=>{ recordNext.seed=(Math.imul(recordNext.seed,1664525)+1013904223)>>>0;return recordNext.seed/4294967296; };
   for (const step of next.scene.events[event]??[]) {

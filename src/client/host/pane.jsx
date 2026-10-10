@@ -14,6 +14,11 @@ export function installArtifactPane(ctx, { Surface, bridge }) {
   const listeners = new Set();
   const origins = new Map();
   let focusIntent;
+  let focusSession=ctx.sidebarRight.mounted?.getSnapshot(),focusEpoch=0;
+  const removeFocusWatcher=ctx.sidebarRight.mounted?.subscribe(()=>{
+    const session=ctx.sidebarRight.mounted.getSnapshot();
+    if(session!==focusSession){focusSession=session;focusEpoch++;focusIntent=undefined;origins.clear();}
+  });
   let active = true;
   const get = (sessionId, blockId) => records.get(`${sessionId}/${blockId}`);
   const store = record => { records.set(`${record.sessionId}/${record.blockId}`, record); for (const listener of listeners) listener(); };
@@ -28,7 +33,7 @@ export function installArtifactPane(ctx, { Surface, bridge }) {
     const item = get(sessionId, blockId);
     useLayoutEffect(() => {
       const intent=focusIntent,element=pane.current;
-      if(!element||!item||!intent||intent.sessionId!==sessionId||intent.blockId!==blockId||!info.tab.visible||info.tab.signal.aborted||ctx.sidebarRight.mounted.getSnapshot()!==sessionId)return;
+      if(!element||!item||!intent||intent.epoch!==focusEpoch||intent.sessionId!==sessionId||intent.blockId!==blockId||!info.tab.visible||info.tab.signal.aborted||ctx.sidebarRight.mounted.getSnapshot()!==sessionId)return;
       focusIntent=undefined;
       const focused=document.activeElement;
       if(focused!==intent.origin&&focused!==document.body&&!element.contains(focused))return;
@@ -77,11 +82,11 @@ export function installArtifactPane(ctx, { Surface, bridge }) {
     update(item) { if (active && (get(item.sessionId, item.blockId) || readPointer(item.sessionId) === item.blockId)) store(item); },
     expand(item) {
       if (!active || currentSessionId(ctx) !== item.sessionId) throw new Error('请先打开作品所属会话');
-      focusIntent={sessionId:item.sessionId,blockId:item.blockId,origin:document.activeElement};
+      focusIntent={sessionId:item.sessionId,blockId:item.blockId,origin:document.activeElement,epoch:focusEpoch};
       store(item);
       try { localStorage.setItem(pointerKey(item.sessionId), item.blockId); } catch {}
       ctx.sidebarRight.openTab(TAB_KIND, { params: { blockId: item.blockId } });
     },
-    dispose() { active = false; focusIntent=undefined; origins.clear(); removeBody(); removeType(); records.clear(); listeners.clear(); },
+    dispose() { active = false; focusIntent=undefined; origins.clear(); removeFocusWatcher?.(); removeBody(); removeType(); records.clear(); listeners.clear(); },
   };
 }

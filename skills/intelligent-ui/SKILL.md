@@ -29,7 +29,8 @@ The installed base catalog below is sufficient without file-reading tools. For o
 - `references/content.md`: text, images, badges and headings.
 - `references/data.md`: metrics, tables and interactive charts.
 - `references/inputs.md`: controls, actions, checklists and validated forms.
-- `references/interactive.md`: calculators, diagrams, scenes, simulations and games.
+- `references/scenes.md`: scene, simulation and game signatures, local controls, feedback and working examples.
+- `references/interactive.md`: calculators, diagrams and complete interactive component schemas.
 - `references/expressions.md`: safe formula syntax, events and scene rules.
 
 Reference reading is optional. If it is unavailable, remain within the installed base catalog and ordinary text. Images require public HTTPS URLs without credentials; use meaningful alternative text and cite factual sources in ordinary Markdown. Do not fetch private URLs or encode executable content as an image.

@@ -46,7 +46,7 @@ function SceneMark({ mark, onClick, onPointerDown, draggable, inactive, keyboard
   return <g data-iui-mark-id={mark.id} className={mark.interactive ? `iui-scene-target${draggable ? ' iui-scene-draggable' : ''}` : undefined} role={mark.interactive ? 'button' : undefined} tabIndex={mark.interactive && !inactive ? 0 : undefined} aria-label={mark.label || (mark.interactive ? mark.id : undefined)} aria-disabled={mark.interactive ? inactive : undefined} onPointerDown={mark.interactive && draggable ? event => onPointerDown(mark.id, event) : undefined} onClick={mark.interactive ? event => { event.stopPropagation(); onClick(mark.id, event); } : undefined} onKeyDown={mark.interactive && !keyboardEvents ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onClick(mark.id, undefined, { x: numeric(mark.x) + (mark.type === 'rect' ? numeric(mark.width) / 2 : 0), y: numeric(mark.y) + (mark.type === 'rect' ? numeric(mark.height) / 2 : 0) }); } } : undefined}>{element}{mark.label && <title>{mark.label}</title>}</g>;
 }
 
-export function Scene({ props: p, api, controls = true }) {
+export function Scene({ props: p, api, controls = true, restartFields = [] }) {
   const container = useRef(null);
   const latest = useRef({ api, p });
   const localPlayback=useMemo(()=>new ScenePlayback(),[]);
@@ -227,19 +227,55 @@ export function Scene({ props: p, api, controls = true }) {
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Enter'].includes(event.key)) event.preventDefault();
       eventAction('key', { key: event.key, id: event.target.closest?.('[data-iui-mark-id]')?.getAttribute('data-iui-mark-id') || 'scene' });
     }}>{view.marks.map(mark => <SceneMark key={mark.id} mark={mark} onClick={click} onPointerDown={beginDrag} draggable={draggable} inactive={inactive} keyboardEvents={Boolean(p.scene.events?.key)} />)}</svg>}
-    <div className="iui-scene-toolbar">{controls && p.scene.events?.tick && <button type="button" className={`iui-button ${playing ? 'iui-button-secondary' : 'iui-button-primary'}`} disabled={inactive || Boolean(view?.error) || !view} aria-pressed={playing} onClick={() => { setActionError(''); player.toggle(); }}>{playing ? '暂停' : '播放'}</button>}<button type="button" className="iui-button iui-button-ghost" disabled={inactive || !view || Boolean(view?.error)} onClick={() => { player.cancelGesture(); player.pause(); eventAction('reset', {}); }}>重置</button><span className="iui-hint" id={`${titleId}-help`}>{draggable && '可拖动交互图形。'}{p.scene.events?.key && '可使用键盘操作。'}{p.scene.events?.click && '点击图形进行操作。'}{p.scene.events?.tick && '播放时更新，离开页面后暂停。'}</span></div>
+    <div className="iui-scene-toolbar">{controls && p.scene.events?.tick && <button type="button" className={`iui-button ${playing ? 'iui-button-secondary' : 'iui-button-primary'}`} disabled={inactive || Boolean(view?.error) || !view} aria-pressed={playing} onClick={() => { setActionError(''); player.toggle(); }}>{playing ? '暂停' : '播放'}</button>}{restartFields.length>0 && <button type="button" className="iui-button iui-button-secondary" title="保留当前参数，重新开始" disabled={inactive || !view || Boolean(view?.error)} onClick={() => { player.cancelGesture(); player.pause(); setActionError(''); invoke(api,{type:'sceneRestart',name:p.bind,scene:p.scene,fields:restartFields},setActionError); }}>重新开始</button>}<button type="button" className="iui-button iui-button-ghost" title="恢复全部初始设置" disabled={inactive || !view || Boolean(view?.error)} onClick={() => { player.cancelGesture(); player.pause(); eventAction('reset', {}); }}>重置</button><span className="iui-hint" id={`${titleId}-help`}>{draggable && '可拖动交互图形。'}{p.scene.events?.key && '可使用键盘操作。'}{p.scene.events?.click && '点击图形进行操作。'}{p.scene.events?.tick && '播放时更新，离开页面后暂停。'}</span></div>
     {actionError && <ErrorMessage>{actionError}</ErrorMessage>}
   </section>;
 }
 
-export function Simulation({ props: p, api }) {
+function SceneMetrics({ metrics, api, state, game }) {
+  return <div className="iui-result-grid iui-scene-metrics" role={game ? 'status' : 'group'} aria-label={game ? '游戏指标' : '模拟指标'} aria-live={game ? 'polite' : undefined} aria-atomic={game ? true : undefined}>{metrics.map((item, index) => {
+    const result=evaluate(api,item.formula,state);
+    return <div className="iui-calculation-result" key={index}><span className="iui-muted">{item.label}</span>{result.error ? <ErrorMessage>{result.error}</ErrorMessage> : <span className="iui-result-value">{formatNumber(result.value,item.precision??2)}{item.unit && <span>{item.unit}</span>}</span>}</div>;
+  })}</div>;
+}
+
+function SceneExperience({ props: p, api, game = false }) {
+  const fields=p.fields||[],metrics=p.metrics||[];
+  const localPlayback=useMemo(()=>new ScenePlayback(),[]);
+  const playback=api?.playback??localPlayback;
+  const player=useMemo(()=>playback.get(p.bind),[playback,api?.playbackVersion,p.bind]);
+  const sceneApi=api?.playback ? api : {...api,playback};
+  // Dispose only the fallback owned by this experience, never the host service.
+  useEffect(()=>()=>localPlayback.reset(),[localPlayback]);
+  const [error,setError]=useState('');
+  const definition=useMemo(()=>JSON.stringify(p.scene),[p.scene]);
+  const current=useRef(null);
+  current.current={player,definition,version:api?.playbackVersion};
+  useEffect(()=>{current.current={player,definition,version:api?.playbackVersion};setError('');return()=>{current.current=null;};},[player,definition,api?.playbackVersion]);
   let view;
-  try { view = api?.sceneView?.(p.scene, p.bind); } catch (error) { view = { error: error?.message || '场景无法显示' }; }
-  const [error, setError] = useState('');
-  const sceneState = view?.state || p.scene.initial;
-  const parameterApi = { ...api, state: sceneState, set: (field, value) => invoke(api, { type: 'sceneSet', name: p.bind, scene: p.scene, field, value }, setError) };
-  return <div className="iui-simulation"><Scene props={p} api={api} />{p.fields?.length > 0 && <div className="iui-form-fields">{p.fields.map(field => <InputControl key={field.name} props={{ ...field, bind: field.name }} api={parameterApi} kind={field.type || 'number'} error={fieldError(field, sceneState[field.name] ?? field.value)} />)}</div>}{error && <ErrorMessage>{error}</ErrorMessage>}{p.metrics?.length > 0 && <div className="iui-result-grid">{p.metrics.map((item, index) => <Result key={index} result={evaluate(api, item.formula, sceneState)} {...item} />)}</div>}</div>;
+  if(fields.length||metrics.length)try { view=api?.sceneView?.(p.scene,p.bind); } catch (failure) { view={error:failure?.message||'场景无法显示'}; }
+  const sceneState=view?.state||p.scene.initial;
+  const parameterApi={...sceneApi,state:sceneState,set:(field,value)=>{
+    if(disabled(api))return;
+    const isCurrent=()=>current.current?.player===player&&current.current.definition===definition&&current.current.version===api?.playbackVersion;
+    if(isCurrent())setError('');
+    player.cancelGesture();player.pause();
+    // Capture this render's guarded API and scene; stale controls cannot switch
+    // to a newer source's API while a parameter update is being processed.
+    invoke(api,{type:'sceneSet',name:p.bind,scene:p.scene,field,value},message=>{if(isCurrent())setError(message);});
+  }};
+  return <div className={game ? 'iui-game' : 'iui-simulation'}>
+    {game && p.instructions && <p className="iui-text iui-text-sm iui-muted">{p.instructions}</p>}
+    <Scene props={p} api={sceneApi} restartFields={fields.map(field=>field.name)} />
+    {metrics.length>0 && <SceneMetrics metrics={metrics} api={api} state={sceneState} game={game} />}
+    {fields.length>0 && <div className="iui-form-fields iui-scene-parameters" role="group" aria-label={game ? '游戏参数' : '模拟参数'}>{fields.map(field=><InputControl key={field.name} props={{...field,bind:field.name}} api={parameterApi} kind={field.type||'number'} error={fieldError(field,sceneState[field.name]??field.value)} />)}</div>}
+    {error && <ErrorMessage>{error}</ErrorMessage>}
+  </div>;
+}
+
+export function Simulation({ props: p, api }) {
+  return <SceneExperience props={p} api={api} />;
 }
 export function Game({ props: p, api }) {
-  return <div className="iui-game">{p.instructions && <p className="iui-text iui-text-sm iui-muted">{p.instructions}</p>}<Scene props={p} api={api} /></div>;
+  return <SceneExperience props={p} api={api} game />;
 }

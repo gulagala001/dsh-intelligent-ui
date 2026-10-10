@@ -1,5 +1,5 @@
 import { compile, evaluateDocument, safeEvaluate } from '../runtime/evaluate.mjs';
-import { sceneView, sceneTransition, sceneSet } from '../runtime/scene.mjs';
+import { sceneView, sceneTransition, sceneSet, sceneRestart } from '../runtime/scene.mjs';
 import { collectDefaults } from '../runtime/defaults.mjs';
 import { assertJSON, UIError, validName, LIMITS } from '../runtime/limits.mjs';
 import { ScenePlayback } from './scene-playback.mjs';
@@ -94,6 +94,7 @@ export class DocumentStore {
       if(action.type==='set')next[name]=action.value;
       else if(action.type==='reset')next[name]=this.defaults[name]??null;
       else if(action.type==='scene')next[name]=sceneTransition(action.scene,next[name],action.event,action.payload);
+      else if(action.type==='sceneRestart')next[name]=sceneRestart(action.scene,next[name],action.fields);
       else if(action.type==='sceneSet')next[name]=sceneSet(action.scene,next[name],action.field,action.value);
       else throw new UIError('ACTION','未知动作');
       changed.add(name);

@@ -11,7 +11,7 @@ import {validateState} from '../src/host/storage.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const css=await readFile(join(root,'src/client/styles/surface.css'),'utf8');
 async function fixture(t,source){
-  let record={revision:0,componentsVersion:2,sourceRevision:createHash('sha256').update(source).digest('hex'),state:{}};
+  let record={revision:0,componentsVersion:3,sourceRevision:createHash('sha256').update(source).digest('hex'),state:{}};
   const contents=`import React from 'react';import {createRoot} from 'react-dom/client';import {IntelligentSurface} from './src/client/Surface.jsx';import {acquireDocument,disposeDocuments} from './src/client/document-store.mjs';const source=${JSON.stringify(source)},lease=acquireDocument('shared-view','1:1:0:0');window.shared={store:lease.store,dispose:disposeDocuments};function App(){const [source,setSource]=React.useState(${JSON.stringify(source)});window.shared.replaceSource=setSource;const [expanded,setExpanded]=React.useState(false);return <div style={{display:'flex',gap:24}}><div style={{width:540}}><IntelligentSurface source={source} sessionId="shared-view" blockId="1:1:0:0" onExpand={()=>setExpanded(true)}/></div>{expanded&&<div style={{width:540}}><IntelligentSurface source={source} sessionId="shared-view" blockId="1:1:0:0" expanded/><button onClick={()=>setExpanded(false)}>收回作品</button></div>}</div>}createRoot(document.getElementById('root')).render(<App/>);`;
   const bundle=await build({stdin:{contents,resolveDir:root,loader:'jsx'},bundle:true,format:'iife',platform:'browser',write:false});
   const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});t.after(()=>browser.close());
@@ -24,7 +24,7 @@ async function fixture(t,source){
     return route.fulfill({body:'<!doctype html><meta charset="utf-8"><div id="root"></div>'});
   });
   const open=async()=>{await page.goto('http://127.0.0.1:9191/');await page.addStyleTag({content:css});await page.addScriptTag({content:bundle.outputFiles[0].text});await page.locator('.iui-surface [role="status"]').filter({hasText:'已保存'}).waitFor();};
-  await open();return {page,open,errors,record:()=>record,replace:async source=>{record={revision:0,componentsVersion:2,sourceRevision:createHash('sha256').update(source).digest('hex'),state:{}};await page.evaluate(source=>window.shared.replaceSource(source),source);await page.locator('.iui-surface [role="status"]').filter({hasText:'已保存'}).first().waitFor();}};
+  await open();return {page,open,errors,record:()=>record,replace:async source=>{record={revision:0,componentsVersion:3,sourceRevision:createHash('sha256').update(source).digest('hex'),state:{}};await page.evaluate(source=>window.shared.replaceSource(source),source);await page.locator('.iui-surface [role="status"]').filter({hasText:'已保存'}).first().waitFor();}};
 }
 test('implicit chart filtering and table sorting survive expand, collapse and browser reload',async t=>{
   const source='root = Stack([Chart("line",[{month:"一月",a:2,b:8},{month:"二月",a:7,b:3}],"month",[{key:"a",label:"甲"},{key:"b",label:"乙"}],"双系列"),Table([{key:"value",label:"数值"}],[{value:2},{value:9}],"排序数据")])';
@@ -150,4 +150,25 @@ test('drag works across shared views, touch, cancellation and replacement withou
   await f.replace(source({...scene,initial:{...scene.initial,x:200,y:60}}));await page.mouse.up();
   state=await values();assert.deepEqual(state,{...scene.initial,x:200,y:60},'old cancel and delayed pointer release never modify the new source');
   assert.deepEqual(f.errors,[]);
+});
+test('simulation and game parameters restart locally with shared feedback and distinct reset semantics',async t=>{
+  const scene={initial:{v0:30,a:10,v:30,x:20,t:0,score:0,held:false},events:{
+    tick:[{name:'x',value:'x + v * event.dt + 0.5 * a * event.dt * event.dt'},{name:'v',value:'v + a * event.dt'},{name:'t',value:'t + event.dt'}],reset:[{name:'v',value:'v0'}],
+    click:[{name:'score',value:'event.id == "target" ? score + 1 : score'}],key:[{name:'score',value:'event.key == "Enter" ? score + 1 : score'}],drag:[{name:'held',value:'event.phase == "start" || event.phase == "move"'}]
+  },marks:[{id:'target',type:'circle',x:100,y:70,r:20,interactive:true,label:'目标'}],width:300,height:150};
+  const fields=[{name:'v0',label:'初速度',value:30,type:'number'},{name:'a',label:'加速度',value:10,type:'number'}],metrics=[{label:'得分',formula:'score',precision:0},{label:'速度',formula:'v',precision:1}];
+  const source=`root = Stack([Simulation(${JSON.stringify(scene)},"simulation","参数模拟",${JSON.stringify(fields)},${JSON.stringify(metrics)}),Game(${JSON.stringify(scene)},"game","参数游戏","点中目标得分",${JSON.stringify(fields)},${JSON.stringify(metrics)})])`;
+  const f=await fixture(t,source),{page}=f,simulation=page.locator('.iui-simulation').first(),game=page.locator('.iui-game').first();
+  const values=name=>page.evaluate(name=>window.shared.store.state[name].values,name);
+  await simulation.getByLabel('初速度',{exact:true}).fill('40');await simulation.getByLabel('加速度',{exact:true}).fill('20');
+  await simulation.getByRole('button',{name:'播放',exact:true}).click();await page.waitForFunction(()=>window.shared.store.state.simulation.values.t>.1);
+  await simulation.getByLabel('初速度',{exact:true}).fill('50');assert.equal(await simulation.getByRole('button',{name:'播放',exact:true}).count(),1,'editing parameters pauses its shared player');
+  await simulation.getByRole('button',{name:'重新开始',exact:true}).click();assert.deepEqual(await values('simulation'),{...scene.initial,v0:50,a:20,v:50});
+  await simulation.getByRole('button',{name:'重置',exact:true}).click();assert.deepEqual(await values('simulation'),scene.initial);
+  await game.getByLabel('初速度',{exact:true}).fill('70');await game.getByLabel('加速度',{exact:true}).fill('7');
+  await game.getByRole('button',{name:'目标',exact:true}).click();assert.equal(await game.locator('.iui-scene-metrics .iui-result-value').first().innerText(),'1');
+  assert.equal(await game.locator('.iui-scene-metrics').getAttribute('aria-live'),'polite');assert.equal(await simulation.locator('.iui-scene-metrics').getAttribute('aria-live'),null);assert.equal(await simulation.locator('.iui-scene-metrics output').count(),0,'physical metrics have no implicit live output');
+  await game.getByRole('button',{name:'重新开始',exact:true}).click();assert.deepEqual(await values('game'),{...scene.initial,v0:70,a:7,v:70});assert.deepEqual(await values('simulation'),scene.initial);
+  await page.getByRole('button',{name:'展开交互内容'}).click();assert.equal(await page.getByLabel('初速度',{exact:true}).count(),4);assert.deepEqual(await page.locator('.iui-game').getByLabel('初速度',{exact:true}).evaluateAll(elements=>elements.map(element=>Number(element.value))),[70,70]);
+  await page.getByRole('button',{name:'收回作品'}).click();await page.waitForFunction(()=>window.shared.store.snapshot.status==='saved');await f.open();assert.deepEqual(await values('game'),{...scene.initial,v0:70,a:7,v:70});assert.deepEqual(await values('simulation'),scene.initial);assert.deepEqual(f.errors,[]);
 });

@@ -191,6 +191,10 @@
 .iui-surface .iui-chart-data summary { color: var(--iui-muted); font-size: 12px; cursor: pointer; padding: 4px 0; width: fit-content; }
 .iui-surface .iui-chart-data .iui-table-scroll { margin-top: 8px; max-height: 300px; }
 .iui-surface .iui-calculator, .iui-surface .iui-simulation, .iui-surface .iui-game { display: flex; flex-direction: column; gap: 16px; }
+.iui-surface :is(.iui-simulation,.iui-game,.iui-scene-parameters) { min-width: 0; }
+.iui-surface .iui-result-grid.iui-scene-metrics { min-width: 0; gap: 8px; grid-template-columns: repeat(auto-fit,minmax(min(100%,140px),1fr)); }
+.iui-surface .iui-scene-metrics .iui-calculation-result { min-width: 0; padding: 12px; border: 1px solid var(--iui-border); }
+.iui-surface .iui-scene-metrics .iui-calculation-result > .iui-muted { font-size: 13px; }
 .iui-surface .iui-calculation-result { display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: 12px; background: var(--iui-secondary); }
 .iui-surface .iui-result-value { font-size: 28px; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .iui-surface .iui-result-value > span { margin-left: 6px; font-size: 14px; font-weight: 400; color: var(--iui-muted); }

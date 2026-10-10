@@ -3,11 +3,11 @@ import { writeFile, readFile, readdir } from 'node:fs/promises';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { realHostFixture } from '../test/fixtures/real-host.mjs';
+import { realHostFixture, generatedTokenCount } from '../test/fixtures/real-host.mjs';
 import { until } from '../test/fixtures/host.mjs';
 import { compile, evaluateDocument, safeEvaluate } from '../src/runtime/evaluate.mjs';
 import { splitResponse } from '../src/protocol/split.mjs';
-import { initialScene, sceneView, sceneTransition, sceneSet } from '../src/runtime/scene.mjs';
+import { initialScene, sceneView, sceneTransition, sceneSet, sceneRestart } from '../src/runtime/scene.mjs';
 
 const repo = fileURLToPath(new URL('../', import.meta.url));
 const { values: args } = parseArgs({ options: { 'profile-route-file': { type: 'string' }, provider: { type: 'string' }, model: { type: 'string' }, 'repair-response': { type: 'string' }, 'request-cap': { type: 'string' }, 'natural-questions': { type: 'boolean', default: false } } });
@@ -39,7 +39,7 @@ if (args['repair-response']) {
   for (const file of await readdir(dirname(args['repair-response']))) {
     if (!file.endsWith('-response.json')) continue;
     const call = JSON.parse(await readFile(join(dirname(args['repair-response']), file), 'utf8'));
-    if (call.case === repair.case) consumed += call.usage?.completion_tokens ?? 0;
+    if (call.case === repair.case) consumed += generatedTokenCount(call);
   }
   priorGeneratedTokens = { [repair.case]: consumed };
 }
@@ -75,7 +75,7 @@ try {
         const calls = f.calls.slice(begin);
         if (calls.some(call => call.error)) throw new Error(calls.find(call => call.error).error);
         if (calls.some(call => call.finishReason === 'length')) throw new Error('The configured token ceiling truncated the model response');
-        const complete=calls.find(call=>call.finished&&call.finishReason==='stop'&&!call.toolCalls.length);
+        const complete=calls.find(call=>call.finished&&call.streamCompleted&&call.ended&&call.finishReason==='stop'&&!call.toolCalls.length);
         if(complete&&!splitResponse(complete.text).some(part=>part.kind==='ui'))throw new Error('The model finished without an interactive answer');
         return complete;
       }, 300000);
@@ -88,6 +88,7 @@ try {
       await until(async () => !await surface.locator('input:disabled,button:disabled').count(), 15000);
       assert.equal(await surface.locator('.iui-error').count(), 0, 'Rendered answer contains runtime errors');
       const beforeControls = f.calls.length;
+      const interactionChecks={};
       if (item.id === 'split-bill') {
         const calculator = nodes.find(node => node.name === 'Calculator').props;
         const values = Object.fromEntries(calculator.fields.map(field => [field.name, field.value]));
@@ -105,17 +106,31 @@ try {
         assert.equal(await surface.getByRole('progressbar').getAttribute('aria-valuenow'), '1');
       } else if (item.id === 'motion') {
         const p = nodes.find(node => node.name === 'Simulation').props;
-        const velocity = p.fields.find(field => field.label === '速度'), acceleration = p.fields.find(field => field.label === '加速度');
+        const velocity = p.fields.find(field => /^速度(?:[\s·]|$)/.test(field.label)), acceleration = p.fields.find(field => /^加速度(?:[\s·]|$)/.test(field.label));
         assert.ok(velocity && acceleration, 'Both motion parameters must exist');
         let record = initialScene(p.scene);
         const positionKey = Object.keys(record.values).find(key => record.values[key] === 20);
         assert.ok(positionKey, 'Initial position must equal 20');
         record = sceneSet(p.scene, record, velocity.name, 40); record = sceneSet(p.scene, record, acceleration.name, 20);
-        record = sceneTransition(p.scene, record, 'tick', { dt: .1 });
-        assert.ok(Math.abs(record.values[positionKey] - 24.1) < 1e-9, 'Independent displacement assertion');
-        assert.ok(Math.abs(record.values[velocity.name] - 42) < 1e-9, 'Independent velocity assertion');
+        const edited=record;
+        let startRecord=edited, moved=sceneTransition(p.scene,edited,'tick',{dt:.1});
+        const velocityKey=(start,end)=>Object.keys(p.scene.initial).find(key=>p.scene.initial[key]===30&&start.values[key]===40&&Math.abs(end.values[key]-42)<1e-9);
+        let currentVelocity=velocityKey(startRecord,moved), parameterRestart=false;
+        if(Math.abs(moved.values[positionKey]-24.1)>=1e-9||!currentVelocity){
+          startRecord=sceneRestart(p.scene,edited,p.fields.map(field=>field.name));
+          moved=sceneTransition(p.scene,startRecord,'tick',{dt:.1});
+          currentVelocity=velocityKey(startRecord,moved);parameterRestart=true;
+        }
+        assert.equal(startRecord.values[positionKey],20,'The edited simulation starts at the requested position');
+        assert.ok(Math.abs(moved.values[positionKey]-24.1)<1e-9,'Independent displacement assertion');
+        assert.ok(currentVelocity,'Independent current velocity assertion');
+        assert.equal(startRecord.values[velocity.name],40,'Restart retains the requested speed');
+        assert.equal(startRecord.values[acceleration.name],20,'Restart retains the requested acceleration');
+        record=moved;interactionChecks.motion={parameterRestart,currentVelocity,field:velocity.name};
         sceneView(p.scene, record);
         await changeNumber(fieldControl(surface, '速度'), 40); await changeNumber(fieldControl(surface, '加速度'), 20);
+        if(parameterRestart)await surface.locator('.iui-scene-toolbar').getByRole('button',{name:'重新开始',exact:true}).click();
+        await surface.locator('.iui-scene-canvas').scrollIntoViewIfNeeded();
         const moving = p.scene.marks.find(mark => mark.type === 'circle' && typeof mark.x === 'object' && mark.x?.expr);
         assert.ok(moving, 'Motion must render a formula-driven ball');
         const ball = surface.locator(`[data-iui-mark-id=${JSON.stringify(moving.id)}] circle`), start = await ball.getAttribute('cx');
@@ -124,6 +139,8 @@ try {
         await surface.getByRole('button', { name: '暂停', exact: true }).click();
         await surface.locator('.iui-scene-toolbar').getByRole('button', { name: '重置', exact: true }).click();
         assert.equal(await ball.getAttribute('cx'), start, 'Reset restores initial ball position');
+        assert.equal(Number(await fieldControl(surface,'速度').inputValue()),30,'Full reset restores the initial speed setting');
+        assert.equal(Number(await fieldControl(surface,'加速度').inputValue()),10,'Full reset restores the initial acceleration setting');
       } else if (item.id === 'novel-game') {
         const p = nodes.find(node => node.name === 'Game').props, lamps = ['灯1','灯2','灯3'].map(label => p.scene.marks.find(mark => mark.label === label));
         assert.ok(lamps.every(mark => mark?.interactive), 'All three lamps must be interactive');
@@ -138,12 +155,16 @@ try {
         assert.equal(record.values[score], original[score], 'Wrong order resets sequence progress');
         for (const mark of lamps) record = sceneTransition(p.scene, record, 'click', { id: mark.id });
         assert.equal(record.values[score], original[score] + 1, 'A fresh correct sequence works after a mistake');
-        const beforeScene = await surface.locator('.iui-scene-canvas').textContent();
-        for (const label of ['灯1','灯2','灯3']) await surface.getByRole('button', { name: label, exact: true }).click();
-        assert.notEqual(await surface.locator('.iui-scene-canvas').textContent(), beforeScene, 'Completed sequence must visibly update score');
+        const twice=lamps.reduce((state,mark)=>sceneTransition(p.scene,state,'click',{id:mark.id}),record);
+        const scoreMetric=(p.metrics??[]).findIndex(metric=>{
+          try{return /得分|分数|score/i.test(metric.label)&&[initialScene(p.scene),record,twice].every(state=>safeEvaluate(metric.formula,{},state.values)===state.values[score]);}catch{return false;}
+        });
         const scoreMark = p.scene.marks.find(mark => mark.type === 'text' && mark.text?.expr && new RegExp(`\\b${score}\\b`).test(mark.text.expr));
-        assert.ok(scoreMark, 'Game must visibly show its score');
-        const scoreText = surface.locator(`[data-iui-mark-id=${JSON.stringify(scoreMark.id)}]`);
+        assert.ok(scoreMetric>=0||scoreMark,'Game must visibly show its independent score, in a metric or scene text');
+        const scoreText=scoreMetric>=0?surface.locator('.iui-scene-metrics .iui-calculation-result').nth(scoreMetric).locator('.iui-result-value'):surface.locator(`[data-iui-mark-id=${JSON.stringify(scoreMark.id)}]`);
+        await scoreText.waitFor({state:'visible'});assert.equal(numberOutput(await scoreText.textContent()),original[score]);
+        interactionChecks.game={score,scoreLocation:scoreMetric>=0?'external-metric':'scene-text'};
+        for (const label of ['灯1','灯2','灯3']) await surface.getByRole('button', { name: label, exact: true }).click();
         assert.equal(numberOutput(await scoreText.textContent()), original[score] + 1);
         for (const label of ['灯1','灯2','灯3']) await surface.getByRole('button', { name: label, exact: true }).press('Enter');
         assert.equal(numberOutput(await scoreText.textContent()), original[score] + 2, 'Keyboard sequence supports the next round');
@@ -164,7 +185,8 @@ try {
       }
       assert.equal(f.calls.length, beforeControls, 'Local operations must issue zero extra model requests');
       const calls = f.calls.slice(begin);
-      assert.ok((priorGeneratedTokens[item.id] ?? 0) + calls.reduce((sum, call) => sum + f.usedTokens(call), 0) <= 16384, 'Generated-token ceiling must be respected');
+      assert.ok(calls.every(call=>!call.error&&call.streamCompleted),'Every request in a successful case must finish its stream without an error');
+      assert.ok((priorGeneratedTokens[item.id] ?? 0) + calls.reduce((sum, call) => sum + f.usedTokens(call), 0) <= f.generatedTokenCeiling, 'Internal generated-token guard must be respected');
       if(!args['natural-questions'])assert.ok(calls.some(call => call.toolCalls.some(tool => tool.function?.name?.includes('skill'))), 'Native skill invocation must occur');
       // Exact public reference paths must appear in a real native read tool call, never simulated prompt injection.
       const toolText = calls.map(call => JSON.stringify(call.toolCalls)).join('\n');
@@ -175,7 +197,7 @@ try {
         for (const ref of item.refs) assert.ok(returnedResources.includes(ref === 'expressions' ? 'Bounded expressions and scene events' : `${ref} components`), `Native filesystem must successfully return ${ref} reference`);
       }
       await f.page.screenshot({ path: join(evidence, `${item.id}.png`), fullPage: true });
-      await f.writeEvidence(`${item.id}-document.json`, { answer: final.text, sources: segments.map(part => part.text), trees, checks: 'independent runtime and native Web operations', zeroExtraModelRequests: true });
+      await f.writeEvidence(`${item.id}-document.json`, { answer: final.text, sources: segments.map(part => part.text), trees, checks: 'independent runtime and native Web operations', interactionChecks,zeroExtraModelRequests: true });
       results.push({ id: item.id, passed: true, requests: calls.length, completionTokens: calls.reduce((sum, call) => sum + (call.usage?.completion_tokens ?? 0), 0), generatedTokenBudgetCount: calls.reduce((sum, call) => sum + f.usedTokens(call), 0) });
       console.log(`${item.id}: PASS (${calls.length} requests)`);
     } catch (error) {
@@ -184,7 +206,7 @@ try {
       await writeFile(join(evidence, `${item.id}-page.txt`), f.scrub(await f.page.locator('body').innerText()), { mode: 0o600 });
       console.log(`${item.id}: FAIL (${f.scrub(error.message)})`);
     }
-    await f.writeEvidence('summary.json', { mode: 'packaged-native-cli-web-real-model', naturalQuestions:Boolean(args['natural-questions']), model: f.model, health, packageSha256: f.packageSha256, perCaseGeneratedTokenCeiling: 16384, perCaseRealRequestCap: requestCap, explicitRepairTurns: repair ? 1 : 0, priorGeneratedTokens, results,
+    await f.writeEvidence('summary.json', { mode: 'packaged-native-cli-web-real-model', naturalQuestions:Boolean(args['natural-questions']), model: f.model, health, packageSha256: f.packageSha256, perCaseGeneratedTokenCeiling: f.generatedTokenCeiling, configuredModelCapabilities:{contextWindow:f.modelDefinition.contextWindow,maxTokens:f.modelDefinition.maxTokens,input:f.modelDefinition.input},perCaseRealRequestCap: requestCap, explicitRepairTurns: repair ? 1 : 0, priorGeneratedTokens, results,
       notRun: selected.filter(item => !results.some(result => result.id === item.id)).map(item => item.id),
       offeredReasoningEfforts: f.offeredReasoningEfforts,
       calls: f.calls.map(({ number, case: id, usage, finishReason, error, errorScope, reasoningEffort }) => ({ number, case: id, usage, finishReason, error, errorScope, reasoningEffort })), auxiliaryLocalTitles: f.auxiliary.length, hostErrors: f.errors });

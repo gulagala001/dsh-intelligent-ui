@@ -13,11 +13,13 @@ test('native streaming cancellation retains partial UI, then a new turn recovers
   await page.getByRole('button',{name:'新建智能聊天',exact:true}).first().click();await page.getByRole('button',{name:'Intelligent UI',exact:true}).waitFor();
   const box=page.locator('[contenteditable="true"]').first();await box.fill('IUI_STREAM_CANCEL');await box.press('Enter');
   await page.locator('[data-iui-block]').first().waitFor();assert.equal(await page.locator('[data-iui-block]').first().getAttribute('aria-busy'),'true');
+  assert.equal(await page.getByRole('button',{name:'展开交互内容',exact:true}).first().isDisabled(),true,'partial streamed content cannot be expanded as a finished work');
   const session=(await f.rpc('session/list',{_request:{}})).items.find(item=>item.running);assert.ok(session?.sessionId);
   await f.rpc('session/cancel',{request:{sessionId:session.sessionId}});release();await until(async()=>!(await f.rpc('session/list',{_request:{}})).items.find(item=>item.sessionId===session.sessionId)?.running);
   assert.ok((await page.locator('body').innerText()).includes('流式状态')||(await page.locator('body').innerText()).includes('内容正在生成。'));
   const before=f.requests.filter(p=>p.tools?.length).length;
   await box.fill('IUI_RECOVER 恢复并生成可调整参数');await box.press('Enter');await page.getByLabel('恢复参数',{exact:true}).waitFor();await until(async()=>await page.getByLabel('恢复参数',{exact:true}).isEnabled());
+  assert.equal(await page.locator('[data-iui-block]').filter({has:page.getByLabel('恢复参数',{exact:true})}).getByRole('button',{name:'展开交互内容',exact:true}).isEnabled(),true);
   await page.getByLabel('恢复参数',{exact:true}).fill('7');assert.equal(await page.getByLabel('恢复参数',{exact:true}).inputValue(),'7');assert.equal(f.requests.filter(p=>p.tools?.length).length,before+1);
   assert.deepEqual(f.errors,[]);
 });

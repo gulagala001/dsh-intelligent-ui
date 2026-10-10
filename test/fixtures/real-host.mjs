@@ -23,11 +23,19 @@ async function loadAuthorizedRoute({ settingsPath, profileRouteFile, provider, m
       try { const data = await yaml(path); const value = data?.refs?.[selected.apiKeyEnv]; if (typeof value === 'string' && value) { key = value; break; } }
       catch (error) { if (error.code !== 'ENOENT') throw error; }
     }
-    return { api: selected.api, baseURL: selected.baseURL, model, key, offeredReasoningEfforts: Object.keys(configuredModel.reasoningEfforts ?? {}), headers: Object.fromEntries(Object.entries(selected.headers ?? {}).filter(([,value]) => typeof value === 'string')) };
+    const modelDefinition=Object.fromEntries(['contextWindow','maxTokens','input','reasoningEfforts','compat'].filter(name=>configuredModel[name]!==undefined).map(name=>[name,configuredModel[name]]));
+    const providerDefinition=selected.compat===undefined?{}:{compat:selected.compat};
+    return { api: selected.api, baseURL: selected.baseURL, model, key, modelDefinition,providerDefinition, offeredReasoningEfforts: Object.keys(configuredModel.reasoningEfforts ?? {}), headers: Object.fromEntries(Object.entries(selected.headers ?? {}).filter(([,value]) => typeof value === 'string')) };
   }
   if (!settingsPath) throw new Error('Provide IUI_REAL_SETTINGS or an authorized --profile-route-file reference');
   const { main } = JSON.parse(await readFile(settingsPath, 'utf8'));
   return { api: main?.api, baseURL: main?.baseUrl, model: main?.model, key: main?.apiKey };
+}
+
+export function generatedTokenCount(call) {
+  const tokens=call.usage?.completion_tokens;
+  if(Number.isSafeInteger(tokens)&&tokens>=0)return tokens;
+  return Buffer.byteLength((call.text??'')+(call.reasoning??'')+JSON.stringify(call.toolCalls??[]));
 }
 
 export async function realHostFixture(t, options = {}) {
@@ -35,17 +43,20 @@ export async function realHostFixture(t, options = {}) {
   const route = await loadAuthorizedRoute(options);
   if (route.api !== 'openai-completions' || !route.baseURL || !route.model || !route.key) throw new Error('Selected main route must be a configured openai-completions model');
   await mkdir(evidenceDirectory, { recursive: true, mode: 0o700 });
+  const generatedTokenCeiling=options.generatedTokenCeiling??65536;
+  if(!Number.isSafeInteger(generatedTokenCeiling)||generatedTokenCeiling<128||generatedTokenCeiling>131072)throw Error('Internal case output guard must be within 128..131072');
   const calls = [], auxiliary = []; let activeCase;
   const scrub = value => String(value).split(route.key).join('[redacted]');
   const write = async (name, value) => writeFile(join(evidenceDirectory, name), scrub(JSON.stringify(value, null, 2)), { mode: 0o600 });
-  const usedTokens = call => call.usage?.completion_tokens ?? Buffer.byteLength(call.text + call.reasoning + JSON.stringify(call.toolCalls));
+  const usedTokens = generatedTokenCount;
+  if(Object.values(options.priorGeneratedTokens??{}).some(count=>!Number.isSafeInteger(count)||count<0))throw Error('Historical generated-token counts must be nonnegative safe integers');
   const forward = async function* (payload) {
     // Native title generation is deliberately local and counted separately.
     if (!payload.tools?.length) { auxiliary.push({ kind: 'native-title', timestamp: Date.now() }); yield { delta: { content: '交互测试' }, finish_reason: 'stop' }; return; }
     if (!activeCase) throw new Error('No authorized test case is active');
     const preceding = (options.priorGeneratedTokens?.[activeCase] ?? 0) + calls.filter(call => call.case === activeCase).reduce((sum, call) => sum + usedTokens(call), 0);
-    const remaining = 16384 - preceding;
-    if (remaining < 128) throw Object.assign(new Error('Explicit per-case generated-token budget exhausted'),{scope:'case-budget'});
+    const remaining = generatedTokenCeiling - preceding;
+    if (remaining < 128) throw Object.assign(new Error('Internal per-case generated-token guard exhausted'),{scope:'case-budget'});
     const requestCap = options.requestCap ?? 10;
     if (calls.filter(call => call.case === activeCase).length >= requestCap) throw Object.assign(new Error(`Explicit per-case model request cap (${requestCap}) reached`),{scope:'case-budget'});
     const number = calls.length + 1;
@@ -53,8 +64,11 @@ export async function realHostFixture(t, options = {}) {
       reasoningEffort: payload.reasoning_effort ?? null,
       nativeToolResults: payload.messages.filter(message => message.role === 'tool') };
     calls.push(call);
-    const body = { ...payload, model: route.model, max_tokens: remaining, stream: true, stream_options: { include_usage: true } };
-    delete body.max_completion_tokens;
+    const body = { ...payload, model: route.model, stream: true, stream_options: { ...payload.stream_options,include_usage: true } };
+    const tokenFields=['max_tokens','max_completion_tokens'].filter(field=>Object.hasOwn(payload,field));
+    if(!tokenFields.length)body.max_tokens=remaining;
+    for(const field of tokenFields)body[field]=Math.min(remaining,payload[field]);
+    call.outputTokenLimit=Math.min(remaining,...tokenFields.map(field=>body[field]));
     await write(`${String(number).padStart(2, '0')}-${call.case}-request.json`, body);
     const endpoint = route.baseURL.replace(/\/$/, '').replace(/\/chat\/completions$/, '') + '/chat/completions';
     const response = await fetch(endpoint, {
@@ -88,10 +102,11 @@ export async function realHostFixture(t, options = {}) {
               if (fragment.function?.arguments) tool.function.arguments += fragment.function.arguments;
             }
             if (choice.finish_reason) { call.finishReason = choice.finish_reason; call.finished = true; }
-            yield choice;
           }
+          yield item;
         }
       }
+      call.streamCompleted=true;
     } finally {
       call.ended = Date.now();
       // Requests contain only the isolated test and publicly installed plugin rules/resources.
@@ -107,7 +122,7 @@ export async function realHostFixture(t, options = {}) {
       yield { delta: { content: 'Real-model acceptance request failed; see isolated evidence.' }, finish_reason: 'stop' };
     }
   };
-  const fixture = await hostFixture(t, { reply });
+  const fixture = await hostFixture(t, { reply,modelDefinition:route.modelDefinition,providerDefinition:route.providerDefinition,reasoningEffort:options.reasoningEffort });
   const packageSha256 = createHash('sha256').update(await readFile(fixture.tar)).digest('hex');
   const scrubEvidence = async () => {
     const matches = [];
@@ -118,5 +133,5 @@ export async function realHostFixture(t, options = {}) {
     }
     return { exactCredentialMatchesRedacted: matches.length, files: matches };
   };
-  return { ...fixture, calls, auxiliary, model: route.model, offeredReasoningEfforts: route.offeredReasoningEfforts ?? [], packageSha256, setCase: id => { activeCase = id; }, writeEvidence: write, scrub, scrubEvidence, usedTokens };
+  return { ...fixture, calls, auxiliary, model: route.model, modelDefinition:route.modelDefinition??{},generatedTokenCeiling,offeredReasoningEfforts: route.offeredReasoningEfforts ?? [], packageSha256, setCase: id => { activeCase = id; }, writeEvidence: write, scrub, scrubEvidence, usedTokens };
 }

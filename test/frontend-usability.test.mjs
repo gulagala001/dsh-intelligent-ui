@@ -65,14 +65,25 @@ test('all 28 components retain a bounded light/dark/narrow layout and keyboard c
    if(i===5){const tab=page.getByRole('tab').first();await tab.focus();await page.keyboard.press('End');assert.equal(await page.getByRole('tab').last().getAttribute('aria-selected'),'true');}
    if(i===10){const plus=page.getByRole('button',{name:/增加/}).first();const prior=await page.locator('output').first().textContent();await plus.focus();await page.keyboard.press('Enter');assert.notEqual(await page.locator('output').first().textContent(),prior);}
    await capture(page,`component-${i}-${theme}-${width}`);
+   if(width===320)for(const figure of await page.locator('.iui-figure-viewport').all()){
+    const zoom=figure.getByRole('button',{name:'放大图形',exact:true});
+    if(!await zoom.isVisible())continue;
+    const svg=await figure.locator('svg').elementHandle(),before=await page.evaluate(()=>JSON.stringify(window.fixture.state));
+    await zoom.click();assert.equal(await figure.locator('.iui-figure-scroll').getAttribute('data-original'),'true');
+    assert.equal(await svg.evaluate(element=>element.isConnected),true,'the same interactive SVG remains mounted');
+    assert.equal(await page.evaluate(()=>JSON.stringify(window.fixture.state)),before,'figure magnification is view-local');
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)<=1,'magnified figure scrolls locally');
+    await figure.getByRole('button',{name:'适应宽度',exact:true}).click();
+    assert.equal(await figure.locator('.iui-figure-scroll').getAttribute('data-original'),'false');
+   }
   }
  }
  assert.deepEqual(errors,[]);
 });
 
-test('touch entrance and toolbar remain reachable without covering the native new-session button',async t=>{
+test('touch chat stays inside the full native new-session row and the toolbar remains reachable',async t=>{
  const result=await build({entryPoints:[join(root,'test/fixtures/usability.jsx')],bundle:true,format:'iife',platform:'browser',write:false});const browser=await launch();t.after(()=>browser.close());const context=await browser.newContext({viewport:{width:320,height:844},hasTouch:true,isMobile:true});const page=await context.newPage();
- await page.route('http://127.0.0.1:9191/**',route=>route.fulfill({body:'<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><div id="root"></div><button class="_newSession" style="width:180px;height:36px">新会话</button><div id="entrance"></div>'}));await page.goto('http://127.0.0.1:9191/');await page.addStyleTag({content:css});await page.addScriptTag({content:result.outputFiles[0].text});const plus=page.getByRole('button',{name:'新建智能聊天',exact:true});await plus.waitFor();const b=await plus.boundingBox(),native=await page.locator('._newSession').boundingBox();assert.equal(b.width,44);assert.equal(b.height,44);assert.ok(b.x>=native.x+native.width&&b.x+b.width<=320);await plus.tap();assert.equal(await page.evaluate(()=>window.entranceCalls),1);const more=page.getByRole('button',{name:'更多交互内容操作'});assert.ok((await more.boundingBox()).height>=44);await more.tap();for(const button of await page.locator('.iui-surface-toolbar button:visible').all())assert.ok((await button.boundingBox()).height>=44);await page.getByRole('button',{name:'源文',exact:true}).tap();await capture(page,'touch-entrance-toolbar');
+ await page.route('http://127.0.0.1:9191/**',route=>route.fulfill({body:'<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><div id="root"></div><button class="_newSession" style="width:180px;height:36px">新会话</button><div id="entrance"></div>'}));await page.goto('http://127.0.0.1:9191/');await page.addStyleTag({content:css});await page.addScriptTag({content:result.outputFiles[0].text});const plus=page.getByRole('button',{name:'新建智能聊天',exact:true});await plus.waitFor();const b=await plus.boundingBox(),native=await page.locator('._newSession').boundingBox();assert.equal(b.width,44);assert.equal(b.height,44);assert.equal(native.width,180);assert.ok(b.x>=native.x+native.width/2&&b.x+b.width<=native.x+native.width);await plus.tap();assert.equal(await page.evaluate(()=>window.entranceCalls),1);const more=page.getByRole('button',{name:'更多交互内容操作'});assert.ok((await more.boundingBox()).height>=44);await more.tap();for(const button of await page.locator('.iui-surface-toolbar button:visible').all())assert.ok((await button.boundingBox()).height>=44);await page.getByRole('button',{name:'源文',exact:true}).tap();await capture(page,'touch-entrance-toolbar');
  await page.evaluate(()=>{const spacer=document.createElement('div');spacer.style.height='1000px';document.body.append(spacer);const toolbar=document.querySelector('.iui-surface-toolbar');window.scrollTo(0,toolbar.getBoundingClientRect().top+scrollY-8);});
  await more.tap();await page.waitForFunction(()=>document.querySelector('.iui-actions-menu').dataset.side==='bottom');const menu=await page.locator('.iui-actions-popover').boundingBox();assert.ok(menu.y>=0&&menu.y+menu.height<=844,'touch menu flips down when its anchor is near the viewport top');await capture(page,'touch-actions-top-edge');await more.tap();
 });

@@ -128,20 +128,27 @@ export class StateStorage {
   path(session, block) { identity(session, block); return join(this.directory, sourceHash(`${session}\0${block}`) + '.json'); }
   async get(session, block) {
     const file = this.path(session, block);
-    await safeDirectory(this.directory);
-    let handle;
-    try {
-      handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW);
-      const stat = await handle.stat();
-      if (!stat.isFile() || stat.nlink !== 1 || stat.size > LIMITS.recordBytes) throw new StateError(413, 'Invalid stored record');
-      const record = JSON.parse(await handle.readFile('utf8'));
-      const fields = new Set(['protocolVersion', 'componentsVersion', 'session', 'block', 'revision', 'sourceRevision', 'source', 'state']);
-      if (!record || typeof record !== 'object' || Array.isArray(record) || Object.keys(record).some(key => !fields.has(key)) || record.session !== session || record.block !== block || record.protocolVersion !== protocolVersion || !readableComponentsVersions.includes(record.componentsVersion ?? 1) || !Number.isSafeInteger(record.revision) || record.revision < 1 || typeof record.source !== 'string' || record.source.length > LIMITS.sourceChars || sourceHash(record.source) !== record.sourceRevision) throw new StateError(500, 'Invalid stored record');
-      validateState(record.state);
-      record.componentsVersion ??= 1;
-      return record;
-    } catch (error) { if (error.code === 'ENOENT') return undefined; throw error; }
-    finally { await handle?.close(); }
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await safeDirectory(this.directory);
+      let handle;
+      try {
+        handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW);
+        const stat = await handle.stat();
+        // An atomic save can unlink this already-open snapshot before fstat.
+        // Reopen the canonical path; never relax linked-file validation or
+        // parse a detached descriptor, and bound races with continuous writes.
+        if (stat.isFile() && stat.nlink === 0) continue;
+        if (!stat.isFile() || stat.nlink !== 1 || stat.size > LIMITS.recordBytes) throw new StateError(413, 'Invalid stored record');
+        const record = JSON.parse(await handle.readFile('utf8'));
+        const fields = new Set(['protocolVersion', 'componentsVersion', 'session', 'block', 'revision', 'sourceRevision', 'source', 'state']);
+        if (!record || typeof record !== 'object' || Array.isArray(record) || Object.keys(record).some(key => !fields.has(key)) || record.session !== session || record.block !== block || record.protocolVersion !== protocolVersion || !readableComponentsVersions.includes(record.componentsVersion ?? 1) || !Number.isSafeInteger(record.revision) || record.revision < 1 || typeof record.source !== 'string' || record.source.length > LIMITS.sourceChars || sourceHash(record.source) !== record.sourceRevision) throw new StateError(500, 'Invalid stored record');
+        validateState(record.state);
+        record.componentsVersion ??= 1;
+        return record;
+      } catch (error) { if (error.code === 'ENOENT') return undefined; throw error; }
+      finally { await handle?.close(); }
+    }
+    throw new StateError(503, 'Storage is busy');
   }
   save(input, verify) {
     // Snapshot before queuing so caller mutations cannot change an approved write.

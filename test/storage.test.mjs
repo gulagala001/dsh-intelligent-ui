@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, rm, stat, writeFile, symlink, readFile, readdir, realpath, link } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, stat, writeFile, symlink, readFile, readdir, realpath, link, open } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, basename } from 'node:path';
 import { spawn, execFile } from 'node:child_process';
@@ -78,6 +78,29 @@ test('CAS serializes concurrent writes, preserves the winning state across resta
   assert.deepEqual((await readdir(store.directory)).sort(), ['.writer.sqlite', basename(recordPath)].sort());
   assert.equal((await restarted.save(input({ expectedRevision: 1, state: { checked: false } }))).revision, 2);
   assert.deepEqual((await restarted.get('session-A', '1:2:0:0')).state, { checked: false }, 'private permissions still permit CAS read and write after restart');
+});
+
+test('a read survives actual atomic replacement and bounds continuously detached snapshots', async t => {
+  const {store}=await fixture(t);await store.save(input());
+  const probe=await open(store.path('session-A','1:2:0:0'),'r');
+  const prototype=Object.getPrototypeOf(probe),originalStat=prototype.stat;await probe.close();
+  let detached;
+  try {
+    prototype.stat=async function(...args){
+      prototype.stat=originalStat;
+      await store.save(input({expectedRevision:1,state:{checked:false}}));
+      const result=await originalStat.apply(this,args);detached=result.nlink===0;return result;
+    };
+    const record=await store.get('session-A','1:2:0:0');
+    assert.equal(record.revision,detached?2:1,'reads return a complete snapshot with a valid source and revision');
+    assert.deepEqual(record.state,{checked:!detached});
+    assert.equal((await store.get('session-A','1:2:0:0')).revision,2);
+    let attempts=0;
+    prototype.stat=async function(...args){const result=await originalStat.apply(this,args);result.nlink=0;attempts++;return result;};
+    await assert.rejects(store.get('session-A','1:2:0:0'),error=>error.statusCode===503);
+    assert.equal(attempts,3,'continuous replacement is bounded instead of accepting detached data');
+  } finally {prototype.stat=originalStat;}
+  assert.equal((await store.get('session-A','1:2:0:0')).revision,2,'recovery still reads the current canonical file');
 });
 
 test('initialization makes legacy inherited records private without changing their parent ACL or data', async t => {

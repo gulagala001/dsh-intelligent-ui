@@ -10,7 +10,7 @@ test('native streaming cancellation retains partial UI, then a new turn recovers
     await gate;yield {delta:{content:'])\n```'},finish_reason:'stop'};
   };
   const f=await hostFixture(t,{reply});const {page}=f;
-  await page.getByRole('button',{name:'新建智能聊天',exact:true}).first().click();await page.getByRole('button',{name:'Intelligent UI',exact:true}).waitFor();
+  await page.locator('button[data-iui-entrance-wide]').first().hover();await page.getByRole('button',{name:'新建智能聊天',exact:true}).first().click();await page.getByRole('button',{name:'Intelligent UI',exact:true}).waitFor();
   const box=page.locator('[contenteditable="true"]').first();await box.fill('IUI_STREAM_CANCEL');await box.press('Enter');
   await page.locator('[data-iui-block]').first().waitFor();assert.equal(await page.locator('[data-iui-block]').first().getAttribute('aria-busy'),'true');
   assert.equal(await page.getByRole('button',{name:'展开交互内容',exact:true}).first().isDisabled(),true,'partial streamed content cannot be expanded as a finished work');

@@ -203,6 +203,16 @@
   .iui-surface :is(.iui-chart-legend-item,.iui-chart-clear,.iui-chart-metric select,.iui-chart-data .iui-data-select,.iui-chart-data summary) { min-height: 44px; }
 }
 .iui-surface .iui-chart-canvas svg, .iui-surface .iui-diagram svg { display: block; width: 100%; height: auto; }
+.iui-surface .iui-figure-viewport { display: flex; flex-direction: column; gap: 4px; min-width: 0; width: 100%; }
+.iui-surface .iui-figure-scroll { min-width: 0; width: 100%; }
+.iui-surface .iui-figure-scroll[data-original="true"] { overflow: auto; max-height: min(480px,65vh); overscroll-behavior-inline: contain; border-radius: 8px; }
+.iui-surface .iui-figure-scroll:focus-visible { outline-offset: -2px; }
+.iui-surface .iui-figure-content { min-width: 0; width: 100%; }
+.iui-surface .iui-figure-content[data-original="true"] { flex-shrink: 0; }
+.iui-surface .iui-figure-content[data-original="true"] > svg { display: block; width: 100%; height: 100%; max-width: none; max-height: none; }
+.iui-surface .iui-figure-tools { display: flex; justify-content: flex-end; min-width: 0; }
+.iui-surface .iui-figure-toggle { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; max-width: 100%; padding: 6px 10px; border: 1px solid var(--iui-border); border-radius: 8px; background: var(--iui-secondary); color: var(--iui-accent); font-size: 12px; line-height: 1.4; touch-action: manipulation; }
+.iui-surface .iui-figure-toggle:hover { background: var(--iui-accent-soft); }
 .iui-surface .iui-chart-gridline { stroke: var(--iui-border); stroke-dasharray: 3 4; stroke-width: 1; }
 .iui-surface .iui-chart-label { fill: var(--iui-muted); font-size: 12px; }
 .iui-surface .iui-chart-description { display: flex; flex-wrap: wrap; gap: 6px 14px; min-height: 40px; align-items: center; font-size: 12px; margin-top: 4px; }

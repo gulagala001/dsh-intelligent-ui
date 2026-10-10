@@ -63,25 +63,35 @@ for (const host of ['rc2', 'alpha1', 'alpha2']) {
   });
 }
 
-test('small-plus seats are adjacent, preserve native button actions and keyboard order, handle rail/chrome and fully clean up', async () => {
+test('hover chat seats float inside the full native row, preserve actions and keyboard order, handle rail/chrome and fully clean up', async () => {
   const page = await browser.newPage(); const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.setContent(`<style>.sidebar{width:240px;display:flex;flex-direction:column;padding:12px}.abc_newSession{height:38px;margin:0 2px 12px;flex:none}.chrome{display:flex;gap:8px}.abc_iconButton{width:28px;height:28px}</style>
-    <div class="sidebar" id="sidebar"><button class="abc_brand" aria-label="新建会话">品牌</button><button class="abc_newSession" aria-label="新建会话" onclick="window.originalClicks++">普通新会话</button></div>
+    <div class="sidebar" id="sidebar"><button class="abc_brand" aria-label="新建会话">品牌</button><button class="abc_newSession" aria-label="新建会话" aria-keyshortcuts="Meta+n" onclick="window.originalClicks++">普通新会话<span class="abc_newSessionShortcut" aria-hidden="true">⌘N</span></button></div>
     <div class="chrome"><button class="abc_iconButton" aria-label="New session" onclick="window.originalClicks++">N</button></div><div id="root"></div><div id="entrance"></div>`);
+  const nativeWidth=(await page.locator('.abc_newSession').boundingBox()).width;
   await page.addScriptTag({ content: script }); await page.evaluate(() => window.mountEntrance());
   await page.waitForFunction(() => document.querySelectorAll('.iui-new-session-plus').length === 2);
   assert.equal(await page.locator('.abc_brand + .iui-new-session-seat').count(), 0);
   assert.equal(await page.locator('.abc_newSession + .iui-new-session-seat').count(), 1);
+  assert.equal((await page.locator('.abc_newSession').boundingBox()).width,nativeWidth,'the original new-session row keeps its full width');
+  const wideSeat=page.locator('#sidebar .iui-new-session-seat');
+  assert.equal(await wideSeat.evaluate(element=>getComputedStyle(element).pointerEvents),'none');
+  await page.locator('.abc_newSession').hover();
+  await page.waitForFunction(()=>Number(getComputedStyle(document.querySelector('#sidebar .iui-new-session-seat')).opacity)>.99);
+  assert.equal(await page.locator('.abc_newSessionShortcut').evaluate(element=>getComputedStyle(element).visibility),'hidden','the native decorative shortcut yields the right slot to Chat');
+  assert.equal(await page.locator('.abc_newSession').getAttribute('aria-keyshortcuts'),'Meta+n');
   const boxes = await page.locator('#sidebar').evaluate(element => {
     const native = element.querySelector('.abc_newSession').getBoundingClientRect();
     const plus = element.querySelector('.iui-new-session-plus').getBoundingClientRect();
-    return { nativeRight: native.right, plusLeft: plus.left, nativeY: native.y, plusY: plus.y };
+    return { nativeLeft:native.left,nativeWidth:native.width,nativeRight: native.right, plusLeft: plus.left,plusRight:plus.right, nativeY: native.y, plusY: plus.y };
   });
-  assert.ok(boxes.plusLeft >= boxes.nativeRight); assert.ok(Math.abs(boxes.plusY - boxes.nativeY) < 8);
+  assert.ok(boxes.plusLeft>=boxes.nativeLeft+boxes.nativeWidth/2&&boxes.plusRight<=boxes.nativeRight);
+  assert.ok(Math.abs(boxes.plusY - boxes.nativeY) < 8);
+  await wideSeat.hover();assert.equal(await wideSeat.evaluate(element=>getComputedStyle(element).pointerEvents),'auto','entering the chat affordance keeps it revealed');
   await page.locator('.abc_newSession').click(); assert.equal(await page.evaluate(() => window.originalClicks), 1);
   await page.locator('.abc_newSession').focus(); await page.keyboard.press('Tab');
-  assert.equal(await page.evaluate(() => document.activeElement.className), 'iui-new-session-plus');
+  assert.equal(await page.evaluate(() => document.activeElement.classList.contains('iui-new-session-chat')), true);
   await page.keyboard.press('Enter'); assert.equal(await page.evaluate(() => window.entranceCreationCount()), 1);
   await page.evaluate(() => window.setEntranceBusy(true));
   await page.waitForFunction(() => document.querySelector('.iui-new-session-plus').disabled);
@@ -89,9 +99,14 @@ test('small-plus seats are adjacent, preserve native button actions and keyboard
   await page.locator('#sidebar').evaluate(element => { element.style.width = '56px'; element.querySelector('.abc_newSession').style.width = '36px'; });
   await page.waitForFunction(() => !document.querySelector('.abc_newSession').hasAttribute('data-iui-entrance-wide'));
   assert.equal(await page.locator('#sidebar .iui-new-session-seat').evaluate(element => getComputedStyle(element).position), 'static');
+  assert.equal(await page.locator('.abc_newSessionShortcut').evaluate(element=>getComputedStyle(element).visibility),'visible');
+  await page.locator('#sidebar').evaluate(element=>{element.style.width='240px';element.querySelector('.abc_newSession').style.removeProperty('width');});
+  await page.waitForFunction(()=>document.querySelector('.abc_newSession').hasAttribute('data-iui-entrance-wide'));
+  assert.equal(await page.locator('.abc_newSessionShortcut').evaluate(element=>getComputedStyle(element).visibility),'hidden');
   await page.evaluate(() => window.unmountEntrance());
   assert.equal(await page.locator('.iui-new-session-seat').count(), 0);
   assert.equal(await page.locator('[data-iui-entrance-wide]').count(), 0);
+  assert.equal(await page.locator('.abc_newSessionShortcut').evaluate(element=>getComputedStyle(element).visibility),'visible','uninstall restores the native shortcut');
   await page.locator('.abc_newSession').click(); assert.equal(await page.evaluate(() => window.originalClicks), 2);
   await page.locator('.chrome').evaluate(element => { element.innerHTML = '<button class="abc_iconButton" aria-label="New session">New</button>'; });
   await new Promise(resolve => setTimeout(resolve, 20));

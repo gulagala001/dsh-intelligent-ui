@@ -28,10 +28,11 @@ const scene = {
   },
   marks: [
     { id: 'dot', type: 'circle', x: { expr: 'x' }, y: { expr: 'y' }, r: 14, fill: 'blue', interactive: true, label: '可拖圆点' },
+    { id: 'dotLabel', type: 'text', x: { expr: 'x - 8' }, y: { expr: 'y + 6' }, fontSize: 16, text: '移', fill: 'white' },
     { id: 'held', type: 'text', x: 16, y: 220, text: { expr: 'held ? "拖动中" : "已松开"' }, fill: 'gray' },
     { id: 'clock', type: 'text', x: 170, y: 220, text: { expr: 'concat("计时：", ticks)' }, fill: 'gray' },
   ],
-  width: 360,
+  width: 900,
   height: 240,
 };
 const source = `root = Scene(${JSON.stringify(scene)},"dragDemo","拖拽本地交互验收")`;
@@ -114,6 +115,16 @@ test('packaged native Web drag: final deltas, shared expanded scene, cancel, key
   await expanded.locator('.iui-scene-canvas').waitFor();
   assert.equal(await expanded.getAttribute('data-iui-block'), block);
   await assertPoint(expanded, 200, 140);
+  const originalSVG=await expanded.locator('.iui-scene-canvas').elementHandle();
+  await expanded.getByRole('button',{name:'放大图形',exact:true}).click();
+  const figureScroll=expanded.locator('.iui-figure-scroll');
+  assert.equal(await figureScroll.getAttribute('data-original'),'true');
+  assert.ok(Math.abs((await expanded.locator('.iui-scene-canvas').boundingBox()).width-scene.width)<=1,'magnified SVG uses its authored width');
+  await figureScroll.focus();for(let step=0;step<3;step++)await page.keyboard.press('ArrowRight');
+  await until(async()=>await figureScroll.evaluate(element=>element.scrollLeft)>0);
+  assert.equal(await originalSVG.evaluate(element=>element.isConnected),true,'magnification keeps the live SVG mounted');
+  assert.deepEqual((await f.api(stateURL(sessionId,block))).body.state,tapped.state,'view magnification and keyboard scrolling do not write scene data');
+  noteLocal('narrow native figure magnification and keyboard horizontal scroll');
   await expanded.locator('.iui-scene-canvas').scrollIntoViewIfNeeded();
   const paneStart = await screenPoint(expanded, tapped.state.dragDemo.values.x, tapped.state.dragDemo.values.y);
   const paneFinish = await screenPoint(expanded, 230, 150);
@@ -129,6 +140,9 @@ test('packaged native Web drag: final deltas, shared expanded scene, cancel, key
   await assertPoint(inline, 240, 160);await assertPoint(expanded, 240, 160);noteLocal('expanded drag and shared keyboard state');
   screenshots.push(join(evidence, 'scene-drag-expanded.png'));
   await page.screenshot({ path: screenshots[1], fullPage: true });
+  await expanded.getByRole('button',{name:'适应宽度',exact:true}).click();
+  assert.equal(await originalSVG.evaluate(element=>element.isConnected),true);
+  assert.equal(await figureScroll.getAttribute('data-original'),'false');
 
   // Keep the real mouse pressed while keyboard-activating the native artwork
   // close button. This verifies Scene unmount cancellation, not OS/window/tab

@@ -1,9 +1,14 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {mkdir,readFile} from 'node:fs/promises';import {join} from 'node:path';
 import {hostFixture,until} from '../fixtures/host.mjs';import {examples} from '../../src/catalog.mjs';
-test('packaged native Web: small plus, mixed inline controls, save/reload, submit, expand and uninstall', {timeout:300000},async t=>{
+test('packaged native Web: hover chat, mixed inline controls, save/reload, submit, expand and uninstall', {timeout:300000},async t=>{
   const source=examples[9],reply='这是自然观察工具。\n\n```openui\n'+source+'\n```\n\n可以继续记录观察。';
   const f=await hostFixture(t,{reply,artifacts:process.env.IUI_ARTIFACTS==='1',extraPackages:process.env.IUI_TEST_OMD_PACKAGE?['file:'+process.env.IUI_TEST_OMD_PACKAGE]:[]});const {page}=f;
+  const entry=page.locator('button[data-iui-entrance-wide]').first();await entry.waitFor();
+  const entryEvidence=process.env.IUI_WEB_EVIDENCE??f.root;await mkdir(entryEvidence,{recursive:true});
+  await page.mouse.move(900,800);await entry.screenshot({path:join(entryEvidence,'new-session-default.png')});
+  await entry.hover();await until(async()=>Number(await page.locator('.iui-new-session-seat[data-iui-entrance-overlay]').first().evaluate(element=>getComputedStyle(element).opacity))>.99);
+  await entry.screenshot({path:join(entryEvidence,'new-session-hover.png')});
   await page.getByRole('button',{name:'新建智能聊天',exact:true}).first().click();
   await page.getByRole('button',{name:'Intelligent UI',exact:true}).waitFor({state:'visible',timeout:15000});
   const box=page.locator('[contenteditable="true"]').first();await box.waitFor({state:'visible'});await box.fill('IUI_MAIN_TEST 生成自然观察工具');await box.press('Enter');
@@ -31,7 +36,7 @@ test('packaged native Web: small plus, mixed inline controls, save/reload, submi
   const originalRow=()=>page.locator(`[data-row-key="session:${firstSession.sessionId}"]`);
   await f.rpc('session/rename',{request:{sessionId:firstSession.sessionId,title:'持久化验收作品'}});
   await f.stop();await page.goto(await f.boot());await originalRow().click();await page.getByLabel('观察地点',{exact:true}).waitFor();await until(async()=>await page.getByLabel('观察地点',{exact:true}).isEnabled());assert.equal(await page.getByLabel('观察地点',{exact:true}).inputValue(),'河边公园');assert.equal(await page.getByLabel('准备好记录本',{exact:true}).isChecked(),true,'native process restart restores persisted state');
-  await page.getByRole('button',{name:'新建智能聊天',exact:true}).first().click();await until(async()=>await page.locator('[data-iui-block]').count()===0);await box.fill('IUI_SECOND_TEST 生成另一个观察工具');await box.press('Enter');await page.getByLabel('观察地点',{exact:true}).waitFor();await until(async()=>await page.getByLabel('观察地点',{exact:true}).isEnabled());assert.equal(await page.getByLabel('观察地点',{exact:true}).inputValue(),'附近公园');assert.equal(await page.getByLabel('准备好记录本',{exact:true}).isChecked(),false,'another Session does not inherit the first artwork state');
+  await entry.hover();await page.getByRole('button',{name:'新建智能聊天',exact:true}).first().click();await until(async()=>await page.locator('[data-iui-block]').count()===0);await box.fill('IUI_SECOND_TEST 生成另一个观察工具');await box.press('Enter');await page.getByLabel('观察地点',{exact:true}).waitFor();await until(async()=>await page.getByLabel('观察地点',{exact:true}).isEnabled());assert.equal(await page.getByLabel('观察地点',{exact:true}).inputValue(),'附近公园');assert.equal(await page.getByLabel('准备好记录本',{exact:true}).isChecked(),false,'another Session does not inherit the first artwork state');
   await originalRow().click();await page.getByLabel('观察地点',{exact:true}).waitFor();await until(async()=>await page.getByLabel('观察地点',{exact:true}).isEnabled());assert.equal(await page.getByLabel('观察地点',{exact:true}).inputValue(),'河边公园');
   await page.getByRole('button',{name:'展开交互内容',exact:true}).first().click();await page.locator('.iui-artifact-pane .iui-surface').waitFor();
   const beforeSubmit=f.requests.length;await page.locator('.iui-artifact-pane').getByRole('button',{name:'整理观察记录',exact:true}).click();await until(()=>f.requests.length>beforeSubmit);assert.ok(f.requests.some(p=>JSON.stringify(p.messages).includes('河边公园')));

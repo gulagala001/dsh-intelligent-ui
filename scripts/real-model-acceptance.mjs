@@ -65,6 +65,7 @@ try {
     console.log(`${item.id}: native DSH generation with ${f.model}`);
     const begin = f.calls.length;
     try {
+      await f.page.locator('button[data-iui-entrance-wide]').first().hover();
       await f.page.getByRole('button', { name: '新建智能聊天', exact: true }).first().click();
       await f.page.getByRole('button', { name: 'Intelligent UI', exact: true }).waitFor({ timeout: 15000 });
       const box = f.page.locator('[contenteditable="true"]').first();

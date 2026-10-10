@@ -1,5 +1,6 @@
 import React, { useId, useRef, useState } from 'react';
 import { disabled, display, ErrorMessage, formatNumber, numeric, paint, palette, useBound } from './shared.jsx';
+import { FigureViewport } from './FigureViewport.jsx';
 
 function cell(value, format) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return display(value);
@@ -158,7 +159,7 @@ export function Chart({ props: p, api }) {
       setHover(null);
       set({ ...stateObj, hiddenCategories: categoryVisible(index) ? [...hiddenCategories, categories[index]] : hiddenCategories.filter(value => value !== categories[index]), ...selectionFields(categoryVisible(index) && savedSelection != null && categories[savedSelection] === categories[index] ? null : savedSelection) });
     }}><span style={{ background: paint(colors[index % colors.length]) }} />{display(row[p.x])}<span className="iui-chart-legend-value">{metric ? `${formatNumber(row[metric.key])} · ${categoryVisible(index) ? percent(row) : '已隐藏'}` : '未选指标'}</span></button>) : series.map(entry => <button key={entry.key} className="iui-chart-legend-item" type="button" disabled={disabled(api)} aria-pressed={!hidden.includes(entry.key)} onClick={() => { setHover(null); set({ ...stateObj, hidden: hidden.includes(entry.key) ? hidden.filter(key => key !== entry.key) : [...hidden, entry.key] }); }}><span style={{ background: paint(entry.color) }} />{entry.label}</button>)}</div>
-    <div className="iui-chart-canvas"><svg viewBox={`0 0 ${W} ${H}`} role="group" aria-label={`${tabTitle}，${p.data.length} 个数据点`} aria-describedby={`${id}-description ${id}-help`}>
+    <div className="iui-chart-canvas"><FigureViewport width={W} height={H} label={tabTitle}><svg viewBox={`0 0 ${W} ${H}`} role="group" aria-label={`${tabTitle}，${p.data.length} 个数据点`} aria-describedby={`${id}-description ${id}-help`}>
       {!pie && <>
         {Array.from({ length: 5 }, (_, index) => { const value = min + range * index / 4; return <g key={index}><line x1={left} y1={y(value)} x2={W - right} y2={y(value)} className="iui-chart-gridline" /><text x={left - 10} y={y(value) + 4} textAnchor="end" className="iui-chart-label">{formatNumber(value, 1)}</text></g>; })}
         {p.data.map((row, index) => (index % Math.max(1, Math.ceil(p.data.length / 8)) === 0 || index === p.data.length - 1) && <text key={index} x={x(index)} y={H - 18} textAnchor="middle" className="iui-chart-label">{display(row[p.x]).slice(0, 14)}</text>)}
@@ -179,7 +180,7 @@ export function Chart({ props: p, api }) {
         return <path key={index} {...markProps(index, metric)} d={arc(W / 2, H / 2, 120, start, pieAngle)} fill={paint(colors[index % colors.length])} stroke="var(--iui-surface)" strokeWidth="3" opacity={selected != null && selected !== index ? 0.55 : 1}><title>{label(index, metric)}</title></path>;
       })}
       {pie && total === 0 && <text x={W / 2} y={H / 2} textAnchor="middle" className="iui-chart-label">{metric ? '当前分类没有正数数据' : '请选择显示指标'}</text>}
-    </svg></div>
+    </svg></FigureViewport></div>
     <div className="iui-chart-description" id={`${id}-description`} aria-live="polite">{selectedRow ? <><strong>{display(selectedRow[p.x])}</strong>{plotted.map(entry => <span key={entry.key}>{entry.label}：{formatNumber(selectedRow[entry.key])}{pie && categoryVisible(selected) && ` · ${percent(selectedRow)}`}</span>)}{savedSelection != null && <button type="button" className="iui-chart-clear" disabled={disabled(api)} onClick={clear}>取消选择</button>}</> : <span className="iui-muted">{!p.data.length ? '暂无数据' : !plotted.length ? '请开启至少一个数据系列' : '点击图形或数据行，查看具体数值'}</span>}</div>
     <span className="iui-visually-hidden" id={`${id}-help`}>图形可使用方向键切换数据点，Enter 或空格选择，再次选择或 Escape 取消；下方可查看完整数据。</span>
     <details className="iui-chart-data"><summary>查看数据</summary><div className="iui-table-scroll"><table className="iui-table"><caption className="iui-visually-hidden">{tabTitle}原始数据</caption><thead><tr><th scope="col">{p.x}</th>{series.map(entry => <th scope="col" key={entry.key}>{entry.label}</th>)}</tr></thead><tbody>{p.data.map((row, index) => <tr key={index} className={savedSelection === index ? 'is-selected' : ''}><th scope="row"><button type="button" className="iui-data-select" disabled={disabled(api)} aria-pressed={savedSelection === index} onClick={() => select(index)}>{display(row[p.x])}</button></th>{series.map(entry => <td key={entry.key}>{formatNumber(row[entry.key])}</td>)}</tr>)}</tbody></table></div></details>

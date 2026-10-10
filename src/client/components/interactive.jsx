@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ScenePlayback } from '../scene-playback.mjs';
+import { FigureViewport } from './FigureViewport.jsx';
 import { fieldError, fieldValue, InputControl } from './controls.jsx';
 import { disabled, display, ErrorMessage, evaluate, formatNumber, invoke, numeric, paint, useBound } from './shared.jsx';
 
@@ -21,7 +22,7 @@ export function Diagram({ props: p, api }) {
   const fullHeight = Math.max(height, ...nodes.map(node => node.y + 60));
   const chosen = nodes.find(node => node.id === selected);
   const inactive = disabled(api);
-  return <figure className="iui-diagram">{p.title && <figcaption className="iui-chart-title">{p.title}</figcaption>}<svg viewBox={`0 0 ${width} ${fullHeight}`} role="group" aria-label={p.title || '交互示意图'}>
+  return <figure className="iui-diagram">{p.title && <figcaption className="iui-chart-title">{p.title}</figcaption>}<FigureViewport width={width} height={fullHeight} label={p.title || '交互示意图'}><svg viewBox={`0 0 ${width} ${fullHeight}`} role="group" aria-label={p.title || '交互示意图'}>
     <defs><marker id={`${id}-arrow`} viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--iui-muted)" /></marker></defs>
     {p.edges.map((edge, index) => {
       const from = nodes.find(node => node.id === edge.from), to = nodes.find(node => node.id === edge.to);
@@ -31,7 +32,7 @@ export function Diagram({ props: p, api }) {
       return <g key={index}><line x1={from.x + dx * 65} y1={from.y + dy * 25} x2={to.x - dx * 70} y2={to.y - dy * 30} stroke="var(--iui-muted)" strokeWidth="1.5" markerEnd={`url(#${id}-arrow)`} />{edge.label && <text x={(from.x + to.x) / 2} y={(from.y + to.y) / 2 - 10} textAnchor="middle" className="iui-chart-label">{edge.label}</text>}</g>;
     })}
     {nodes.map(node => <g key={node.id} role="button" tabIndex={inactive ? -1 : 0} aria-label={node.label} aria-pressed={selected === node.id} aria-disabled={inactive} className={`iui-diagram-node ${selected === node.id ? 'is-selected' : ''}`} onClick={() => set(node.id)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); set(node.id); } }}><rect x={node.x - 72} y={node.y - 28} width="144" height="56" rx="12" /><text x={node.x} y={node.y + 5} textAnchor="middle">{node.label.length > 12 ? `${node.label.slice(0, 12)}…` : node.label}</text></g>)}
-  </svg><div className="iui-diagram-detail" aria-live="polite">{chosen ? <><strong>{chosen.label}</strong><p>{chosen.detail || '暂无补充说明'}</p></> : <span className="iui-muted">选择节点查看说明。</span>}</div>{error && <ErrorMessage>{error}</ErrorMessage>}</figure>;
+  </svg></FigureViewport><div className="iui-diagram-detail" aria-live="polite">{chosen ? <><strong>{chosen.label}</strong><p>{chosen.detail || '暂无补充说明'}</p></> : <span className="iui-muted">选择节点查看说明。</span>}</div>{error && <ErrorMessage>{error}</ErrorMessage>}</figure>;
 }
 
 function SceneMark({ mark, onClick, onPointerDown, draggable, inactive, keyboardEvents }) {
@@ -43,7 +44,8 @@ function SceneMark({ mark, onClick, onPointerDown, draggable, inactive, keyboard
   if (mark.type === 'line') element = <line {...properties} x1={coordinate(mark.x)} y1={coordinate(mark.y)} x2={coordinate(mark.x2)} y2={coordinate(mark.y2)} stroke={mark.stroke ? paint(mark.stroke, 'gray') : paint('gray')} />;
   if (mark.type === 'text') element = <text {...properties} x={coordinate(mark.x)} y={coordinate(mark.y)} fontSize={Math.min(96, Math.max(8, numeric(mark.fontSize, 16)))}>{display(mark.text)}</text>;
   if (mark.type === 'path') element = <polyline {...properties} fill={mark.fill ? paint(mark.fill) : 'none'} stroke={mark.stroke ? paint(mark.stroke) : paint('blue')} points={Array.isArray(mark.points) ? mark.points.slice(0, 1000).filter(point => Array.isArray(point) && point.length === 2).map(point => `${coordinate(point[0])},${coordinate(point[1])}`).join(' ') : ''} />;
-  return <g data-iui-mark-id={mark.id} className={mark.interactive ? `iui-scene-target${draggable ? ' iui-scene-draggable' : ''}` : undefined} role={mark.interactive ? 'button' : undefined} tabIndex={mark.interactive && !inactive ? 0 : undefined} aria-label={mark.label || (mark.interactive ? mark.id : undefined)} aria-disabled={mark.interactive ? inactive : undefined} onPointerDown={mark.interactive && draggable ? event => onPointerDown(mark.id, event) : undefined} onClick={mark.interactive ? event => { event.stopPropagation(); onClick(mark.id, event); } : undefined} onKeyDown={mark.interactive && !keyboardEvents ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onClick(mark.id, undefined, { x: numeric(mark.x) + (mark.type === 'rect' ? numeric(mark.width) / 2 : 0), y: numeric(mark.y) + (mark.type === 'rect' ? numeric(mark.height) / 2 : 0) }); } } : undefined}>{element}{mark.label && <title>{mark.label}</title>}</g>;
+  // Draw-only labels and overlays must not steal an underlying target's press.
+  return <g data-iui-mark-id={mark.id} pointerEvents={mark.interactive ? undefined : 'none'} className={mark.interactive ? `iui-scene-target${draggable ? ' iui-scene-draggable' : ''}` : undefined} role={mark.interactive ? 'button' : undefined} tabIndex={mark.interactive && !inactive ? 0 : undefined} aria-label={mark.label || (mark.interactive ? mark.id : undefined)} aria-disabled={mark.interactive ? inactive : undefined} onPointerDown={mark.interactive && draggable ? event => onPointerDown(mark.id, event) : undefined} onClick={mark.interactive ? event => { event.stopPropagation(); onClick(mark.id, event); } : undefined} onKeyDown={mark.interactive && !keyboardEvents ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onClick(mark.id, undefined, { x: numeric(mark.x) + (mark.type === 'rect' ? numeric(mark.width) / 2 : 0), y: numeric(mark.y) + (mark.type === 'rect' ? numeric(mark.height) / 2 : 0) }); } } : undefined}>{element}{mark.label && <title>{mark.label}</title>}</g>;
 }
 
 export function Scene({ props: p, api, controls = true, restartFields = [] }) {
@@ -212,22 +214,19 @@ export function Scene({ props: p, api, controls = true, restartFields = [] }) {
     const pointerId=event?.nativeEvent?.pointerId??event?.pointerId;
     if(event?.detail>0&&suppressClick.current.size&&(pointerId===undefined||suppressClick.current.has(pointerId))){if(pointerId!==undefined)suppressClick.current.delete(pointerId);return;}
     if (inactive || !p.scene.events?.click) return;
-    const bounds = container.current?.querySelector('svg')?.getBoundingClientRect();
     const payload = { id, ...point };
-    if (event && bounds?.width && bounds?.height) {
-      const scale = Math.min(bounds.width / view.width, bounds.height / view.height);
-      payload.x = (event.clientX - bounds.left - (bounds.width - view.width * scale) / 2) / scale;
-      payload.y = (event.clientY - bounds.top - (bounds.height - view.height * scale) / 2) / scale;
-    }
+    const svg = container.current?.querySelector('.iui-scene-canvas');
+    const mapped = event && svg && pointerPoint(svg, event, view.width, view.height);
+    if (mapped) Object.assign(payload, mapped);
     eventAction('click', payload);
   };
   return <section className="iui-scene" ref={container} aria-label={p.title || '交互场景'}>
     {p.title && <h3 id={titleId}>{p.title}</h3>}
-    {!view || view.error ? <ErrorMessage>{view?.error || '场景服务尚未就绪'}</ErrorMessage> : <svg className="iui-scene-canvas" viewBox={`0 0 ${view.width} ${view.height}`} role="group" aria-label={p.title || '交互场景'} aria-describedby={hasHelp?`${titleId}-help`:undefined} tabIndex={inactive || !p.scene.events?.key ? undefined : 0} aria-disabled={inactive} onPointerDownCapture={event => { if (event.isPrimary && event.button===0) suppressClick.current.delete(event.pointerId); }} onClick={event => click('background', event)} onKeyDown={event => {
+    {!view || view.error ? <ErrorMessage>{view?.error || '场景服务尚未就绪'}</ErrorMessage> : <FigureViewport width={view.width} height={view.height} label={p.title || '交互场景'}><svg className="iui-scene-canvas" viewBox={`0 0 ${view.width} ${view.height}`} role="group" aria-label={p.title || '交互场景'} aria-describedby={hasHelp?`${titleId}-help`:undefined} tabIndex={inactive || !p.scene.events?.key ? undefined : 0} aria-disabled={inactive} onPointerDownCapture={event => { if (event.isPrimary && event.button===0) suppressClick.current.delete(event.pointerId); }} onClick={event => click('background', event)} onKeyDown={event => {
       if (inactive || !p.scene.events?.key || event.key === 'Tab' || event.ctrlKey || event.metaKey || event.altKey) return;
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Enter'].includes(event.key)) event.preventDefault();
       eventAction('key', { key: event.key, id: event.target.closest?.('[data-iui-mark-id]')?.getAttribute('data-iui-mark-id') || 'scene' });
-    }}>{view.marks.map(mark => <SceneMark key={mark.id} mark={mark} onClick={click} onPointerDown={beginDrag} draggable={draggable} inactive={inactive} keyboardEvents={Boolean(p.scene.events?.key)} />)}</svg>}
+    }}>{view.marks.map(mark => <SceneMark key={mark.id} mark={mark} onClick={click} onPointerDown={beginDrag} draggable={draggable} inactive={inactive} keyboardEvents={Boolean(p.scene.events?.key)} />)}</svg></FigureViewport>}
     <div className="iui-scene-toolbar">{controls && p.scene.events?.tick && <button type="button" className={`iui-button ${playing ? 'iui-button-secondary' : 'iui-button-primary'}`} disabled={inactive || Boolean(view?.error) || !view} aria-pressed={playing} onClick={() => { setActionError(''); player.toggle(); }}>{playing ? '暂停' : '播放'}</button>}{restartFields.length>0 && <button type="button" className="iui-button iui-button-secondary" title="保留当前参数，重新开始" disabled={inactive || !view || Boolean(view?.error)} onClick={() => { player.cancelGesture(); player.pause(); setActionError(''); invoke(api,{type:'sceneRestart',name:p.bind,scene:p.scene,fields:restartFields},setActionError); }}>重新开始</button>}<button type="button" className="iui-button iui-button-ghost" title="恢复全部初始设置" disabled={inactive || !view || Boolean(view?.error)} onClick={() => { player.cancelGesture(); player.pause(); eventAction('reset', {}); }}>重置</button>
       {hasHelp&&<details className="iui-scene-help"><summary role="button">操作说明</summary><p className="iui-hint" id={`${titleId}-help`}>{draggable && '拖动图形调整位置。'}{p.scene.events?.key && '聚焦场景或图形后可用键盘操作。'}{p.scene.events?.click && '点击图形进行操作。'}{timed && '离屏或离开页面后暂停。'}{restartFields.length>0 && '重新开始保留参数，重置恢复全部初始设置。'}</p></details>}
     </div>

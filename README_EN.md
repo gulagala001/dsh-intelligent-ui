@@ -14,9 +14,9 @@
 
 <br />
 
-![DSH Intelligent UI feature overview: parameter calculations, budget charts, and interactive forms](docs/images/intelligent-ui-overview.png)
+![A dinner plan with adjustable headcount, linked grocery quantities, and a preparation checklist](docs/images/showcase-plan.jpg)
 
-<p align="center"><sub>AI-generated feature illustration showing interaction scenarios supported by this plugin.</sub></p>
+<p align="center"><sub>Example scenarios rendered with the plugin's actual components and fixed sample data. The food image is AI-generated.</sub></p>
 
 **DSH Intelligent UI is a standalone plugin installed directly in [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness).** This repository maintains its installation, usage, and updates; Oh My DSH (OMD) is optional. Models, sessions, tools, and skills use DSH's native capabilities.
 
@@ -110,13 +110,27 @@ Packages are generated in `work/packages/`; install one using the `file:` comman
 
 ## 🖼️ Feature tour
 
-These scenarios show how components can work together. Screenshots and recordings of the actual interface will be added later.
+### Change the inputs, see the answer update
+
+Enter a bill, headcount, and service charge to compare each person's share and the total. The numbers and controls use the plugin's actual calculator component.
+
+![A bill-splitting tool with adjustable bill, headcount, and service charge](docs/images/showcase-calculator.jpg)
+
+### Explore the controls to understand what changes
+
+Adjust initial velocity or acceleration and see both the curve and displacement after 6 seconds. Charts, sliders, and metrics work together in one explanation.
+
+![Explore velocity and acceleration through sliders and a displacement curve](docs/images/showcase-motion.jpg)
+
+These fixed scenarios show actual components and local updates. See the [image notes](docs/images/showcase-notes.md) for sources and the scope of the examples.
+
+More scenarios you can build by combining components:
 
 | | |
 | --- | --- |
-| **🧮 Meal planning and bill splitting**<br />Adjust the number of guests to update ingredient quantities; enter the total and service charge to see each person's share.<br /><sub>Scenario screenshot coming soon</sub> | **📊 Budgets and option comparisons**<br />Combine metrics, charts, sortable tables, and tabs in one answer, select series, and inspect details.<br /><sub>Scenario screenshot coming soon</sub> |
-| **✅ Checklists and parameter controls**<br />Check off tasks, change options, and move sliders. Results update and save within the current answer.<br /><sub>Scenario screenshot coming soon</sub> | **📝 Forms and follow-up conversations**<br />Enter a destination, duration, and preferences. An explicit submission sends your choices to the original session to continue planning.<br /><sub>Scenario screenshot coming soon</sub> |
-| **🎮 Diagrams, simulations, and games**<br />Select nodes to read explanations and explore scenes through parameters, clicks, and keyboard controls. Playback starts when you choose.<br /><sub>Scenario screenshot coming soon</sub> | **↗️ Artifacts, restoration, and export**<br />The inline answer and expanded tab share settings. Restore saved state, copy the source, or export artifact data.<br /><sub>Scenario screenshot coming soon</sub> |
+| **🧮 Meal planning and bill splitting**<br />Adjust the number of guests to update ingredient quantities; enter the total and service charge to see each person's share. | **📊 Budgets and option comparisons**<br />Combine metrics, charts, sortable tables, and tabs in one answer, select series, and inspect details. |
+| **✅ Checklists and parameter controls**<br />Check off tasks, change options, and move sliders. Results update and save within the current answer. | **📝 Forms and follow-up conversations**<br />Enter a destination, duration, and preferences. An explicit submission sends your choices to the original session to continue planning. |
+| **🎮 Diagrams, simulations, and games**<br />Select nodes to read explanations and explore scenes through parameters, clicks, and keyboard controls. Playback starts when you choose. | **↗️ Artifacts, restoration, and export**<br />The inline answer and expanded tab share settings. Restore saved state, copy the source, or export artifact data. |
 
 <a id="usage"></a>
 

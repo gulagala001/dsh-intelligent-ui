@@ -1,0 +1,10 @@
+Generated with the built-in image_gen tool.
+Asset: weekend-meal.png
+Role: supporting illustration inside a real component showcase.
+
+Use case: photorealistic-natural
+Asset type: supporting food photograph inside an actual interactive answer showcase for DSH Intelligent UI, not a poster or UI mockup.
+Primary request: an understated editorial photograph of a relaxed weekend barbecue meal for friends. The visual is a small supporting part of an answer, not an advertisement.
+Subject: grilled vegetable and chicken skewers on a matte white oval platter, a smaller bowl of roasted potatoes, a simple green salad and lemon wedges on a light natural linen-covered table. No people, no visible branding. Food should look plausible, casually served and appetizing rather than meticulously staged.
+Composition: very wide landscape, approximately 3:1; photograph from a gentle overhead angle, enough surrounding table for a calm composition, readable main dishes, no extreme close-up. Soft natural daylight, neutral white balance, restrained warm earth colors, realistic textures, no saturated color treatment.
+Constraints: no words, no labels, no UI elements, no infographic, no advertising title, no logos, no glossy artificial 3D styling, no decorative blue gradients, no sparkles, no watermarks.

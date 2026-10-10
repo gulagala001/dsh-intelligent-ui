@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {mkdir} from 'node:fs/promises';import {join} from 'node:path';
+import {mkdir,readFile} from 'node:fs/promises';import {join} from 'node:path';
 import {hostFixture,until} from '../fixtures/host.mjs';import {examples} from '../../src/catalog.mjs';
 test('packaged native Web: small plus, mixed inline controls, save/reload, submit, expand and uninstall', {timeout:300000},async t=>{
   const source=examples[9],reply='这是自然观察工具。\n\n```openui\n'+source+'\n```\n\n可以继续记录观察。';
@@ -17,6 +17,11 @@ test('packaged native Web: small plus, mixed inline controls, save/reload, submi
   await page.reload();await page.getByLabel('观察地点',{exact:true}).waitFor();await until(async()=>await page.getByLabel('观察地点',{exact:true}).isEnabled());assert.equal(await page.getByLabel('观察地点',{exact:true}).inputValue(),'河边公园');assert.equal(await page.getByLabel('准备好记录本',{exact:true}).isChecked(),true);
   await page.getByRole('button',{name:'展开交互内容',exact:true}).first().click();await page.locator('.iui-artifact-pane .iui-surface').waitFor();assert.equal(await page.locator('.iui-artifact-pane').getByLabel('观察地点',{exact:true}).inputValue(),'河边公园');
   assert.equal(await page.evaluate(()=>document.activeElement?.classList.contains('iui-artifact-pane')),true,'explicit expansion focuses the artwork');
+  const pane=page.locator('.iui-artifact-pane'),more=pane.getByRole('button',{name:'更多交互内容操作',exact:true});await more.click();
+  const menuBox=await pane.locator('.iui-actions-popover').boundingBox();assert.ok(menuBox.y>=0&&menuBox.y+menuBox.height<=850,'native pane actions remain inside the visible viewport');
+  const menuEvidence=process.env.IUI_WEB_EVIDENCE??f.root;await mkdir(menuEvidence,{recursive:true});await page.screenshot({path:join(menuEvidence,'intelligent-ui-actions.png')});
+  const downloading=page.waitForEvent('download');await pane.getByRole('button',{name:'导出',exact:true}).click();const file=await downloading,exported=JSON.parse(await readFile(await file.path(),'utf8'));assert.equal(file.suggestedFilename(),'intelligent-ui.json');assert.equal(exported.source.trim(),source.trim());assert.equal(exported.state.place,'河边公园');assert.equal(exported.state.notebook,true);assert.equal(exported.componentsVersion,3);
+  assert.equal(await more.evaluate(element=>element===document.activeElement),true);assert.equal(f.requests.length,count,'native delivery never starts another model turn');
   await page.getByRole('button',{name:'关闭交互作品',exact:true}).click();
   assert.equal(await page.evaluate(()=>document.activeElement?.getAttribute('aria-label')),'展开交互内容','closing the artwork returns focus to its origin');
   await page.getByRole('button',{name:'展开交互内容',exact:true}).first().click();await page.locator('.iui-artifact-pane .iui-surface').waitFor();

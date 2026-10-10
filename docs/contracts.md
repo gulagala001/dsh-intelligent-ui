@@ -10,6 +10,8 @@
 
 当前API还提供默认组件的`widget/setWidget`、场景的`sceneView`以及按bind共享的`playback/playbackVersion`。未显式绑定的控件按稳定path保存私有状态，动态列表采用有类型的数据身份。源文更换后原API不能写入新作品；同一作品的内联与展开视图共享设置、播放器及拖拽归属。生成未完成时禁用展开，保留内联渐进预览。
 
+复制、导出及源文位于本地更多disclosure；菜单不能启动模型回合。定位受visualViewport与祖先滚动裁剪边界限制，按空间上下翻转并限高；仅打开时监听resize/scroll/outside，关闭和卸载清理。显式选择/Escape回入口，外点和失焦不抢焦点。通用场景说明按需展开，业务提示保留。Tabs仅显式选中滚自身strip，恢复不滚页面。滑块thumb按编辑范围/step显示，数字展示原始状态且不写回归一值，连续场景读数不设置live区域。
+
 `src/catalog.mjs` 由组件 worker 创建：导出 `catalog`，对象 key 为组件名，值 `{ group, description, args: ['field',...], schema: z.object(...), children?: 'field' }`。位置参数顺序就是OpenUI调用顺序。`args` 最终由主模型核对。组件 worker 同步导出 `examples`（完整OpenUI源字符串列表），供真实宿主测试使用。至少覆盖Stack, Row, Grid, Card, Text, Heading, Divider, Image, Badge, Metric, Table, Chart, Button, Input, NumberInput, Select, Slider, Checkbox, Checklist, Form, Tabs, Calculator, Diagram, Simulation, Game。可以按真实需要添加，但保持目录紧凑。
 
 布局组件children是数组；Image只接受经主模型验证的公共https URL；交互组件通过字符串`bind`关联局部状态。Button action 是安全纯数据：`{type:'set',name,value}`、`{type:'reset',name}`、`{type:'submit',text,fields:[...]}`或同类数组，绝不任意脚本。Calculator使用fields和formula字符串；Simulation采用数据定义和公式；Game采用受控规则（例如井字棋/记忆配对/通用网格）而非生成JS。

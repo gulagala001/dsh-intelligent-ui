@@ -30,11 +30,11 @@ export function useBound(api, name, initial) {
 export function ErrorMessage({ children }) {
   return <div className="iui-error" role="alert">{children}</div>;
 }
-export function Field({ label, hint, error, children, unit }) {
+export function Field({ label, hint, error, children, unit, className = '' }) {
   const id = useId();
   const described = hint || error ? `${id}-help` : undefined;
-  return <div className="iui-field">
-    <label className="iui-label" htmlFor={id}>{label}{unit && <span className="iui-muted"> · {unit}</span>}</label>
+  return <div className={`iui-field ${className}`}>
+    <label className="iui-label" htmlFor={id}><span className="iui-label-text">{label}</span>{unit && <span className="iui-muted iui-field-unit"> · {unit}</span>}</label>
     {children({ id, 'aria-describedby': described, 'aria-invalid': Boolean(error) })}
     {(hint || error) && <span id={described} role={error ? 'alert' : undefined} className={error ? 'iui-field-error' : 'iui-hint'}>{error || hint}</span>}
   </div>;

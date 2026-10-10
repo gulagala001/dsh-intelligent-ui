@@ -1,21 +1,43 @@
 import React, { useId, useState } from 'react';
 import { disabled, display, ErrorMessage, Field, invoke, numeric, useBound } from './shared.jsx';
 
+const decimalPlaces = value => {
+  const [coefficient, exponent = '0'] = String(value).split(/e/i);
+  return Math.max(0, (coefficient.split('.')[1]?.length ?? 0) - Number(exponent));
+};
+function rangeValue(value, min, max, step) {
+  const clamped = Math.min(max, Math.max(min, numeric(value, min)));
+  const index = (clamped - min) / step, last = (max - min) / step;
+  if (!Number.isFinite(index) || !Number.isFinite(last)) return clamped;
+  const amount = min + Math.min(Math.round(index), Math.floor(last + Math.abs(last) * Number.EPSILON)) * step;
+  const places = Math.max(decimalPlaces(min), decimalPlaces(step));
+  // Match native range step alignment without rewriting the bound record.
+  return Math.min(max, Math.max(min, places <= 100 ? Number(amount.toFixed(places)) : amount));
+}
+
 export function InputControl({ props: p, api, kind = 'text', error }) {
   const [value, set, updateError] = useBound(api, p.bind, p.value ?? (kind === 'checkbox' ? false : kind === 'number' || kind === 'slider' ? 0 : ''));
   const opts = (p.options || []).map(item => item && typeof item === 'object' ? item : { label: display(item), value: item });
   const inactive = disabled(api);
-  return <Field label={p.label} hint={p.hint} error={error || updateError} unit={p.unit}>{attributes => {
-    if (kind === 'checkbox') return <div className="iui-checkbox-line"><input {...attributes} className="iui-checkbox" type="checkbox" checked={Boolean(value)} disabled={inactive} onChange={event => set(event.target.checked)} /><span>{value ? '已选择' : '未选择'}</span></div>;
-    if (kind === 'select') return <select {...attributes} className="iui-input iui-select" disabled={inactive} value={Math.max(-1, opts.findIndex(option => Object.is(option.value, value)))} onChange={event => set(opts[Number(event.target.value)]?.value)}>
-      <option value={-1} disabled>请选择</option>{opts.map((option, index) => <option key={index} value={index} disabled={option.disabled}>{option.label}</option>)}
-    </select>;
+  return <Field label={p.label} hint={p.hint} error={error || updateError} unit={p.unit} className={`iui-field-${kind}`}>{attributes => {
+    if (kind === 'checkbox') return <label className={`iui-checkbox-line${inactive ? ' iui-checkbox-inactive' : ''}`} htmlFor={attributes.id}><input {...attributes} aria-label={p.unit ? `${p.label} · ${p.unit}` : p.label} className="iui-checkbox" type="checkbox" checked={Boolean(value)} disabled={inactive} onChange={event => set(event.target.checked)} /><span aria-hidden="true">{value ? '已选择' : '未选择'}</span></label>;
+    if (kind === 'select') {
+      const selected = opts.findIndex(option => Object.is(option.value, value));
+      const label = opts[selected]?.label;
+      return <><select {...attributes} className="iui-input iui-select" disabled={inactive} value={Math.max(-1, selected)} title={label} onChange={event => set(opts[Number(event.target.value)]?.value)}>
+        <option value={-1} disabled>请选择</option>{opts.map((option, index) => <option key={index} value={index} disabled={option.disabled}>{option.label}</option>)}
+      </select>{label?.length > 12 && <span className="iui-select-value" aria-hidden="true">{label}</span>}</>;
+    }
     if (kind === 'slider') {
       const min = p.min ?? 0, max = Math.max(min, p.max ?? 100);
-      return <div className="iui-range-line"><input {...attributes} className="iui-slider" type="range" disabled={inactive} min={min} max={max} step={p.step ?? 1} value={Math.min(max, Math.max(min, numeric(value, min)))} onChange={event => set(event.target.valueAsNumber)} /><output htmlFor={attributes.id}>{numeric(value, min)}{p.unit && ` ${p.unit}`}</output></div>;
+      const step = p.step ?? 1, amount = rangeValue(value, min, max, step);
+      const currentValue = numeric(value, min), readoutId = `${attributes.id}-value`;
+      const describesCurrent = !Object.is(currentValue, amount);
+      const described = [attributes['aria-describedby'], describesCurrent ? readoutId : undefined].filter(Boolean).join(' ') || undefined;
+      return <div className="iui-range-line"><input {...attributes} aria-describedby={described} className="iui-slider" type="range" disabled={inactive} min={min} max={max} step={step} value={amount} aria-valuetext={p.unit ? `${amount} ${p.unit}` : undefined} onChange={event => set(event.target.valueAsNumber)} /><span className="iui-range-output" id={readoutId}>{describesCurrent && <span className="iui-visually-hidden">当前值：</span>}<span className="iui-range-value">{currentValue}</span>{p.unit && <span className="iui-range-unit">{p.unit}</span>}</span></div>;
     }
     if (kind === 'textarea') return <textarea {...attributes} className="iui-input iui-textarea" disabled={inactive} value={display(value === null ? '' : value)} placeholder={p.placeholder} onChange={event => set(event.target.value)} rows={3} />;
-    return <input {...attributes} className="iui-input" type={kind === 'number' ? 'number' : 'text'} inputMode={kind === 'number' ? 'decimal' : undefined} disabled={inactive} value={value ?? ''} min={p.min} max={p.max} step={p.step ?? (kind === 'number' ? 'any' : undefined)} placeholder={p.placeholder} onChange={event => set(kind === 'number' ? event.target.value === '' ? null : event.target.valueAsNumber : event.target.value)} />;
+    return <><input {...attributes} className="iui-input" type={kind === 'number' ? 'number' : 'text'} inputMode={kind === 'number' ? 'decimal' : undefined} disabled={inactive} value={value ?? ''} min={p.min} max={p.max} step={p.step ?? (kind === 'number' ? 'any' : undefined)} placeholder={p.placeholder} onChange={event => set(kind === 'number' ? event.target.value === '' ? null : event.target.valueAsNumber : event.target.value)} />{kind === 'number' && typeof value === 'number' && String(value).length > 12 && <span className="iui-number-value" aria-hidden="true">{value}</span>}</>;
   }}</Field>;
 }
 
@@ -81,12 +103,19 @@ export function Tabs({ props: p, children, api }) {
   const selected = Math.max(0, tabs.findIndex(tab => tab.value === value));
   const id = useId();
   const content = React.Children.toArray(children);
-  return <div className="iui-tabs"><div className="iui-tab-list" role="tablist" aria-label="内容分类">{tabs.map((tab, index) => <button key={tab.value} type="button" id={`${id}-tab-${index}`} role="tab" aria-selected={index === selected} aria-controls={`${id}-panel-${index}`} tabIndex={index === selected ? 0 : -1} disabled={disabled(api)} className="iui-tab" onClick={() => set(tab.value)} onKeyDown={event => {
+  // Only explicit selection scrolls the tab strip. Restoring or sharing bound
+  // state must not scroll the host page or move keyboard focus.
+  const reveal = button => {
+    const strip = button.parentElement, item = button.getBoundingClientRect(), frame = strip.getBoundingClientRect();
+    if (item.left < frame.left + 6) strip.scrollLeft += item.left - frame.left - 6;
+    else if (item.right > frame.right - 6) strip.scrollLeft += item.right - frame.right + 6;
+  };
+  return <div className="iui-tabs"><div className="iui-tab-list" role="tablist" aria-label="内容分类" aria-orientation="horizontal">{tabs.map((tab, index) => <button key={tab.value} type="button" id={`${id}-tab-${index}`} role="tab" aria-selected={index === selected} aria-controls={`${id}-panel-${index}`} tabIndex={index === selected ? 0 : -1} disabled={disabled(api)} className="iui-tab" onClick={event => { set(tab.value); reveal(event.currentTarget); }} onKeyDown={event => {
     let next;
     if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
     if (event.key === 'ArrowLeft') next = (index + tabs.length - 1) % tabs.length;
     if (event.key === 'Home') next = 0;
     if (event.key === 'End') next = tabs.length - 1;
-    if (next !== undefined && !disabled(api)) { event.preventDefault(); set(tabs[next].value); event.currentTarget.parentElement.querySelectorAll('[role="tab"]')[next]?.focus(); }
+    if (next !== undefined && !disabled(api)) { event.preventDefault(); set(tabs[next].value); const target = event.currentTarget.parentElement.querySelectorAll('[role="tab"]')[next];if (target) { target.focus({ preventScroll: true }); reveal(target); } }
   }}>{tab.label}</button>)}</div>{tabs.map((tab, index) => <div key={tab.value} id={`${id}-panel-${index}`} role="tabpanel" aria-labelledby={`${id}-tab-${index}`} hidden={index !== selected} tabIndex={0} className="iui-tab-panel">{content[index] || <span className="iui-muted">暂无内容</span>}</div>)}{error && <ErrorMessage>{error}</ErrorMessage>}</div>;
 }

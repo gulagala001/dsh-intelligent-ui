@@ -151,6 +151,7 @@
 .iui-surface .iui-table thead th { background: var(--iui-secondary); white-space: nowrap; }
 .iui-surface .iui-table tr:last-child :is(td,th) { border-bottom: 0; }
 .iui-surface .iui-table .is-selected { background: var(--iui-accent-soft); }
+.iui-surface .iui-table .iui-cell-numeric { white-space: nowrap; overflow-wrap: normal; font-variant-numeric: tabular-nums; }
 .iui-surface .iui-table .iui-cell-right { text-align: right; font-variant-numeric: tabular-nums; }
 .iui-surface .iui-table .iui-cell-center { text-align: center; }
 .iui-surface .iui-table-sort { border: 0; padding: 0; background: transparent; font-weight: 500; white-space: nowrap; }
@@ -166,10 +167,22 @@
 .iui-surface .iui-chart { min-width: 0; }
 .iui-surface .iui-chart-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
 .iui-surface .iui-chart-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
-.iui-surface .iui-chart-legend-item { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 4px 6px; border-radius: 6px; color: var(--iui-muted); font-size: 12px; }
-.iui-surface .iui-chart-legend-item > span { width: 8px; height: 8px; border-radius: 50%; }
+.iui-surface .iui-chart-legend-item { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 6px 8px; min-height: 32px; border-radius: 6px; color: var(--iui-muted); font-size: 12px; }
+.iui-surface .iui-chart-legend-item > span:first-child { width: 8px; height: 8px; border-radius: 50%; }
 .iui-surface .iui-chart-legend-item[aria-pressed="false"] { opacity: .4; text-decoration: line-through; }
+.iui-surface .iui-chart-legend-value { font-size: 11px; font-variant-numeric: tabular-nums; }
+.iui-surface .iui-chart-metric { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; font-size: 12px; color: var(--iui-muted); }
+.iui-surface .iui-chart-metric select { max-width: 100%; padding: 5px 28px 5px 8px; min-height: 32px; border: 1px solid var(--iui-border); border-radius: 8px; background: var(--iui-surface); color: var(--iui-text); }
 .iui-surface .iui-chart-canvas { width: 100%; overflow: hidden; }
+.iui-surface .iui-chart-mark { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.iui-surface .iui-chart-mark[aria-disabled="true"] { cursor: default; }
+.iui-surface .iui-chart-mark:focus { outline: none; }
+.iui-surface path.iui-chart-mark:focus-visible, .iui-surface .iui-chart-mark:focus-visible > :is(circle,rect):not(.iui-chart-point-hit) { stroke: var(--iui-text); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.iui-surface .iui-chart-point-hit { pointer-events: all; }
+.iui-surface .iui-chart-clear { border: 0; border-radius: 6px; padding: 4px 8px; min-height: 32px; color: var(--iui-accent); background: var(--iui-accent-soft); font-size: 12px; }
+@media (pointer: coarse) {
+  .iui-surface :is(.iui-chart-legend-item,.iui-chart-clear,.iui-chart-metric select,.iui-chart-data .iui-data-select,.iui-chart-data summary) { min-height: 44px; }
+}
 .iui-surface .iui-chart-canvas svg, .iui-surface .iui-diagram svg { display: block; width: 100%; height: auto; }
 .iui-surface .iui-chart-gridline { stroke: var(--iui-border); stroke-dasharray: 3 4; stroke-width: 1; }
 .iui-surface .iui-chart-label { fill: var(--iui-muted); font-size: 12px; }
@@ -196,6 +209,11 @@
 .iui-surface .iui-scene-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .iui-surface .iui-scene-toolbar > .iui-hint { flex: 1 1 150px; }
 .iui-surface .iui-scene-target { cursor: pointer; }
+.iui-surface .iui-scene-draggable { cursor: grab; touch-action: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+.iui-surface .iui-scene-draggable > * { touch-action: none; }
+.iui-surface .iui-scene-draggable[data-iui-dragging="true"] { cursor: grabbing; }
+.iui-surface .iui-scene-draggable[aria-disabled="true"] { touch-action: manipulation; }
+.iui-surface .iui-scene-draggable[aria-disabled="true"] > * { touch-action: manipulation; }
 .iui-surface .iui-scene-target:focus-visible { outline: none; filter: drop-shadow(0 0 3px var(--iui-accent)); }
 .iui-surface .iui-scene-target[aria-disabled="true"] { cursor: default; }
 .iui-surface .iui-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
@@ -221,6 +239,12 @@
 @media (prefers-reduced-motion: reduce) {
   .iui-surface .iui-button, .iui-surface .iui-progress span { transition: none; }
 }
+
+.iui-artifact-pane { outline: none; }
+.iui-artifact-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; font-size: 13px; color: var(--dsw-color-text-secondary, #737373); }
+.iui-artifact-header button { border: 0; background: transparent; border-radius: 6px; color: inherit; font: inherit; padding: 5px 8px; cursor: pointer; }
+.iui-artifact-header button:hover { color: var(--dsw-color-text-primary, #333); background: var(--dsw-color-fill-secondary, rgba(127,127,127,.12)); }
+.iui-artifact-header button:focus-visible { outline: 2px solid var(--dsw-focus-ring-color, #1677ff); outline-offset: 2px; }
 
 @media (pointer: coarse) {
   .iui-surface :is(.iui-button,.iui-counter-button,.iui-tab,.iui-table-sort,.iui-row-select,.iui-chart-legend-item,.iui-surface-toolbar button,.iui-error button) { min-height: 44px; min-width: 44px; }

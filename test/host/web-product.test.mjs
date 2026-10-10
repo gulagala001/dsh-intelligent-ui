@@ -16,6 +16,10 @@ test('packaged native Web: small plus, mixed inline controls, save/reload, submi
   assert.equal(f.requests.length,count,'local controls do not request another model response');
   await page.reload();await page.getByLabel('观察地点',{exact:true}).waitFor();await until(async()=>await page.getByLabel('观察地点',{exact:true}).isEnabled());assert.equal(await page.getByLabel('观察地点',{exact:true}).inputValue(),'河边公园');assert.equal(await page.getByLabel('准备好记录本',{exact:true}).isChecked(),true);
   await page.getByRole('button',{name:'展开交互内容',exact:true}).first().click();await page.locator('.iui-artifact-pane .iui-surface').waitFor();assert.equal(await page.locator('.iui-artifact-pane').getByLabel('观察地点',{exact:true}).inputValue(),'河边公园');
+  assert.equal(await page.evaluate(()=>document.activeElement?.classList.contains('iui-artifact-pane')),true,'explicit expansion focuses the artwork');
+  await page.getByRole('button',{name:'关闭交互作品',exact:true}).click();
+  assert.equal(await page.evaluate(()=>document.activeElement?.getAttribute('aria-label')),'展开交互内容','closing the artwork returns focus to its origin');
+  await page.getByRole('button',{name:'展开交互内容',exact:true}).first().click();await page.locator('.iui-artifact-pane .iui-surface').waitFor();
   await page.setViewportSize({width:420,height:850});assert.ok(await page.locator('.iui-surface').first().isVisible());await page.setViewportSize({width:1280,height:850});
   const screenRoot=process.env.IUI_WEB_EVIDENCE??f.root;await mkdir(screenRoot,{recursive:true});await page.screenshot({path:join(screenRoot,'intelligent-ui.png'),fullPage:true});
   const firstSession=(await f.rpc('session/list',{_request:{}})).items.find(item=>!item.blank);assert.ok(firstSession);

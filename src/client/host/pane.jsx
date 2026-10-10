@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { currentSessionId } from './session.mjs';
 
 const TAB_ID = 'dsh-intelligent-ui/artifact';
@@ -12,17 +12,34 @@ const readPointer = sessionId => {
 export function installArtifactPane(ctx, { Surface, bridge }) {
   const records = new Map();
   const listeners = new Set();
+  const origins = new Map();
+  let focusIntent;
   let active = true;
   const get = (sessionId, blockId) => records.get(`${sessionId}/${blockId}`);
   const store = record => { records.set(`${record.sessionId}/${record.blockId}`, record); for (const listener of listeners) listener(); };
   function Pane({ sessionId, useTabInfo }) {
     const info = useTabInfo();
+    const pane = useRef(null);
     const blockId = info.tab.navigation.params?.blockId ?? readPointer(sessionId);
     const [version, redraw] = useState(0);
     const [error, setError] = useState(null), [attempt, retry] = useState(0);
     useEffect(() => { const listener = () => redraw(value => value + 1); listeners.add(listener); return () => listeners.delete(listener); }, []);
     void version;
     const item = get(sessionId, blockId);
+    useLayoutEffect(() => {
+      const intent=focusIntent,element=pane.current;
+      if(!element||!item||!intent||intent.sessionId!==sessionId||intent.blockId!==blockId||!info.tab.visible||info.tab.signal.aborted||ctx.sidebarRight.mounted.getSnapshot()!==sessionId)return;
+      focusIntent=undefined;
+      const focused=document.activeElement;
+      if(focused!==intent.origin&&focused!==document.body&&!element.contains(focused))return;
+      if(intent.origin?.isConnected&&typeof intent.origin.focus==='function')origins.set(sessionId,{blockId,element:intent.origin});
+      element.focus({preventScroll:true});
+    },[sessionId,blockId,item,version,info.tab.visible,info.tab.navigation.revision,info.tab.signal]);
+    useEffect(()=>{
+      const clear=()=>{if(focusIntent?.sessionId===sessionId)focusIntent=undefined;origins.delete(sessionId);};
+      info.tab.signal.addEventListener('abort',clear,{once:true});
+      return()=>info.tab.signal.removeEventListener('abort',clear);
+    },[sessionId,info.tab.signal]);
     useEffect(() => {
       setError(null);
       if (item || !blockId) return;
@@ -41,7 +58,14 @@ export function installArtifactPane(ctx, { Surface, bridge }) {
       {error ?? (blockId ? '正在恢复交互作品…' : '请从对话中的交互回答展开作品。')}
       {error && <button type="button" onClick={() => retry(value => value + 1)}>重试</button>}
     </div>;
-    return <div className="iui-artifact-pane"><Surface key={`${sessionId}/${blockId}`} {...item}
+    const close=()=>{
+      const focused=document.activeElement,ownsFocus=pane.current?.contains(focused),origin=origins.get(sessionId);
+      info.tab.actions.close();
+      const current=document.activeElement;
+      if(ownsFocus&&origin?.blockId===blockId&&origin.element.isConnected&&ctx.sidebarRight.mounted.getSnapshot()===sessionId&&(current===focused||current===document.body))origin.element.focus({preventScroll:true});
+      origins.delete(sessionId);
+    };
+    return <div className="iui-artifact-pane" ref={pane} tabIndex={-1} aria-label="交互作品"><div className="iui-artifact-header"><span>交互作品</span><button type="button" aria-label="关闭交互作品" onClick={close}>关闭</button></div><Surface key={`${sessionId}/${blockId}`} {...item}
       expanded onSubmit={text => bridge.submit(sessionId, blockId, text, { signal: info.tab.signal })} /></div>;
   }
   const removeType = ctx.sidebarRightTabs.register({ id: TAB_ID, kind: TAB_KIND, priority: 'extension',
@@ -53,10 +77,11 @@ export function installArtifactPane(ctx, { Surface, bridge }) {
     update(item) { if (active && (get(item.sessionId, item.blockId) || readPointer(item.sessionId) === item.blockId)) store(item); },
     expand(item) {
       if (!active || currentSessionId(ctx) !== item.sessionId) throw new Error('请先打开作品所属会话');
+      focusIntent={sessionId:item.sessionId,blockId:item.blockId,origin:document.activeElement};
       store(item);
       try { localStorage.setItem(pointerKey(item.sessionId), item.blockId); } catch {}
       ctx.sidebarRight.openTab(TAB_KIND, { params: { blockId: item.blockId } });
     },
-    dispose() { active = false; removeBody(); removeType(); records.clear(); listeners.clear(); },
+    dispose() { active = false; focusIntent=undefined; origins.clear(); removeBody(); removeType(); records.clear(); listeners.clear(); },
   };
 }

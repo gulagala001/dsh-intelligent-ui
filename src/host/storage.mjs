@@ -4,6 +4,7 @@ import { resolve, parse, join, isAbsolute } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { LIMITS as RUNTIME_LIMITS, badKey } from '../runtime/limits.mjs';
+import { protocolVersion, componentsVersion, readableComponentsVersions } from '../protocol/version.mjs';
 import { secureWindowsDirectory } from './windows-private.mjs';
 
 export class StateError extends Error {
@@ -135,7 +136,7 @@ export class StateStorage {
       if (!stat.isFile() || stat.nlink !== 1 || stat.size > LIMITS.recordBytes) throw new StateError(413, 'Invalid stored record');
       const record = JSON.parse(await handle.readFile('utf8'));
       const fields = new Set(['protocolVersion', 'componentsVersion', 'session', 'block', 'revision', 'sourceRevision', 'source', 'state']);
-      if (!record || typeof record !== 'object' || Array.isArray(record) || Object.keys(record).some(key => !fields.has(key)) || record.session !== session || record.block !== block || record.protocolVersion !== 1 || (record.componentsVersion ?? 1) !== 1 || !Number.isSafeInteger(record.revision) || record.revision < 1 || typeof record.source !== 'string' || record.source.length > LIMITS.sourceChars || sourceHash(record.source) !== record.sourceRevision) throw new StateError(500, 'Invalid stored record');
+      if (!record || typeof record !== 'object' || Array.isArray(record) || Object.keys(record).some(key => !fields.has(key)) || record.session !== session || record.block !== block || record.protocolVersion !== protocolVersion || !readableComponentsVersions.includes(record.componentsVersion ?? 1) || !Number.isSafeInteger(record.revision) || record.revision < 1 || typeof record.source !== 'string' || record.source.length > LIMITS.sourceChars || sourceHash(record.source) !== record.sourceRevision) throw new StateError(500, 'Invalid stored record');
       validateState(record.state);
       record.componentsVersion ??= 1;
       return record;
@@ -163,7 +164,7 @@ export class StateStorage {
       await verify?.(input);
       const current = await this.get(input.session, input.block);
       if ((current?.revision ?? 0) !== input.expectedRevision) throw new StateError(409, 'State revision conflict', current);
-      const record = { protocolVersion: 1, componentsVersion: 1, session: input.session, block: input.block, revision: (current?.revision ?? 0) + 1, sourceRevision: input.sourceRevision, source: input.source, state: input.state };
+      const record = { protocolVersion, componentsVersion: current?.componentsVersion ?? componentsVersion, session: input.session, block: input.block, revision: (current?.revision ?? 0) + 1, sourceRevision: input.sourceRevision, source: input.source, state: input.state };
       const bytes = Buffer.from(JSON.stringify(record));
       if (bytes.length > LIMITS.recordBytes) throw new StateError(413, 'Record exceeds limit');
       let total = 0, records = 0;

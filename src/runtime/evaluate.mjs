@@ -1,6 +1,7 @@
 import { parseProgram, parseFormula } from '../protocol/parse.mjs';
 import { LIMITS, UIError, assertJSON, badKey, budget } from './limits.mjs';
 import { catalog } from '../catalog.mjs';
+import { collectionIdentities, rememberFilteredCollection } from './identity.mjs';
 const trustedElements=new WeakSet();
 export const isTrustedElement=value=>Boolean(value&&typeof value==='object'&&trustedElements.has(value));
 const formulaCache=new Map();
@@ -33,7 +34,7 @@ export function evaluateAST(node, environment = {}, b = budget(), depth = 0, pat
     case 'Str': case 'Num': case 'Bool': return checked(node.v);
     case 'Null': case 'Ph': return null;
     case 'Arr': return node.els.map((n, i) => run(n, `.${i}`));
-    case 'Obj': return Object.fromEntries(node.entries.map(([key, n]) => { if (badKey(key)) throw new UIError('UNSAFE_KEY','不支持此字段'); return [key, run(n, `.${key}`)]; }));
+    case 'Obj': return Object.fromEntries(node.entries.map(([key, n]) => { if (badKey(key)) throw new UIError('UNSAFE_KEY','不支持此字段'); return [key, run(n, `.field[${JSON.stringify(key)}]`)]; }));
     case 'StateRef': return member(environment.state ?? {}, node.n.replace(/^\$/, ''));
     case 'Ref': {
       if (badKey(node.n)) throw new UIError('UNSAFE_KEY','不支持此字段');
@@ -44,13 +45,13 @@ export function evaluateAST(node, environment = {}, b = budget(), depth = 0, pat
       if (b.active.has(node.n)) throw new UIError('CYCLE', '交互引用存在循环');
       b.active.add(node.n); try { return run(ref, `.${node.n}`); } finally { b.active.delete(node.n); }
     }
-    case 'Member': return member(run(node.obj), node.field);
-    case 'Index': return member(run(node.obj), run(node.index));
-    case 'UnaryOp': { const v = run(node.operand); if (node.op === '!') return !v; if (node.op === '-') return checked(-number(v)); throw new UIError('OPERATOR','不支持的运算'); }
-    case 'Ternary': return run(node.cond) ? run(node.then) : run(node.else);
+    case 'Member': return member(run(node.obj,'.object'), node.field);
+    case 'Index': return member(run(node.obj,'.object'), run(node.index,'.index'));
+    case 'UnaryOp': { const v = run(node.operand,'.operand'); if (node.op === '!') return !v; if (node.op === '-') return checked(-number(v)); throw new UIError('OPERATOR','不支持的运算'); }
+    case 'Ternary': return run(node.cond,'.condition') ? run(node.then,'.then') : run(node.else,'.else');
     case 'BinOp': {
-      const a = run(node.left); if (node.op === '&&') return a && run(node.right); if (node.op === '||') return a || run(node.right);
-      const v = run(node.right);
+      const a = run(node.left,'.left'); if (node.op === '&&') return a && run(node.right,'.right'); if (node.op === '||') return a || run(node.right,'.right');
+      const v = run(node.right,'.right');
       switch (node.op) {
         case '+': return checked(typeof a === 'string' || typeof v === 'string' ? scalarString(a) + scalarString(v) : number(a) + number(v));
         case '-': return checked(number(a) - number(v)); case '*': return checked(number(a) * number(v)); case '/': return checked(number(a) / number(v)); case '%': return checked(number(a) % number(v));
@@ -65,9 +66,10 @@ export function evaluateAST(node, environment = {}, b = budget(), depth = 0, pat
         const list = run(node.args[0]); if (!Array.isArray(list) || list.length > LIMITS.array) throw new UIError('ARRAY','需要有界数组');
         const key = node.args[1]?.n ?? node.args[1]?.v;
         if (typeof key !== 'string' || badKey(key)) throw new UIError('NAME','集合运算需要局部变量');
-        const result = [];
-        for (let i = 0; i < list.length; i++) { const v = run(node.args[2], `.${i}`, { ...environment.locals, [key]: list[i], index: i }); if (name === 'each') result.push(v); else if (v) result.push(list[i]); }
-        return result;
+        const result = [],positions=[];
+        const identities=name==='each'?collectionIdentities(list,b,depth+1):null;
+        for (let i = 0; i < list.length; i++) { const v = run(node.args[2], identities?`.item[${JSON.stringify(identities[i])}]`:`.${i}`, { ...environment.locals, [key]: list[i], index: i }); if (name === 'each') result.push(v); else if (v) {result.push(list[i]);positions.push(i);} }
+        return name==='filter'?rememberFilteredCollection(result,list,positions):result;
       }
       const args = node.args.map((n, i) => run(n, `.${i}`));
       const values = () => { const list = Array.isArray(args[0]) ? args[0] : args; b.step(depth,list.length); return list.map(number); };

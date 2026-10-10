@@ -1,10 +1,18 @@
 import { compile, evaluateDocument, safeEvaluate } from '../runtime/evaluate.mjs';
 import { sceneView, sceneTransition, sceneSet } from '../runtime/scene.mjs';
 import { collectDefaults } from '../runtime/defaults.mjs';
-import { assertJSON, UIError, validName } from '../runtime/limits.mjs';
+import { assertJSON, UIError, validName, LIMITS } from '../runtime/limits.mjs';
+import { ScenePlayback } from './scene-playback.mjs';
+import { identityDigest } from '../runtime/identity.mjs';
+import { componentsVersion } from '../protocol/version.mjs';
 
 export async function sourceHash(source) { const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(source));return Array.from(new Uint8Array(bytes),n=>n.toString(16).padStart(2,'0')).join(''); }
 const base = 'intelligent-ui/api/state';
+const widgetPrefix='@iui-widget:';
+const widgetKeys=new Map();
+const widgetPath=path=>typeof path==='string'&&path.length<=LIMITS.source&&/^root(?:$|[.\[])/.test(path)&&!/[\u0000-\u001f\u007f]/.test(path);
+const widgetKey=path=>{if(!widgetPath(path))throw new UIError('PATH','无效组件路径');let key=widgetKeys.get(path);if(!key){key=widgetPrefix+identityDigest(path);if(widgetKeys.size>=1024)widgetKeys.delete(widgetKeys.keys().next().value);widgetKeys.set(path,key);}return key;};
+const journalName=name=>validName(name)||typeof name==='string'&&/^@iui-widget:[a-f0-9]{64}$/.test(name);
 async function request(session,block,input,signal) {
   const response=await fetch(`${base}?session=${encodeURIComponent(session)}&block=${encodeURIComponent(block)}`,input===undefined?{signal}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input),signal});
   const record=await response.json();if(!response.ok)throw Object.assign(new Error(record.error??'保存失败'),{status:response.status,record:record.record});return record;
@@ -12,21 +20,30 @@ async function request(session,block,input,signal) {
 export class DocumentStore {
   constructor(sessionId,blockId,{ read=request, hash=sourceHash }={}) {
     this.sessionId=sessionId;this.blockId=blockId;this.request=read;this.hash=hash;this.listeners=new Set();this.state={};this.defaults={};this.dirty=new Set();this.revision=0;this.conflictRecord=null;this.sourceRevision=null;this.generation=0;this.disposed=false;this.journalError='';this.lastError='';
-    this.snapshot={source:'',streaming:true,tree:null,state:this.state,status:'loading',error:''};
+    this.snapshot={source:'',streaming:true,tree:null,state:this.state,status:'loading',error:'',componentsVersion};
+    this.playback=new ScenePlayback();
   }
   subscribe=listener=>{this.listeners.add(listener);return()=>this.listeners.delete(listener);};
   getSnapshot=()=>this.snapshot;
-  publish(extra={}) {if(Object.hasOwn(extra,'error'))this.lastError=extra.error;this.snapshot={...this.snapshot,state:this.state,...extra,error:[this.lastError,this.journalError].filter(Boolean).join('\n')};for(const listener of this.listeners)listener(); }
-  update(source,streaming) {
-    if(this.disposed||this.snapshot.source===source&&this.snapshot.streaming===streaming)return;
-    const ticket=++this.generation;this.controller?.abort();clearTimeout(this.timer);this.sourceRevision=null;
-    const wasFinal=!this.snapshot.streaming;
+  publish(extra={}) {if(Object.hasOwn(extra,'error'))this.lastError=extra.error;this.snapshot={...this.snapshot,state:this.state,...extra,previousDraft:this.previousDraft??null,error:[this.lastError,this.journalError,this.previousDraft?'上一版未保存的设置暂存在本页，可导出旧草稿。':''].filter(Boolean).join('\n')};for(const listener of this.listeners)listener(); }
+  update(source,streaming,{reload=false}={}) {
+    if(this.disposed||!reload&&this.snapshot.source===source&&this.snapshot.streaming===streaming)return;
+    const changedSource=this.snapshot.source!==source;
+    const incomingDraft=changedSource&&this.previousDraft?.source===source?this.previousDraft:null;
+    this.playback.reset();const ticket=++this.generation;this.controller?.abort();clearTimeout(this.timer);this.sourceRevision=null;
+    if(changedSource){
+      // A cancel may legally finish the old gesture before its API retires.
+      // Keep that draft under its old source, never merge it into the new one.
+      if(this.dirty.size&&!this.writeJournal())this.previousDraft={source:this.snapshot.source,state:structuredClone(this.state),dirty:[...this.dirty],revision:this.revision,conflict:Boolean(this.conflictRecord),componentsVersion:this.snapshot.componentsVersion??1};
+      this.journalError='';
+      this.incomingDraft=incomingDraft;this.state=incomingDraft?structuredClone(incomingDraft.state):{};this.defaults={};this.dirty=new Set(incomingDraft?.dirty??[]);this.revision=incomingDraft?.revision??0;this.conflictRecord=null;
+    }
     try {
       this.document=compile(source,{streaming});
       let tree=evaluateDocument(this.document,this.state);
       this.defaults={...this.document.defaults,...collectDefaults(tree)};
       this.state={...this.defaults,...this.state};tree=evaluateDocument(this.document,this.state);
-      this.publish({source,streaming,tree,error:'',status:streaming?'streaming':this.sourceRevision&&wasFinal?'saved':'loading'});
+      this.publish({source,streaming,tree,error:'',componentsVersion,status:streaming?'streaming':'loading'});
     } catch(error) { this.document=null;this.publish({source,streaming,tree:null,status:streaming?'streaming':'invalid',error:streaming?'':error.message}); }
     if(!streaming&&this.document) {
       this.controller=new AbortController();
@@ -45,13 +62,19 @@ export class DocumentStore {
       assertJSON(record.state);const draft=this.restoreJournal(source);this.revision=record.revision;this.sourceRevision=hash;
       const next={...this.defaults,...record.state};for(const name of this.dirty)next[name]=this.state[name];this.state=next;
       if(draft){for(const name of this.dirty)if(JSON.stringify(record.state[name]??this.defaults[name])===JSON.stringify(this.state[name]))this.dirty.delete(name);if(this.dirty.size&&(draft.revision!==record.revision||draft.conflict))this.conflictRecord=record;}
-      this.publish({tree:evaluateDocument(this.document,this.state),status:this.conflictRecord?'conflict':this.dirty.size?'unsaved':'saved',error:this.conflictRecord?'其他地方已修改设置。你的草稿已恢复，确认后可以合并保存。':''});
+      this.publish({tree:evaluateDocument(this.document,this.state),componentsVersion:record.componentsVersion??1,status:this.conflictRecord?'conflict':this.dirty.size?'unsaved':'saved',error:this.conflictRecord?'其他地方已修改设置。你的草稿已恢复，确认后可以合并保存。':''});
       if(this.dirty.size&&!this.conflictRecord)this.scheduleSave();
     }catch(error){if(error.name!=='AbortError'&&!this.disposed&&ticket===this.generation)this.publish({status:'load-error',error:'设置读取失败：'+error.message});}
   }
   set(name,value) {
+    if(!validName(name))throw new UIError('NAME','无效变量');
+    return this.setValue(name.replace(/^\$/,''),value);
+  }
+  widget(path,initial){const key=widgetKey(path);return Object.hasOwn(this.state,key)?this.state[key]:initial;}
+  setWidget(path,value){return this.setValue(widgetKey(path),value);}
+  setValue(name,value) {
     if(this.snapshot.streaming||!this.document||this.disposed)throw new UIError('BUSY','等待内容完成后再操作');
-    if(!validName(name))throw new UIError('NAME','无效变量');name=name.replace(/^\$/,'');assertJSON(value);
+    assertJSON(value);
     const next=assertJSON({...this.state,[name]:value}),tree=evaluateDocument(this.document,next);
     this.state=next;this.dirty.add(name);this.writeJournal();this.publish({tree,status:this.conflictRecord?'conflict':'unsaved',error:this.conflictRecord?this.snapshot.error:''});this.scheduleSave();
   }
@@ -95,16 +118,20 @@ export class DocumentStore {
     }catch(error){if(!this.disposed&&ticket===this.generation){if(error.status===409&&error.record){this.revision=error.record.revision;this.conflictRecord=error.record;this.publish({status:'conflict',error:'另一处修改了设置。你的操作已保留，可确认后保存。'});}else this.publish({status:'save-error',error:'设置尚未保存：'+error.message});}}
     finally{this.writing=false;if(this.dirty.size&&this.snapshot.status==='unsaved')this.scheduleSave();}
   }
-  api(onSubmit) { return {state:this.state,streaming:this.snapshot.streaming,disabled:this.snapshot.streaming||['loading','load-error'].includes(this.snapshot.status),blockId:this.blockId,set:(n,v)=>this.set(n,v),reset:n=>this.reset(n),action:a=>this.action(a,onSubmit),evaluate:(formula,locals={})=>safeEvaluate(formula,this.state,locals),sceneView:(scene,bind)=>sceneView(scene,this.state[bind])}; }
-  dispose(){if(this.disposed)return;this.writeJournal();clearTimeout(this.timer);this.controller?.abort();this.disposed=true;this.listeners.clear();}
+  api(onSubmit) {
+    const generation=this.generation;
+    const current=run=>{if(this.disposed||generation!==this.generation)throw new UIError('SOURCE','作品内容已变化，请等待当前内容完成后再操作');return run();};
+    return {state:this.state,streaming:this.snapshot.streaming,disabled:this.snapshot.streaming||['loading','load-error'].includes(this.snapshot.status),blockId:this.blockId,playback:this.playback,playbackVersion:this.generation,set:(n,v)=>current(()=>this.set(n,v)),widget:(path,initial)=>this.widget(path,initial),setWidget:(path,value)=>current(()=>this.setWidget(path,value)),reset:n=>current(()=>this.reset(n)),action:a=>current(()=>this.action(a,onSubmit)),evaluate:(formula,locals={})=>safeEvaluate(formula,this.state,locals),sceneView:(scene,bind)=>sceneView(scene,this.state[bind])};
+  }
+  dispose(){if(this.disposed)return;this.writeJournal();this.playback.reset();clearTimeout(this.timer);this.controller?.abort();this.disposed=true;this.listeners.clear();}
   writeJournal(){
-    try{const storage=globalThis.sessionStorage;if(!storage)return;const key='dsh-iui.draft.v1:'+this.sessionId+':'+this.blockId;
-      if(!this.dirty.size){storage.removeItem(key);this.journalError='';return;}
-      const value=JSON.stringify({source:this.snapshot.source,state:this.state,dirty:[...this.dirty],revision:this.revision,conflict:Boolean(this.conflictRecord)});if(value.length>300000)throw new UIError('JOURNAL','本地草稿过大');storage.setItem(key,value);this.journalError='';
-    }catch{this.journalError='本地草稿暂时无法备份，请保持页面打开并重试保存。';if(!this.disposed)this.publish();}
+    try{const storage=globalThis.sessionStorage;if(!storage)return false;const key='dsh-iui.draft.v1:'+this.sessionId+':'+this.blockId;
+      if(!this.dirty.size){storage.removeItem(key);this.journalError='';return true;}
+      const value=JSON.stringify({source:this.snapshot.source,state:this.state,dirty:[...this.dirty],revision:this.revision,conflict:Boolean(this.conflictRecord)});if(value.length>300000)throw new UIError('JOURNAL','本地草稿过大');storage.setItem(key,value);this.journalError='';return true;
+    }catch{this.journalError='本地草稿暂时无法备份，请保持页面打开并重试保存。';if(!this.disposed)this.publish();return false;}
   }
   restoreJournal(source){
-    try{const raw=globalThis.sessionStorage?.getItem('dsh-iui.draft.v1:'+this.sessionId+':'+this.blockId);if(!raw)return;const draft=JSON.parse(raw);if(draft.source!==source)return;assertJSON(draft.state);if(!Array.isArray(draft.dirty)||draft.dirty.some(name=>!validName(name)))return;for(const name of draft.dirty){this.state[name]=draft.state[name];this.dirty.add(name);}return draft;}
+    try{const retained=this.incomingDraft?.source===source?this.incomingDraft:this.previousDraft?.source===source?this.previousDraft:null,raw=retained?null:globalThis.sessionStorage?.getItem('dsh-iui.draft.v1:'+this.sessionId+':'+this.blockId);if(!retained&&!raw)return;const draft=retained??JSON.parse(raw);if(draft.source!==source)return;assertJSON(draft.state);if(!Array.isArray(draft.dirty)||draft.dirty.some(name=>!journalName(name)))return;for(const name of draft.dirty){this.state[name]=draft.state[name];this.dirty.add(name);}if(retained===this.previousDraft)this.previousDraft=null;if(retained===this.incomingDraft)this.incomingDraft=null;return draft;}
     catch{this.journalError='本地草稿无法读取，已保留原始备份。';this.publish();}
   }
 }
@@ -114,6 +141,6 @@ export function acquireDocument(session,block) {
   const key=`${session}\0${block}`;let item=stores.get(key);
   if(!item){item={store:new DocumentStore(session,block),refs:0};stores.set(key,item);}
   clearTimeout(item.cleanup);item.refs++;
-  return {store:item.store,release(){if(--item.refs===0){void item.store.save();item.store.writeJournal();item.cleanup=setTimeout(()=>{if(item.store.dirty.size||item.store.writing||item.store.conflictRecord)return;item.store.dispose();stores.delete(key);},30000);}}};
+  return {store:item.store,release(){if(--item.refs===0){void item.store.save();item.store.writeJournal();item.cleanup=setTimeout(()=>{if(item.store.dirty.size||item.store.writing||item.store.conflictRecord||item.store.previousDraft)return;item.store.dispose();stores.delete(key);},30000);}}};
 }
 export function disposeDocuments(){for(const item of stores.values()){clearTimeout(item.cleanup);item.store.dispose();}stores.clear();}

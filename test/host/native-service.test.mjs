@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
-import { mkdtemp, realpath, rm, readdir } from 'node:fs/promises';
+import { mkdtemp, realpath, rm, readdir, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Readable } from 'node:stream';
 import { StateStorage, sourceHash } from '../../src/host/storage.mjs';
 import { createApiHandler, verifyBlock } from '../../src/host/service.mjs';
-import { installSkill, skillContent, renderCatalog, groups } from '../../src/host/skill.mjs';
+import { installSkill, skillContent, skillDirectory, renderCatalog, groups } from '../../src/host/skill.mjs';
 import * as Prompt from '../../src/host/prompt.mjs';
 import * as IntelligentUI from '../../src/index.mjs';
 
@@ -98,7 +98,10 @@ test('native skill summary stays short, resources are generated, and dedicated p
   const before = await ctx.systemPrompt.assemble();
   const key = { agent: 'interactive' }; const scope = ScopeSDK.createScope(ctx, key); const fiber = await scope.ctx.plugin(Prompt);
   assert.deepEqual(await ctx.systemPrompt.assemble(), before);
-  assert.ok((await ctx.systemPrompt.assemble({ scope: key })).sections.some(section => section.name === 'intelligent-ui:answers'));
+  const section=(await ctx.systemPrompt.assemble({ scope: key })).sections.find(section => section.name === 'intelligent-ui:answers');
+  assert.ok(section);
+  assert.ok(section.text.includes(JSON.stringify(skillDirectory)), 'the dedicated prompt supplies its installed resource base independently of cwd');
+  assert.ok((await readFile(join(skillDirectory,'references/data.md'),'utf8')).includes('Chart('));
   await fiber.dispose(); assert.deepEqual(await ctx.systemPrompt.assemble({ scope: key }), before);
 });
 

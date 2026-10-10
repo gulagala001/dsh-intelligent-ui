@@ -38,11 +38,17 @@ export function sceneView(scene, record) {
 }
 export function sceneTransition(scene, record, event, payload = {}) {
   const next=currentScene(scene,event==='reset'?undefined:record), b=sceneBudget();
-  if (!['tick','click','key','reset'].includes(event)) throw new UIError('EVENT','场景事件无效');
-  assertJSON(payload); const allowed = ['id','x','y','key','dt'];
+  if (!['tick','click','key','reset','drag'].includes(event)) throw new UIError('EVENT','场景事件无效');
+  assertJSON(payload); const allowed = event==='drag'?['id','x','y','dx','dy','phase']:['id','x','y','key','dt'];
   if (Object.keys(payload).some(k=>!allowed.includes(k))) throw new UIError('EVENT','场景事件字段无效');
   if (payload.key!==undefined && (typeof payload.key!=='string'||payload.key.length>32)) throw new UIError('EVENT','键盘事件无效');
   for (const key of ['x','y','dt']) if(payload[key]!==undefined && (typeof payload[key]!=='number'||!Number.isFinite(payload[key]))) throw new UIError('EVENT','场景事件数字无效');
+  if(event==='drag'){
+    if(typeof payload.id!=='string'||!payload.id.length||payload.id.length>128||!['start','move','end','cancel'].includes(payload.phase))throw new UIError('EVENT','拖拽事件目标或阶段无效');
+    for(const key of ['x','y','dx','dy'])if(typeof payload[key]!=='number'||!Number.isFinite(payload[key]))throw new UIError('EVENT','拖拽坐标需要有限数字');
+    if(payload.x<0||payload.x>next.scene.width||payload.y<0||payload.y>next.scene.height||Math.abs(payload.dx)>next.scene.width||Math.abs(payload.dy)>next.scene.height)throw new UIError('EVENT','拖拽坐标超出场景范围');
+    if(!next.scene.marks.some(mark=>mark.id===payload.id&&mark.interactive))throw new UIError('EVENT','拖拽目标需要可交互图形');
+  }
   const recordNext = event==='reset' ? initialScene(next.scene) : structuredClone(next.record);
   const input={...payload,dt:Math.max(0,Math.min(.1,payload.dt??0))};
   const random=()=>{ recordNext.seed=(Math.imul(recordNext.seed,1664525)+1013904223)>>>0;return recordNext.seed/4294967296; };

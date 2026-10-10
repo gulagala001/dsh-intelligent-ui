@@ -9,7 +9,8 @@ export function paint(value, fallback = 'blue') {
 export function useBound(api, name, initial) {
   const [local, setLocal] = useState(initial);
   const [error, setError] = useState('');
-  const value = name && Object.prototype.hasOwnProperty.call(api?.state || {}, name) ? api.state[name] : local;
+  const widget = !name && api?.componentPath && api?.widget && api?.setWidget;
+  const value = name && Object.prototype.hasOwnProperty.call(api?.state || {}, name) ? api.state[name] : widget ? api.widget(api.componentPath,initial) : local;
   const set = next => {
     if (disabled(api)) return;
     setError('');
@@ -18,6 +19,9 @@ export function useBound(api, name, initial) {
         if (!api?.set) throw new Error('状态服务尚未就绪');
         const result = api.set(name, next);
         if (result?.catch) result.catch(failure => setError(failure?.message || '设置未更新'));
+      } else if(widget){
+        const result=api.setWidget(api.componentPath,next);
+        if(result?.catch)result.catch(failure=>setError(failure?.message||'设置未更新'));
       } else setLocal(next);
     } catch (failure) { setError(failure?.message || '设置未更新'); }
   };

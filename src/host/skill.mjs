@@ -2,21 +2,51 @@ import { readFileSync } from 'node:fs';
 import { writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import { catalog, examples } from '../catalog.mjs';
+import { catalog, examples, sceneSchema } from '../catalog.mjs';
 
 export const skillDirectory = fileURLToPath(new URL('../../skills/intelligent-ui/', import.meta.url));
 export const skillSummary = 'Create interactive answers, calculators, diagrams, simulations and games inside the conversation.';
 const BASE = new Set(['Stack', 'Card', 'Text', 'Heading', 'Metric', 'Checkbox', 'NumberInput', 'Calculator']);
 export const groups = [...new Set(Object.values(catalog).map(item => item.group))].sort();
 
-function spec(name, component) {
+export const sceneSchemaId = 'iui:scene';
+export function sharedSceneJSONSchema() {
+  return { ...z.toJSONSchema(sceneSchema, { unrepresentable: 'any' }), $id: sceneSchemaId };
+}
+function usesLocalDefinitions(value) {
+  return value && typeof value === 'object' && (typeof value.$ref === 'string' && value.$ref.startsWith('#/$defs/') || Object.values(value).some(usesLocalDefinitions));
+}
+function spec(name, component, shareScene = false) {
   const schema=z.toJSONSchema(component.schema,{unrepresentable:'any'});
   const type=(value,depth=0)=>value.enum?value.enum.map(v=>JSON.stringify(v)).join('|'):value.anyOf?value.anyOf.map(v=>type(v,depth)).join('|'):value.type==='array'?`${type(value.items??{},depth+1)}[]${value.maxItems?' (max '+value.maxItems+')':''}`:value.type==='object'?'object':value.type??'JSON';
   const signature=component.args.map(key=>{const value=schema.properties?.[key]??{};return `${key}${schema.required?.includes(key)?'':'?'}: ${type(value)}${value.default!==undefined?' = '+JSON.stringify(value.default):''}${value.maximum!==undefined?' <= '+value.maximum:''}${value.minimum!==undefined?' >= '+value.minimum:''}`;}).join(', ');
+  if (shareScene && schema.properties?.scene) {
+    const { $schema, $id, $defs, ...sharedBody } = sharedSceneJSONSchema();
+    // The common schema must remain exactly the catalog's scene argument and
+    // recursive JSON definitions, including every constraint and default.
+    if (JSON.stringify(schema.properties.scene) !== JSON.stringify(sharedBody) || JSON.stringify(schema.$defs) !== JSON.stringify($defs)) {
+      throw new Error(`${name} scene argument differs from the shared ${sceneSchemaId} schema`);
+    }
+    schema.properties.scene = { $ref: sceneSchemaId };
+    const { $defs: localDefinitions, ...body } = schema;
+    if (localDefinitions && !usesLocalDefinitions(body)) delete schema.$defs;
+  }
   return `${name}(${signature}) — ${component.description}\nSchema:\n${JSON.stringify(schema,null,2)}`;
 }
 export function renderCatalog(group) {
-  return Object.entries(catalog).filter(([name, item]) => group ? item.group === group : BASE.has(name)).map(([name, item]) => spec(name, item)).join('\n\n');
+  const shareScene = group === 'interactive';
+  const components = Object.entries(catalog).filter(([name, item]) => group ? item.group === group : BASE.has(name)).map(([name, item]) => spec(name, item, shareScene)).join('\n\n');
+  if (!shareScene) return components;
+  return `## Shared Scene argument schema
+
+The JSON Schema resource below is generated from sceneSchema in src/catalog.mjs. Its $id is "${sceneSchemaId}"; the Scene, Simulation and Game argument schemas resolve their scene $ref to this resource. Local #/$defs/ references resolve within this resource. All other component arguments remain defined inline.
+
+Schema:
+${JSON.stringify(sharedSceneJSONSchema(),null,2)}
+
+## Component argument schemas
+
+${components}`;
 }
 export function skillContent() {
   const raw = readFileSync(new URL('../../skills/intelligent-ui/SKILL.md', import.meta.url), 'utf8');

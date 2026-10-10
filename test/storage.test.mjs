@@ -176,8 +176,11 @@ test('forged source hash and failed ownership check cannot mutate an existing re
 });
 
 test('records retain their component contract and refuse unknown versions without overwriting source', async t => {
-  const {store}=await fixture(t);const saved=await store.save(input());assert.equal(saved.componentsVersion,1);
-  const path=store.path('session-A','1:2:0:0');const newer={...saved,componentsVersion:2};await writeFile(path,JSON.stringify(newer));
+  const {store}=await fixture(t);const saved=await store.save(input());assert.equal(saved.componentsVersion,2);
+  const path=store.path('session-A','1:2:0:0');const legacy={...saved,componentsVersion:1};await writeFile(path,JSON.stringify(legacy));
+  assert.equal((await store.get('session-A','1:2:0:0')).componentsVersion,1);
+  assert.equal((await store.save(input({expectedRevision:1}))).componentsVersion,1,'editing an existing legacy document retains its contract');
+  const newer={...saved,componentsVersion:3};await writeFile(path,JSON.stringify(newer));
   await assert.rejects(store.get('session-A','1:2:0:0'),/Invalid stored record/);
   await assert.rejects(store.save(input({expectedRevision:1})),/Invalid stored record/);
   assert.deepEqual(JSON.parse(await readFile(path,'utf8')),newer);

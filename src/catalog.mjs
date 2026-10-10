@@ -40,7 +40,7 @@ const mark = z.object({
 }).strict();
 export const sceneSchema = z.object({
   initial: z.record(name, json), seed: z.number().int().min(0).max(4294967295).optional(),
-  events: z.partialRecord(z.enum(['click', 'key', 'tick', 'reset']), z.array(z.object({ name, value: formula }).strict()).max(100)),
+  events: z.partialRecord(z.enum(['click', 'key', 'tick', 'reset', 'drag']), z.array(z.object({ name, value: formula }).strict()).max(100)),
   marks: z.array(mark).max(1000), width: number.positive().max(2000).default(600), height: number.positive().max(2000).default(320),
 }).strict();
 function component(group, description, args, shape, childField) {
@@ -83,9 +83,9 @@ export const catalog = {
     nodes: z.array(z.object({ id: text.max(128), label: text, detail: optionalText, x: number.optional(), y: number.optional(), tone: tone.optional() }).strict()).max(100),
     edges: z.array(z.object({ from: text.max(128), to: text.max(128), label: optionalText }).strict()).max(200), title: optionalText, bind,
   }),
-  Scene: component('interactive', 'General bounded SVG scene. Events update local state through safe formulas; playback is explicit and pauses while hidden.', ['scene', 'bind', 'title'], { scene: sceneSchema, bind: name, title: optionalText }),
+  Scene: component('interactive', 'General bounded SVG scene with click, key and drag interaction. Events update local state through safe formulas; playback is explicit and pauses while hidden.', ['scene', 'bind', 'title'], { scene: sceneSchema, bind: name, title: optionalText }),
   Simulation: component('interactive', 'General scene simulation with parameter controls and calculated metrics.', ['scene', 'bind', 'title', 'fields', 'metrics'], { scene: sceneSchema, bind: name, title: optionalText, fields: fields.default([]), metrics: z.array(metric).max(20).default([]) }),
-  Game: component('interactive', 'General scene game using click/key rules and deterministic bounded state.', ['scene', 'bind', 'title', 'instructions'], { scene: sceneSchema, bind: name, title: optionalText, instructions: optionalText }),
+  Game: component('interactive', 'General scene game using click, key or drag rules and deterministic bounded state.', ['scene', 'bind', 'title', 'instructions'], { scene: sceneSchema, bind: name, title: optionalText, instructions: optionalText }),
 };
 
 export const examples = [
@@ -101,4 +101,13 @@ export const examples = [
   'root = Stack([Image("https://images.unsplash.com/photo-1472396961693-142e6e269027?w=1000","山林中的两只鹿","森林生态观察","wide"),Heading("给自然留一点时间"),Text("放慢脚步，观察一处自然环境。记录温度、植物与动物的变化。"),Grid([Card([Input("观察地点","place","附近公园"),Slider("观察时长","minutes",20,5,60,5,"分钟"),Checkbox("准备好记录本","notebook",false)],"开始之前"),Card([NumberInput("气温","temperature",22,-20,50,1,"°C"),Select("天气","weather",["晴","多云","雨"],"晴"),Button("整理观察记录",{type:"submit",text:"请整理我的自然观察记录。",fields:["place","minutes","temperature","weather"]})],"记录")],2),Divider(),Text("图片来自 Unsplash 公共资源。","neutral","sm")])',
   '$people = 5\nroot = Stack([Heading("周末烧烤需要准备多少？"),Text("按每人 400 克主菜、300 克蔬菜估算，调整人数查看采购量。"),Grid([Card([Counter("用餐人数","people",5,1,30,1,"人"),Facts([{label:"主菜总量",value:round($people * 0.4,1),unit:"kg"},{label:"蔬菜总量",value:$people * 300,unit:"g"}])]),Card([Facts([{label:"羊肉",value:round($people * 0.4,1),unit:"kg"},{label:"土豆",value:$people * 300,unit:"g"},{label:"饮用水",value:round($people * 0.6,1),unit:"L"}])],"采购清单", "数量按食量适中估算。")],2)])',
   'root = Card([Heading("一起分账"),Calculator([{name:"total",label:"账单金额",value:288,min:0,unit:"元"},{name:"diners",label:"用餐人数",value:4,min:1,max:30,step:1}],"total / diners",null,"每人应付","元",2),Text("把结果分享给朋友，或继续调整账单。","neutral","sm")],null,null,"paper")',
+  `root = Scene({
+  initial:{x:120,y:90,held:false},
+  events:{
+    drag:[{name:"x",value:"event.phase == 'move' ? clamp(x + event.dx, 18, 282) : x"},{name:"y",value:"event.phase == 'move' ? clamp(y + event.dy, 18, 162) : y"},{name:"held",value:"event.phase == 'start' || event.phase == 'move'"}],
+    key:[{name:"x",value:"clamp(x + (event.key == 'ArrowRight' ? 10 : event.key == 'ArrowLeft' ? -10 : 0), 18, 282)"},{name:"y",value:"clamp(y + (event.key == 'ArrowDown' ? 10 : event.key == 'ArrowUp' ? -10 : 0), 18, 162)"}]
+  },
+  marks:[{id:"ball",type:"circle",x:{expr:"x"},y:{expr:"y"},r:16,fill:{expr:"held ? 'orange' : 'blue'"},interactive:true,label:"拖动圆点，或用方向键移动"}],
+  width:300,height:180
+},"dragPoint","移动圆点")`,
 ];

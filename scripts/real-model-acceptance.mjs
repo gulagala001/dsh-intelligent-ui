@@ -10,7 +10,7 @@ import { splitResponse } from '../src/protocol/split.mjs';
 import { initialScene, sceneView, sceneTransition, sceneSet } from '../src/runtime/scene.mjs';
 
 const repo = fileURLToPath(new URL('../', import.meta.url));
-const { values: args } = parseArgs({ options: { 'profile-route-file': { type: 'string' }, provider: { type: 'string' }, model: { type: 'string' }, 'repair-response': { type: 'string' }, 'request-cap': { type: 'string' } } });
+const { values: args } = parseArgs({ options: { 'profile-route-file': { type: 'string' }, provider: { type: 'string' }, model: { type: 'string' }, 'repair-response': { type: 'string' }, 'request-cap': { type: 'string' }, 'natural-questions': { type: 'boolean', default: false } } });
 const requestCap = Number(args['request-cap'] ?? 10);
 assert.ok(Number.isInteger(requestCap) && requestCap >= 1 && requestCap <= 16, 'Explicit request cap must be within 1..16');
 const evidence = resolve(process.env.IUI_REAL_EVIDENCE ?? join(repo, 'work/real-model', new Date().toISOString().replace(/[:.]/g, '-')));
@@ -21,6 +21,13 @@ const cases = [
   { id: 'novel-game', refs: ['interactive', 'expressions'], prompt: '制作一个简洁的“顺序点灯”小游戏，只有三盏可点击灯、下一步提示、得分和重置。灯的标签固定为“灯1”“灯2”“灯3”。必须按灯1→灯2→灯3顺序点击才获一分，顺序错误则进度归零且不加分；每轮完成进度归零，可以继续下一轮。以通用Game/Scene规则表达，不要使用点圆得分、井字棋或记忆配对模板。布局简洁，不要装饰或动画，不添加其他功能。', required: ['Game'] },
   { id: 'plans-chart-tabs', refs: ['layout', 'data'], prompt: '比较三个虚构套餐：轻量月费29、容量100GB，标准月费59、容量500GB，专业月费99、容量2000GB。使用标签为“套餐表”“月费图”的Tabs分别展示Table与柱状Chart，图表支持本地选择数据行与系列显示，表格支持排序。只使用提供的数据，不上网。', required: ['Tabs', 'Table', 'Chart'] },
 ];
+const naturalPrompts={
+  'split-bill':'做一个可以直接调整的分账工具：账单387元，加8%服务费，5人均分。三个输入分别叫“账单金额”“服务费百分比”“人数”，每人应付显示两位小数。',
+  checklist:'给我一个可以直接勾选的周末清单，只有晨间散步、整理书桌、采购晚餐、阅读半小时四项，显示完成数量，勾选可以取消。',
+  motion:'用一个可操作的模拟解释匀加速运动：小球初始位置20、速度30、加速度10。可以调整“速度”“加速度”，播放、暂停、重置。每段时间dt遵守位移v*dt+0.5*a*dt*dt与速度增加a*dt。画布600×200。',
+  'novel-game':'做一个可以直接玩的顺序点灯小游戏。只有“灯1”“灯2”“灯3”、下一步提示、得分和重置。按灯1→灯2→灯3才加一分，点错则进度归零，不加分。每轮完成后进度归零，接着玩下一轮。支持点击和键盘，布局简洁。',
+  'plans-chart-tabs':'比较三款虚构套餐：轻量月费29、容量100GB，标准月费59、容量500GB，专业月费99、容量2000GB。给我“套餐表”和“月费图”两个页签，表格可排序，柱状图可选择数据并切换系列显示。只用这些数据。',
+};
 const selected = process.env.IUI_REAL_CASE ? cases.filter(item => process.env.IUI_REAL_CASE.split(',').includes(item.id)) : cases;
 assert.ok(selected.length, 'Unknown IUI_REAL_CASE');
 let repair, priorGeneratedTokens = {};
@@ -62,13 +69,15 @@ try {
       await f.page.getByRole('button', { name: 'Intelligent UI', exact: true }).waitFor({ timeout: 15000 });
       const box = f.page.locator('[contenteditable="true"]').first();
       const correction = repair ? `\n\n这是测试人员明确请求的一次修正。上一份响应在真实compile中失败：“括号不匹配”。请检查Scene对象的花括号归属，width/height必须属于scene对象。保留需求并输出完整修正版；不执行自动循环。原始公开测试响应：\n${repair.text}` : '';
-      await box.fill(`这是独立的公开一般测试问题。请先调用原生skill工具读取intelligent-ui，再使用文件读取工具读取该技能resource base下${item.refs.map(ref => `references/${ref}.md`).join('、')}的完整资料。必须实际读取资料再生成；不要创建文件或调用其他工具。\n\n${item.prompt}${correction}`);
+      await box.fill(args['natural-questions']?naturalPrompts[item.id]+correction:`这是独立的公开一般测试问题。请先调用原生skill工具读取intelligent-ui，再使用文件读取工具读取该技能resource base下${item.refs.map(ref => `references/${ref}.md`).join('、')}的完整资料。必须实际读取资料再生成；不要创建文件或调用其他工具。\n\n${item.prompt}${correction}`);
       await box.press('Enter');
       const final = await until(() => {
         const calls = f.calls.slice(begin);
         if (calls.some(call => call.error)) throw new Error(calls.find(call => call.error).error);
         if (calls.some(call => call.finishReason === 'length')) throw new Error('The configured token ceiling truncated the model response');
-        return calls.find(call => call.finished && call.finishReason === 'stop' && call.text.includes('```openui'));
+        const complete=calls.find(call=>call.finished&&call.finishReason==='stop'&&!call.toolCalls.length);
+        if(complete&&!splitResponse(complete.text).some(part=>part.kind==='ui'))throw new Error('The model finished without an interactive answer');
+        return complete;
       }, 300000);
       const segments = splitResponse(final.text).filter(part => part.kind === 'ui');
       assert.ok(segments.length, 'Model must generate an openui fence');
@@ -156,13 +165,15 @@ try {
       assert.equal(f.calls.length, beforeControls, 'Local operations must issue zero extra model requests');
       const calls = f.calls.slice(begin);
       assert.ok((priorGeneratedTokens[item.id] ?? 0) + calls.reduce((sum, call) => sum + f.usedTokens(call), 0) <= 16384, 'Generated-token ceiling must be respected');
-      assert.ok(calls.some(call => call.toolCalls.some(tool => tool.function?.name?.includes('skill'))), 'Native skill invocation must occur');
+      if(!args['natural-questions'])assert.ok(calls.some(call => call.toolCalls.some(tool => tool.function?.name?.includes('skill'))), 'Native skill invocation must occur');
       // Exact public reference paths must appear in a real native read tool call, never simulated prompt injection.
       const toolText = calls.map(call => JSON.stringify(call.toolCalls)).join('\n');
-      for (const ref of item.refs) assert.ok(toolText.includes(`references/${ref}.md`), `Native tool must read ${ref} reference`);
+      if(!args['natural-questions'])for (const ref of item.refs) assert.ok(toolText.includes(`references/${ref}.md`), `Native tool must read ${ref} reference`);
       const returnedResources = calls.map(call => JSON.stringify(call.nativeToolResults)).join('\n');
-      assert.ok(returnedResources.includes('Installed base catalog'), 'Native skill must successfully return its content');
-      for (const ref of item.refs) assert.ok(returnedResources.includes(ref === 'expressions' ? 'Bounded expressions and scene events' : `${ref} components`), `Native filesystem must successfully return ${ref} reference`);
+      if(!args['natural-questions']){
+        assert.ok(returnedResources.includes('Installed base catalog'), 'Native skill must successfully return its content');
+        for (const ref of item.refs) assert.ok(returnedResources.includes(ref === 'expressions' ? 'Bounded expressions and scene events' : `${ref} components`), `Native filesystem must successfully return ${ref} reference`);
+      }
       await f.page.screenshot({ path: join(evidence, `${item.id}.png`), fullPage: true });
       await f.writeEvidence(`${item.id}-document.json`, { answer: final.text, sources: segments.map(part => part.text), trees, checks: 'independent runtime and native Web operations', zeroExtraModelRequests: true });
       results.push({ id: item.id, passed: true, requests: calls.length, completionTokens: calls.reduce((sum, call) => sum + (call.usage?.completion_tokens ?? 0), 0), generatedTokenBudgetCount: calls.reduce((sum, call) => sum + f.usedTokens(call), 0) });
@@ -173,11 +184,11 @@ try {
       await writeFile(join(evidence, `${item.id}-page.txt`), f.scrub(await f.page.locator('body').innerText()), { mode: 0o600 });
       console.log(`${item.id}: FAIL (${f.scrub(error.message)})`);
     }
-    await f.writeEvidence('summary.json', { mode: 'packaged-native-cli-web-real-model', model: f.model, health, packageSha256: f.packageSha256, perCaseGeneratedTokenCeiling: 16384, perCaseRealRequestCap: requestCap, explicitRepairTurns: repair ? 1 : 0, priorGeneratedTokens, results,
+    await f.writeEvidence('summary.json', { mode: 'packaged-native-cli-web-real-model', naturalQuestions:Boolean(args['natural-questions']), model: f.model, health, packageSha256: f.packageSha256, perCaseGeneratedTokenCeiling: 16384, perCaseRealRequestCap: requestCap, explicitRepairTurns: repair ? 1 : 0, priorGeneratedTokens, results,
       notRun: selected.filter(item => !results.some(result => result.id === item.id)).map(item => item.id),
       offeredReasoningEfforts: f.offeredReasoningEfforts,
-      calls: f.calls.map(({ number, case: id, usage, finishReason, error, reasoningEffort }) => ({ number, case: id, usage, finishReason, error, reasoningEffort })), auxiliaryLocalTitles: f.auxiliary.length, hostErrors: f.errors });
-    if (f.calls.slice(begin).some(call => call.error)) break; // A refused route cannot validate subsequent cases.
+      calls: f.calls.map(({ number, case: id, usage, finishReason, error, errorScope, reasoningEffort }) => ({ number, case: id, usage, finishReason, error, errorScope, reasoningEffort })), auxiliaryLocalTitles: f.auxiliary.length, hostErrors: f.errors });
+    if (f.calls.slice(begin).some(call => call.errorScope==='route')) break; // A refused route cannot validate subsequent cases; one case's cap does not invalidate others.
   }
   assert.deepEqual(f.errors, [], 'No native browser errors');
   console.log(JSON.stringify(await f.scrubEvidence()));

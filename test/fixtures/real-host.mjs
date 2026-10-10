@@ -45,9 +45,9 @@ export async function realHostFixture(t, options = {}) {
     if (!activeCase) throw new Error('No authorized test case is active');
     const preceding = (options.priorGeneratedTokens?.[activeCase] ?? 0) + calls.filter(call => call.case === activeCase).reduce((sum, call) => sum + usedTokens(call), 0);
     const remaining = 16384 - preceding;
-    if (remaining < 128) throw new Error('Explicit per-case generated-token budget exhausted');
+    if (remaining < 128) throw Object.assign(new Error('Explicit per-case generated-token budget exhausted'),{scope:'case-budget'});
     const requestCap = options.requestCap ?? 10;
-    if (calls.filter(call => call.case === activeCase).length >= requestCap) throw new Error(`Explicit per-case model request cap (${requestCap}) reached`);
+    if (calls.filter(call => call.case === activeCase).length >= requestCap) throw Object.assign(new Error(`Explicit per-case model request cap (${requestCap}) reached`),{scope:'case-budget'});
     const number = calls.length + 1;
     const call = { number, case: activeCase, model: route.model, started: Date.now(), text: '', reasoning: '', toolCalls: [], usage: null, finished: false, outputTokenLimit: remaining,
       reasoningEffort: payload.reasoning_effort ?? null,
@@ -63,6 +63,7 @@ export async function realHostFixture(t, options = {}) {
     });
     if (!response.ok) {
       call.error = `Configured provider returned HTTP ${response.status}`;
+      call.errorScope = 'route';
       await write(`${String(number).padStart(2, '0')}-${call.case}-provider-error.json`, { status: response.status, body: scrub(await response.text()) });
       yield { delta: { content: call.error }, finish_reason: 'stop' }; return;
     }
@@ -102,7 +103,7 @@ export async function realHostFixture(t, options = {}) {
     try { yield* forward(payload); }
     catch (error) {
       const call = calls.at(-1);
-      if (call?.case === activeCase) { call.error = scrub(error.message); await write(`${String(call.number).padStart(2, '0')}-${call.case}-response.json`, call); }
+      if (call?.case === activeCase) { call.error = scrub(error.message);call.errorScope=error.scope??'route'; await write(`${String(call.number).padStart(2, '0')}-${call.case}-response.json`, call); }
       yield { delta: { content: 'Real-model acceptance request failed; see isolated evidence.' }, finish_reason: 'stop' };
     }
   };

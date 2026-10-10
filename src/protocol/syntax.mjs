@@ -10,7 +10,15 @@ export function verifyExpression(input) {
     const token=tokens[i++];if(!token)error();
     if([14,15,10,11,12,18].includes(token.t)){}
     else if([16,17,35].includes(token.t)){
-      if(tokens[i]?.t===1){i++;if(tokens[i]?.t!==2){for(;;){expression(0,depth+1);if(tokens[i]?.t!==7)break;i++;if(tokens[i]?.t===2)break;}}take(2);}
+      if(tokens[i]?.t===1){
+        i++;let argument=0;
+        if(tokens[i]?.t!==2){for(;;){
+          argument++;
+          if([16,17].includes(tokens[i]?.t)&&tokens[i+1]?.t===9)throw new UIError('SYNTAX',`${token.v} 第 ${argument} 个参数使用了具名参数 ${tokens[i].v}=；请按组件说明使用位置参数`);
+          expression(0,depth+1);if(tokens[i]?.t!==7)break;i++;if(tokens[i]?.t===2)break;
+        }}
+        take(2);
+      }
     }
     else if(token.t===33||token.t===21)expression(7,depth+1);
     else if(token.t===1){expression(0,depth+1);take(2);}

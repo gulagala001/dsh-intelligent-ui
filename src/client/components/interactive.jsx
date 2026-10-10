@@ -1,4 +1,5 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { ScenePlayback } from '../scene-playback.mjs';
 import { fieldError, fieldValue, InputControl } from './controls.jsx';
 import { disabled, display, ErrorMessage, evaluate, formatNumber, invoke, numeric, paint, useBound } from './shared.jsx';
 
@@ -33,7 +34,7 @@ export function Diagram({ props: p, api }) {
   </svg><div className="iui-diagram-detail" aria-live="polite">{chosen ? <><strong>{chosen.label}</strong><p>{chosen.detail || '暂无补充说明'}</p></> : <span className="iui-muted">选择节点查看说明。</span>}</div>{error && <ErrorMessage>{error}</ErrorMessage>}</figure>;
 }
 
-function SceneMark({ mark, onClick, inactive }) {
+function SceneMark({ mark, onClick, onPointerDown, draggable, inactive, keyboardEvents }) {
   const properties = { fill: mark.fill === undefined ? paint('blue') : paint(mark.fill), stroke: mark.stroke === undefined ? 'none' : paint(mark.stroke, 'gray'), strokeWidth: Math.max(0, Math.min(20, numeric(mark.strokeWidth, 1.5))), opacity: Math.max(0, Math.min(1, numeric(mark.opacity, 1))) };
   const coordinate = value => Math.max(-10000, Math.min(10000, numeric(value)));
   let element;
@@ -42,14 +43,20 @@ function SceneMark({ mark, onClick, inactive }) {
   if (mark.type === 'line') element = <line {...properties} x1={coordinate(mark.x)} y1={coordinate(mark.y)} x2={coordinate(mark.x2)} y2={coordinate(mark.y2)} stroke={mark.stroke ? paint(mark.stroke, 'gray') : paint('gray')} />;
   if (mark.type === 'text') element = <text {...properties} x={coordinate(mark.x)} y={coordinate(mark.y)} fontSize={Math.min(96, Math.max(8, numeric(mark.fontSize, 16)))}>{display(mark.text)}</text>;
   if (mark.type === 'path') element = <polyline {...properties} fill={mark.fill ? paint(mark.fill) : 'none'} stroke={mark.stroke ? paint(mark.stroke) : paint('blue')} points={Array.isArray(mark.points) ? mark.points.slice(0, 1000).filter(point => Array.isArray(point) && point.length === 2).map(point => `${coordinate(point[0])},${coordinate(point[1])}`).join(' ') : ''} />;
-  return <g data-iui-mark-id={mark.id} className={mark.interactive ? 'iui-scene-target' : undefined} role={mark.interactive ? 'button' : undefined} tabIndex={mark.interactive && !inactive ? 0 : undefined} aria-label={mark.label || (mark.interactive ? mark.id : undefined)} aria-disabled={mark.interactive ? inactive : undefined} onClick={mark.interactive ? event => { event.stopPropagation(); onClick(mark.id, event); } : undefined} onKeyDown={mark.interactive ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onClick(mark.id, undefined, { x: numeric(mark.x) + (mark.type === 'rect' ? numeric(mark.width) / 2 : 0), y: numeric(mark.y) + (mark.type === 'rect' ? numeric(mark.height) / 2 : 0) }); } } : undefined}>{element}{mark.label && <title>{mark.label}</title>}</g>;
+  return <g data-iui-mark-id={mark.id} className={mark.interactive ? `iui-scene-target${draggable ? ' iui-scene-draggable' : ''}` : undefined} role={mark.interactive ? 'button' : undefined} tabIndex={mark.interactive && !inactive ? 0 : undefined} aria-label={mark.label || (mark.interactive ? mark.id : undefined)} aria-disabled={mark.interactive ? inactive : undefined} onPointerDown={mark.interactive && draggable ? event => onPointerDown(mark.id, event) : undefined} onClick={mark.interactive ? event => { event.stopPropagation(); onClick(mark.id, event); } : undefined} onKeyDown={mark.interactive && !keyboardEvents ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onClick(mark.id, undefined, { x: numeric(mark.x) + (mark.type === 'rect' ? numeric(mark.width) / 2 : 0), y: numeric(mark.y) + (mark.type === 'rect' ? numeric(mark.height) / 2 : 0) }); } } : undefined}>{element}{mark.label && <title>{mark.label}</title>}</g>;
 }
 
 export function Scene({ props: p, api, controls = true }) {
   const container = useRef(null);
   const latest = useRef({ api, p });
-  latest.current = { api, p };
-  const [playing, setPlaying] = useState(false);
+  const localPlayback=useMemo(()=>new ScenePlayback(),[]);
+  const player=useMemo(()=>(api?.playback??localPlayback).get(p.bind),[api?.playback,api?.playbackVersion,localPlayback,p.bind]);
+  const playing=useSyncExternalStore(player.subscribe,player.snapshot,()=>false);
+  const lease=useRef(null);
+  const gestureOwner=useRef(Symbol('scene-gesture'));
+  const dragging=useRef(null);
+  const mounted=useRef(true);
+  const suppressClick=useRef(new Set());
   const [visible, setVisible] = useState(false);
   const [foreground, setForeground] = useState(() => typeof document === 'undefined' || !document.hidden);
   const [actionError, setActionError] = useState('');
@@ -67,25 +74,142 @@ export function Scene({ props: p, api, controls = true }) {
     const element = container.current;
     if (!element) return;
     if (typeof IntersectionObserver === 'undefined') { setVisible(true); return; }
-    const observer = new IntersectionObserver(entries => setVisible(entries.some(entry => entry.isIntersecting)), { threshold: 0.01 });
+    const observer = new IntersectionObserver(entries => { const seen=entries.some(entry => entry.isIntersecting);if(!seen)dragging.current?.cancel();setVisible(seen); }, { threshold: 0.01 });
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
   const unavailable = !view || Boolean(view.error);
   const timed = Boolean(p.scene.events?.tick);
-  useEffect(() => { if (inactive || unavailable) setPlaying(false); }, [inactive, unavailable]);
+  const draggable = Boolean(p.scene.events?.drag);
+  useEffect(() => { mounted.current=true;return () => { mounted.current=false; }; }, []);
+  // Evaluation recreates scene objects after local state changes; compare the
+  // definition and source version rather than cancelling on object identity.
+  const sceneSignature = useMemo(() => JSON.stringify(p.scene), [p.scene]);
+  latest.current = { api, p, player, sceneSignature, sourceVersion: api?.playbackVersion, active:visible&&foreground&&!inactive&&!unavailable };
+  useEffect(() => () => { dragging.current?.cancel(); }, [player, p.bind, sceneSignature, api?.playbackVersion]);
   useEffect(() => {
-    if (!playing || !visible || !foreground || inactive || unavailable || !timed) return;
-    let last = performance.now();
-    const timer = setInterval(() => {
-      const now = performance.now(), dt = Math.min(0.1, Math.max(0, (now - last) / 1000)); last = now;
-      const current = latest.current;
-      invoke(current.api, { type: 'scene', name: current.p.bind, scene: current.p.scene, event: 'tick', payload: { dt } }, message => { setActionError(message); setPlaying(false); });
-    }, 34);
-    return () => clearInterval(timer);
-  }, [playing, visible, foreground, inactive, unavailable, p.bind, timed]);
+    const gesture=dragging.current;
+    if (gesture && (!visible || !foreground || inactive || unavailable || !view?.marks.some(mark => mark.id === gesture.id && mark.interactive))) gesture.cancel();
+  }, [visible, foreground, inactive, unavailable, view]);
+  useEffect(() => {
+    const tick=dt=>{const current=latest.current;invoke(current.api,{type:'scene',name:current.p.bind,scene:current.p.scene,event:'tick',payload:{dt}},message=>{setActionError(message);player.pause();});};
+    lease.current=player.attach({active:false,tick,error:error=>setActionError(error?.message||'播放失败')});
+    return()=>{lease.current?.release();lease.current=null;};
+  },[player]);
+  useEffect(()=>{lease.current?.update({active:visible&&foreground&&!inactive&&!unavailable&&timed,tick:dt=>{const current=latest.current;invoke(current.api,{type:'scene',name:current.p.bind,scene:current.p.scene,event:'tick',payload:{dt}},message=>{setActionError(message);player.pause();});},error:error=>setActionError(error?.message||'播放失败')});},[player,visible,foreground,inactive,unavailable,timed]);
+  useEffect(()=>()=>localPlayback.reset(),[localPlayback]);
   const eventAction = (event, payload) => { setActionError(''); invoke(api, { type: 'scene', name: p.bind, scene: p.scene, event, payload }, setActionError); };
+  const pointerPoint = (svg, event, width, height) => {
+    try {
+      const matrix=svg.getScreenCTM();
+      if (!matrix) return null;
+      const point=svg.createSVGPoint();point.x=event.clientX;point.y=event.clientY;
+      const mapped=point.matrixTransform(matrix.inverse());
+      if (!Number.isFinite(mapped.x) || !Number.isFinite(mapped.y)) return null;
+      return { x:Math.max(0,Math.min(width,mapped.x)), y:Math.max(0,Math.min(height,mapped.y)) };
+    } catch { return null; }
+  };
+  const beginDrag = (id, event) => {
+    if (inactive || unavailable || !visible || !foreground || !draggable || !event.isPrimary || event.button !== 0 || dragging.current) return;
+    const target=event.currentTarget,svg=target.closest('svg');
+    const start=svg && pointerPoint(svg,event,view.width,view.height);
+    if (!start) return;
+    // Every gesture writes through its captured generation-guarded API.
+    const captured={api,scene:p.scene,bind:p.bind,player,sceneSignature,sourceVersion:api?.playbackVersion};
+    const owner=gestureOwner.current;
+    const gesture={id,pointerId:event.pointerId,pointerType:event.pointerType,target,svg,last:start,pending:null,timer:null,moved:false,finished:false,startClient:{x:event.clientX,y:event.clientY}};
+    const sameSource=()=>{const current=latest.current;return current.player===captured.player && current.p.bind===captured.bind && current.sceneSignature===captured.sceneSignature && current.sourceVersion===captured.sourceVersion;};
+    const removeListeners=()=>{
+      window.removeEventListener('pointermove',move);
+      window.removeEventListener('pointerup',end);
+      window.removeEventListener('pointercancel',pointerCancel);
+      window.removeEventListener('lostpointercapture',lostCapture);
+      window.removeEventListener('blur',blur);
+      document.removeEventListener('visibilitychange',visibility);
+      target.removeEventListener('touchmove',preventTouchScroll);
+    };
+    const cleanup=()=>{
+      if (gesture.finished) return;
+      gesture.finished=true;clearTimeout(gesture.timer);gesture.timer=null;gesture.pending=null;
+      removeListeners();
+      if (dragging.current===gesture) dragging.current=null;
+      target.removeAttribute('data-iui-dragging');
+      // Keep cancelled pointers suppressed until their click or a fresh press;
+      // a delayed mouseup after source replacement must not operate the new UI.
+      if (gesture.moved || gesture.cancelled) {
+        suppressClick.current.add(gesture.pointerId);
+        // Browser input has only a handful of active pointers. Retire stale
+        // cancelled tokens while bounding the lifetime of a mounted scene.
+        if(suppressClick.current.size>64)suppressClick.current.delete(suppressClick.current.values().next().value);
+      }
+      try { if (target.hasPointerCapture(gesture.pointerId)) target.releasePointerCapture(gesture.pointerId); } catch {}
+      captured.player.releaseGesture(owner);
+    };
+    const send=(phase,point,reportError=true)=>{
+      if (phase!=='cancel' && !sameSource()) return false;
+      const previous=gesture.last;
+      const payload={id,x:point.x,y:point.y,dx:phase==='start'?0:point.x-previous.x,dy:phase==='start'?0:point.y-previous.y,phase};
+      gesture.last=point;
+      let accepted=true;
+      invoke(captured.api,{type:'scene',name:captured.bind,scene:captured.scene,event:'drag',payload},message=>{
+        accepted=false;
+        if (reportError && mounted.current && sameSource()) setActionError(message);
+        gesture.cancel(false);
+      });
+      return accepted;
+    };
+    const flush=()=>{
+      clearTimeout(gesture.timer);gesture.timer=null;
+      if (gesture.finished) return;
+      if (!sameSource()) { gesture.cancel(false);return; }
+      if (!latest.current.active || document.hidden) { gesture.cancel();return; }
+      const point=gesture.pending;gesture.pending=null;
+      if (point && (point.x!==gesture.last.x || point.y!==gesture.last.y)) send('move',point);
+    };
+    const track=event=>{
+      if (Math.hypot(event.clientX-gesture.startClient.x,event.clientY-gesture.startClient.y)>4) gesture.moved=true;
+      const point=pointerPoint(svg,event,view.width,view.height);
+      if (point) gesture.pending=point;
+    };
+    function move(event) {
+      if (event.pointerId!==gesture.pointerId || gesture.finished) return;
+      if (!sameSource() || !latest.current.active || document.hidden) { gesture.cancel();return; }
+      track(event);
+      if (gesture.timer===null) gesture.timer=setTimeout(flush,33);
+    }
+    function end(event) {
+      if (event.pointerId!==gesture.pointerId || gesture.finished) return;
+      if (!sameSource() || !latest.current.active || document.hidden) { gesture.cancel();return; }
+      track(event);flush();
+      if (gesture.finished) return;
+      const final=gesture.last;cleanup();send('end',final);
+    }
+    function pointerCancel(event) { if (event.pointerId===gesture.pointerId) gesture.cancel(); }
+    function lostCapture(event) { if (event.pointerId===gesture.pointerId) gesture.cancel(); }
+    function blur() { gesture.cancel(); }
+    function visibility() { if (document.hidden) gesture.cancel(); }
+    // SVG groups have no CSS layout box, so touch-action alone can still let
+    // the browser pan and cancel the pointer stream. Block only moves from
+    // the owned touch target; stationary taps and the surrounding page scroll.
+    function preventTouchScroll(event) { if(!gesture.finished&&event.cancelable)event.preventDefault(); }
+    gesture.cancel=(notify=true,suppress=true)=>{if(gesture.finished)return;gesture.cancelled=suppress;const final=gesture.last;cleanup();if(notify)send('cancel',final,false);};
+    if (!player.claimGesture(owner,()=>gesture.cancel())) return;
+    dragging.current=gesture;
+    try { target.setPointerCapture(gesture.pointerId); }
+    catch { gesture.cancel(false,false);return; }
+    target.setAttribute('data-iui-dragging','true');
+    window.addEventListener('pointermove',move);
+    window.addEventListener('pointerup',end);
+    window.addEventListener('pointercancel',pointerCancel);
+    window.addEventListener('lostpointercapture',lostCapture);
+    window.addEventListener('blur',blur);
+    document.addEventListener('visibilitychange',visibility);
+    if(gesture.pointerType==='touch')target.addEventListener('touchmove',preventTouchScroll,{passive:false});
+    event.stopPropagation();setActionError('');if(!send('start',start))gesture.cancel(false);
+  };
   const click = (id, event, point) => {
+    const pointerId=event?.nativeEvent?.pointerId??event?.pointerId;
+    if(event?.detail>0&&suppressClick.current.size&&(pointerId===undefined||suppressClick.current.has(pointerId))){if(pointerId!==undefined)suppressClick.current.delete(pointerId);return;}
     if (inactive || !p.scene.events?.click) return;
     const bounds = container.current?.querySelector('svg')?.getBoundingClientRect();
     const payload = { id, ...point };
@@ -98,12 +222,12 @@ export function Scene({ props: p, api, controls = true }) {
   };
   return <section className="iui-scene" ref={container} aria-label={p.title || '交互场景'}>
     {p.title && <h3 id={titleId}>{p.title}</h3>}
-    {!view || view.error ? <ErrorMessage>{view?.error || '场景服务尚未就绪'}</ErrorMessage> : <svg className="iui-scene-canvas" viewBox={`0 0 ${view.width} ${view.height}`} role="group" aria-label={p.title || '交互场景'} aria-describedby={`${titleId}-help`} tabIndex={inactive || !p.scene.events?.key ? undefined : 0} aria-disabled={inactive} onClick={event => click('background', event)} onKeyDown={event => {
+    {!view || view.error ? <ErrorMessage>{view?.error || '场景服务尚未就绪'}</ErrorMessage> : <svg className="iui-scene-canvas" viewBox={`0 0 ${view.width} ${view.height}`} role="group" aria-label={p.title || '交互场景'} aria-describedby={`${titleId}-help`} tabIndex={inactive || !p.scene.events?.key ? undefined : 0} aria-disabled={inactive} onPointerDownCapture={event => { if (event.isPrimary && event.button===0) suppressClick.current.delete(event.pointerId); }} onClick={event => click('background', event)} onKeyDown={event => {
       if (inactive || !p.scene.events?.key || event.key === 'Tab' || event.ctrlKey || event.metaKey || event.altKey) return;
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Enter'].includes(event.key)) event.preventDefault();
       eventAction('key', { key: event.key, id: event.target.closest?.('[data-iui-mark-id]')?.getAttribute('data-iui-mark-id') || 'scene' });
-    }}>{view.marks.map(mark => <SceneMark key={mark.id} mark={mark} onClick={click} inactive={inactive} />)}</svg>}
-    <div className="iui-scene-toolbar">{controls && p.scene.events?.tick && <button type="button" className={`iui-button ${playing ? 'iui-button-secondary' : 'iui-button-primary'}`} disabled={inactive || Boolean(view?.error) || !view} aria-pressed={playing} onClick={() => { setActionError(''); setPlaying(value => !value); }}>{playing ? '暂停' : '播放'}</button>}<button type="button" className="iui-button iui-button-ghost" disabled={inactive || !view || Boolean(view?.error)} onClick={() => { setPlaying(false); eventAction('reset', {}); }}>重置</button><span className="iui-hint" id={`${titleId}-help`}>{p.scene.events?.key ? '可使用键盘操作。' : '点击图形进行操作。'}{p.scene.events?.tick && '播放时更新，离开页面后暂停。'}</span></div>
+    }}>{view.marks.map(mark => <SceneMark key={mark.id} mark={mark} onClick={click} onPointerDown={beginDrag} draggable={draggable} inactive={inactive} keyboardEvents={Boolean(p.scene.events?.key)} />)}</svg>}
+    <div className="iui-scene-toolbar">{controls && p.scene.events?.tick && <button type="button" className={`iui-button ${playing ? 'iui-button-secondary' : 'iui-button-primary'}`} disabled={inactive || Boolean(view?.error) || !view} aria-pressed={playing} onClick={() => { setActionError(''); player.toggle(); }}>{playing ? '暂停' : '播放'}</button>}<button type="button" className="iui-button iui-button-ghost" disabled={inactive || !view || Boolean(view?.error)} onClick={() => { player.cancelGesture(); player.pause(); eventAction('reset', {}); }}>重置</button><span className="iui-hint" id={`${titleId}-help`}>{draggable && '可拖动交互图形。'}{p.scene.events?.key && '可使用键盘操作。'}{p.scene.events?.click && '点击图形进行操作。'}{p.scene.events?.tick && '播放时更新，离开页面后暂停。'}</span></div>
     {actionError && <ErrorMessage>{actionError}</ErrorMessage>}
   </section>;
 }

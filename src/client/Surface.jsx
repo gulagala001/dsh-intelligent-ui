@@ -3,6 +3,7 @@ import {renderComponent} from './components/index.jsx';
 import {catalog} from '../catalog.mjs';
 import {isTrustedElement} from '../runtime/evaluate.mjs';
 import {acquireDocument} from './document-store.mjs';
+import {protocolVersion,componentsVersion} from '../protocol/version.mjs';
 
 class Boundary extends React.Component {
   state={error:null};static getDerivedStateFromError(error){return{error};}
@@ -16,7 +17,7 @@ function Tree({node,api}) {
   if(node.name==='__pending')return <div className="iui-skeleton" aria-label="正在生成内容"/>;
   const def=catalog[node.name],children=def?.children?node.props[def.children]:[];
   const rendered=Array.isArray(children)?children.map((value,i)=><Tree key={value?.path??i} node={value} api={api}/>):<Tree node={children} api={api}/>;
-  return renderComponent(node.name,node.props,rendered,api);
+  return renderComponent(node.name,node.props,rendered,{...api,componentPath:node.path});
 }
 function download(name,content,type='application/json'){
   const url=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -38,11 +39,12 @@ export function IntelligentSurface({source='',streaming=false,sessionId,blockId,
   return <div className="iui-surface" data-iui-block={blockId} aria-busy={streaming||snapshot.status==='loading'}>
     <Boundary source={source}><Tree node={snapshot.tree} api={api}/></Boundary>
     {!snapshot.tree&&!snapshot.error&&<div className="iui-skeleton" aria-label="正在生成交互内容"/>}
-    {snapshot.error&&<p role="alert" className="iui-error">{snapshot.error}{snapshot.status==='invalid'&&onSubmit&&<button type="button" disabled={repairing} aria-busy={repairing} onClick={repair}>{repairing?'正在请求修复…':'修复'}</button>}{snapshot.status==='conflict'&&<button type="button" onClick={()=>void store.save({resolveConflict:true})}>保留当前设置并保存</button>}{snapshot.status==='save-error'&&<button type="button" onClick={()=>void store.save()}>重试保存</button>}{snapshot.status==='load-error'&&<button type="button" onClick={()=>{store.snapshot={...store.snapshot,source:''};store.update(source,streaming);}}>重试读取</button>}</p>}
+    {snapshot.error&&<p role="alert" className="iui-error">{snapshot.error}{snapshot.status==='invalid'&&onSubmit&&<button type="button" disabled={repairing} aria-busy={repairing} onClick={repair}>{repairing?'正在请求修复…':'修复'}</button>}{snapshot.status==='conflict'&&<button type="button" onClick={()=>void store.save({resolveConflict:true})}>保留当前设置并保存</button>}{snapshot.status==='save-error'&&<button type="button" onClick={()=>void store.save()}>重试保存</button>}{snapshot.status==='load-error'&&<button type="button" onClick={()=>store.update(source,streaming,{reload:true})}>重试读取</button>}</p>}
     <div className="iui-surface-toolbar"><span className="iui-surface-feedback"><span role="status">{states[snapshot.status]}</span>{notice&&<span role="status">{notice}</span>}</span>
+      {snapshot.previousDraft&&<button type="button" onClick={()=>{try{download('intelligent-ui-previous-draft.json',JSON.stringify({protocolVersion,componentsVersion:snapshot.previousDraft.componentsVersion,source:snapshot.previousDraft.source,state:snapshot.previousDraft.state},null,2));setNotice('已导出上一版源文与设置');}catch{setNotice('草稿导出失败，请重试');}}}>导出旧草稿</button>}
       {onExpand&&!expanded&&<button type="button" title="展开" aria-label="展开交互内容" onClick={()=>onExpand({source,sessionId,blockId})}>↗</button>}
       <button type="button" title="复制源文" aria-label="复制交互源文" onClick={copy}>复制</button>
-      <button type="button" title="导出完整源文与当前设置" onClick={()=>{try{download('intelligent-ui.json',JSON.stringify({protocolVersion:1,componentsVersion:1,source,state:snapshot.state},null,2));setNotice('已导出源文与当前设置');}catch{setNotice('导出失败，请重试');}}}>导出</button>
+      <button type="button" title="导出完整源文与当前设置" onClick={()=>{try{download('intelligent-ui.json',JSON.stringify({protocolVersion,componentsVersion:snapshot.componentsVersion??componentsVersion,source,state:snapshot.state},null,2));setNotice('已导出源文与当前设置');}catch{setNotice('导出失败，请重试');}}}>导出</button>
       <button type="button" aria-expanded={showSource} onClick={()=>setShowSource(!showSource)}>源文</button>
     </div>
     {showSource&&<pre className="iui-source"><code>{source}</code></pre>}

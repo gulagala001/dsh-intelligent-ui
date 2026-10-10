@@ -21,7 +21,7 @@ root = Calculator([{name:"bill",label:"Bill",type:"number",value:120,min:0},{nam
 
 Only an explicit user click on a submit action or form can continue the conversation. A Button action is JSON data: `{type:"set",name:"field",value:123}`, `{type:"reset",name:"field"}`, or `{type:"submit",text:"Continue with these choices",fields:["field"]}`. Never include arbitrary code, automatic submission, network requests, tool calls, file access, credentials or host objects in a document. Unknown or invalid content displays an error and preserves the source; do not promise silent automatic repair.
 
-For composing an answer, the installed catalog and reference files define the supported interface. Use these contracts to compose the answer inside the conversation; implementation-source inspection is useful when debugging or extending the plugin. Do not create an application on disk merely to answer an interactive question.
+For composing an answer, the installed catalog and reference files define the supported interface. Use these contracts to compose the answer inside the conversation. Do not inspect plugin implementation files to produce an interactive answer; inspect them when the user asks to debug or extend the plugin. Do not create an application on disk merely to answer an interactive question.
 
 The installed base catalog below is sufficient without file-reading tools. For other components, use an already available filesystem read tool to load only the relevant file relative to this skill's resource base:
 

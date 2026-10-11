@@ -10,7 +10,13 @@ import { splitResponse } from '../src/protocol/split.mjs';
 import { initialScene, sceneView, sceneTransition, sceneSet, sceneRestart } from '../src/runtime/scene.mjs';
 
 const repo = fileURLToPath(new URL('../', import.meta.url));
-const { values: args } = parseArgs({ options: { 'profile-route-file': { type: 'string' }, provider: { type: 'string' }, model: { type: 'string' }, 'repair-response': { type: 'string' }, 'request-cap': { type: 'string' }, 'natural-questions': { type: 'boolean', default: false } } });
+const { values: args } = parseArgs({ options: { 'profile-route-file': { type: 'string' }, provider: { type: 'string' }, model: { type: 'string' }, 'codex-subscriptions-package': { type: 'string' }, 'codex-auth-file': { type: 'string' }, 'repair-response': { type: 'string' }, 'request-cap': { type: 'string' }, 'natural-questions': { type: 'boolean', default: false } } });
+const nativeCodex = Boolean(args['codex-subscriptions-package'] || args['codex-auth-file']);
+if (nativeCodex) {
+  assert.ok(args['codex-subscriptions-package'] && args['codex-auth-file'], 'Native Codex requires both the subscriptions package and the selected auth file');
+  assert.ok(!args['profile-route-file'] && !args.provider && !process.env.IUI_REAL_SETTINGS, 'Native Codex must not mix a different configured provider route');
+  assert.ok(!args.model || args.model === 'gpt-6.1-sol', 'This native acceptance uses the explicitly authorized gpt-6.1-sol model');
+}
 const requestCap = Number(args['request-cap'] ?? 10);
 assert.ok(Number.isInteger(requestCap) && requestCap >= 1 && requestCap <= 16, 'Explicit request cap must be within 1..16');
 const evidence = resolve(process.env.IUI_REAL_EVIDENCE ?? join(repo, 'work/real-model', new Date().toISOString().replace(/[:.]/g, '-')));
@@ -55,15 +61,17 @@ async function changeNumber(locator, value) {
   await locator.press('Home'); for (let index = 0; index < increments; index++) await locator.press('ArrowRight');
   assert.equal(Number(await locator.inputValue()), value);
 }
-const fieldControl = (surface, label) => surface.getByLabel(new RegExp(`^${label}(?:[\\s·]|$)`));
+const fieldControl = (surface, label) => surface.getByLabel(new RegExp(`^${label}(?:[\\s·（(]|$)`));
+const nativeDispatches = async () => nativeCodex ? (await readFile(join(evidence, 'native-network-dispatches.jsonl'), 'utf8')).trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) : [];
 let f;
 try {
-  f = await realHostFixture(t, { settingsPath: process.env.IUI_REAL_SETTINGS, profileRouteFile: args['profile-route-file'], provider: args.provider, model: args.model, evidenceDirectory: evidence, priorGeneratedTokens, requestCap });
+  f = await realHostFixture(t, { settingsPath: process.env.IUI_REAL_SETTINGS, profileRouteFile: args['profile-route-file'], provider: args.provider, model: args.model, evidenceDirectory: evidence, priorGeneratedTokens, requestCap, ...(nativeCodex ? { nativeCodexSubscriptions: { packagePath: args['codex-subscriptions-package'], authFile: args['codex-auth-file'], model: 'gpt-6.1-sol' } } : {}) });
   const health = (await f.api('/health')).body;
   for (const item of selected) {
     f.setCase(item.id);
     console.log(`${item.id}: native DSH generation with ${f.model}`);
     const begin = f.calls.length;
+    const interactionChecks={};
     try {
       await f.page.locator('button[data-iui-entrance-wide]').first().hover();
       await f.page.getByRole('button', { name: '新建智能聊天', exact: true }).first().click();
@@ -86,10 +94,9 @@ try {
       const nodes = trees.flatMap(flatten);
       for (const name of item.required) assert.ok(nodes.some(node => node.name === name), `Missing ${name}`);
       const surface = f.page.locator('.iui-surface').first(); await surface.waitFor({ state: 'visible', timeout: 15000 });
-      await until(async () => !await surface.locator('input:disabled,button:disabled').count(), 15000);
+      await until(async () => await surface.getAttribute('aria-busy') === 'false', 15000);
       assert.equal(await surface.locator('.iui-error').count(), 0, 'Rendered answer contains runtime errors');
       const beforeControls = f.calls.length;
-      const interactionChecks={};
       if (item.id === 'split-bill') {
         const calculator = nodes.find(node => node.name === 'Calculator').props;
         const values = Object.fromEntries(calculator.fields.map(field => [field.name, field.value]));
@@ -107,7 +114,7 @@ try {
         assert.equal(await surface.getByRole('progressbar').getAttribute('aria-valuenow'), '1');
       } else if (item.id === 'motion') {
         const p = nodes.find(node => node.name === 'Simulation').props;
-        const velocity = p.fields.find(field => /^速度(?:[\s·]|$)/.test(field.label)), acceleration = p.fields.find(field => /^加速度(?:[\s·]|$)/.test(field.label));
+        const velocity = p.fields.find(field => /^速度(?:[\s·（(]|$)/.test(field.label)), acceleration = p.fields.find(field => /^加速度(?:[\s·（(]|$)/.test(field.label));
         assert.ok(velocity && acceleration, 'Both motion parameters must exist');
         let record = initialScene(p.scene);
         const positionKey = Object.keys(record.values).find(key => record.values[key] === 20);
@@ -143,9 +150,19 @@ try {
         assert.equal(Number(await fieldControl(surface,'速度').inputValue()),30,'Full reset restores the initial speed setting');
         assert.equal(Number(await fieldControl(surface,'加速度').inputValue()),10,'Full reset restores the initial acceleration setting');
       } else if (item.id === 'novel-game') {
-        const p = nodes.find(node => node.name === 'Game').props, lamps = ['灯1','灯2','灯3'].map(label => p.scene.marks.find(mark => mark.label === label));
-        assert.ok(lamps.every(mark => mark?.interactive), 'All three lamps must be interactive');
+        const p = nodes.find(node => node.name === 'Game').props;
         let record = initialScene(p.scene), original = structuredClone(record.values);
+        const initialView = sceneView(p.scene, record);
+        const lamps = ['灯1','灯2','灯3'].map(label => {
+          const matches = [
+            ...initialView.actions.filter(action => String(action.label) === label).map(action => ({ ...action, control: 'dom-action' })),
+            ...initialView.marks.filter(mark => mark.interactive && String(mark.label) === label).map(mark => ({ ...mark, control: 'svg-mark' })),
+          ];
+          assert.equal(matches.length, 1, `${label} must identify exactly one interactive control`);
+          assert.ok(!matches[0].disabled, `${label} must initially be enabled`);
+          return matches[0];
+        });
+        interactionChecks.game={lampControls:lamps.map(({label,id,control})=>({label,id,control}))};
         for (const mark of lamps) record = sceneTransition(p.scene, record, 'click', { id: mark.id });
         const changed = Object.keys(original).filter(key => typeof original[key] === 'number' && record.values[key] === original[key] + 1);
         assert.equal(changed.length, 1, 'One completed sequence earns one score');
@@ -157,6 +174,7 @@ try {
         for (const mark of lamps) record = sceneTransition(p.scene, record, 'click', { id: mark.id });
         assert.equal(record.values[score], original[score] + 1, 'A fresh correct sequence works after a mistake');
         const twice=lamps.reduce((state,mark)=>sceneTransition(p.scene,state,'click',{id:mark.id}),record);
+        assert.equal(twice.values[score], original[score] + 2, 'Completed progress resets so the next round earns one more score');
         const scoreMetric=(p.metrics??[]).findIndex(metric=>{
           try{return /得分|分数|score/i.test(metric.label)&&[initialScene(p.scene),record,twice].every(state=>safeEvaluate(metric.formula,{},state.values)===state.values[score]);}catch{return false;}
         });
@@ -164,21 +182,41 @@ try {
         assert.ok(scoreMetric>=0||scoreMark,'Game must visibly show its independent score, in a metric or scene text');
         const scoreText=scoreMetric>=0?surface.locator('.iui-scene-metrics .iui-calculation-result').nth(scoreMetric).locator('.iui-result-value'):surface.locator(`[data-iui-mark-id=${JSON.stringify(scoreMark.id)}]`);
         await scoreText.waitFor({state:'visible'});assert.equal(numberOutput(await scoreText.textContent()),original[score]);
-        interactionChecks.game={score,scoreLocation:scoreMetric>=0?'external-metric':'scene-text'};
+        Object.assign(interactionChecks.game,{score,scoreLocation:scoreMetric>=0?'external-metric':'scene-text'});
         for (const label of ['灯1','灯2','灯3']) await surface.getByRole('button', { name: label, exact: true }).click();
         assert.equal(numberOutput(await scoreText.textContent()), original[score] + 1);
         for (const label of ['灯1','灯2','灯3']) await surface.getByRole('button', { name: label, exact: true }).press('Enter');
         assert.equal(numberOutput(await scoreText.textContent()), original[score] + 2, 'Keyboard sequence supports the next round');
         await surface.getByRole('button', { name: '灯2', exact: true }).press('Enter');
         assert.equal(numberOutput(await scoreText.textContent()), original[score] + 2, 'Wrong keyboard order earns no score');
+        for (const label of ['灯1','灯3','灯2','灯3']) await surface.getByRole('button', { name: label, exact: true }).click();
+        assert.equal(numberOutput(await scoreText.textContent()), original[score] + 2, 'A wrong click in a partial sequence resets progress without awarding a score');
+        for (const label of ['灯1','灯2','灯3']) await surface.getByRole('button', { name: label, exact: true }).press('Enter');
+        assert.equal(numberOutput(await scoreText.textContent()), original[score] + 3, 'A fresh keyboard sequence works after the wrong partial sequence');
         await surface.locator('.iui-scene-toolbar').getByRole('button', { name: '重置', exact: true }).click();
         assert.equal(numberOutput(await scoreText.textContent()), original[score], 'Reset restores score');
       } else {
         const chart = nodes.find(node => node.name === 'Chart').props;
-        const series = typeof chart.series[0] === 'string' ? chart.series[0] : chart.series[0].key;
-        assert.deepEqual(chart.data.map(row => row[series]), [29,59,99]);
+        const series = chart.series.map(entry => typeof entry === 'string' ? { key: entry, unit: '' } : { ...entry, unit: entry.unit?.trim() || '' });
+        const monthly = series.find(entry => JSON.stringify(chart.data.map(row => row[entry.key])) === '[29,59,99]');
+        assert.ok(monthly, 'The chart must retain the supplied monthly prices');
+        assert.equal(chart.type, 'bar', 'The requested monthly chart must be a bar chart');
+        assert.deepEqual(chart.data.map(row => String(row[chart.x])), ['轻量','标准','专业'], 'Monthly prices must belong to the supplied plans');
         await surface.getByRole('tab', { name: '月费图', exact: true }).click();
         assert.equal(await surface.getByRole('tab', { name: '月费图', exact: true }).getAttribute('aria-selected'), 'true');
+        const unitGroups = [...new Set(series.map(entry => entry.unit))], unitControl = surface.locator('.iui-chart-metric select');
+        interactionChecks.chart={monthlySeries:monthly.key,unitGroups,unitSwitches:[]};
+        if(unitGroups.length>1){
+          assert.equal(await unitControl.count(),1,'Different authored units expose one local metric selector');
+          for(const unit of unitGroups){
+            await unitControl.selectOption(unit);
+            assert.equal(await unitControl.inputValue(),unit);
+            for(const entry of series)assert.equal(await surface.locator(`[data-chart-series=${JSON.stringify(entry.key)}]`).count(),entry.unit===unit?chart.data.length:0,'A unit selection plots only its own series');
+            interactionChecks.chart.unitSwitches.push(unit);
+          }
+          await unitControl.selectOption(monthly.unit);
+        }
+        assert.equal(await surface.locator(`[data-chart-series=${JSON.stringify(monthly.key)}]`).count(),3,'The supplied monthly prices are actually plotted');
         const legend = surface.locator('.iui-chart-legend button').first(); await legend.click(); assert.equal(await legend.getAttribute('aria-pressed'), 'false'); await legend.click();
         await surface.locator('.iui-chart-data summary').click(); await surface.locator('.iui-data-select').first().click();
         assert.equal(await surface.locator('.iui-data-select').first().getAttribute('aria-pressed'), 'true');
@@ -187,6 +225,12 @@ try {
       assert.equal(f.calls.length, beforeControls, 'Local operations must issue zero extra model requests');
       const calls = f.calls.slice(begin);
       assert.ok(calls.every(call=>!call.error&&call.streamCompleted),'Every request in a successful case must finish its stream without an error');
+      if (nativeCodex) {
+        const dispatches = (await nativeDispatches()).filter(entry => entry.case === item.id);
+        assert.ok(dispatches.length >= calls.length && dispatches.length <= requestCap, 'Each successful native model call needs a recorded real provider dispatch within the request cap');
+        assert.ok(dispatches.every(entry => entry.kind === 'native-codex-dispatch'));
+        interactionChecks.nativeProviderDispatches = dispatches.length;
+      }
       assert.ok((priorGeneratedTokens[item.id] ?? 0) + calls.reduce((sum, call) => sum + f.usedTokens(call), 0) <= f.generatedTokenCeiling, 'Internal generated-token guard must be respected');
       if(!args['natural-questions'])assert.ok(calls.some(call => call.toolCalls.some(tool => tool.function?.name?.includes('skill'))), 'Native skill invocation must occur');
       // Exact public reference paths must appear in a real native read tool call, never simulated prompt injection.
@@ -199,15 +243,15 @@ try {
       }
       await f.page.screenshot({ path: join(evidence, `${item.id}.png`), fullPage: true });
       await f.writeEvidence(`${item.id}-document.json`, { answer: final.text, sources: segments.map(part => part.text), trees, checks: 'independent runtime and native Web operations', interactionChecks,zeroExtraModelRequests: true });
-      results.push({ id: item.id, passed: true, requests: calls.length, completionTokens: calls.reduce((sum, call) => sum + (call.usage?.completion_tokens ?? 0), 0), generatedTokenBudgetCount: calls.reduce((sum, call) => sum + f.usedTokens(call), 0) });
+      results.push({ id: item.id, passed: true, interactionChecks, requests: calls.length, completionTokens: calls.reduce((sum, call) => sum + (call.usage?.completion_tokens ?? 0), 0), generatedTokenBudgetCount: calls.reduce((sum, call) => sum + f.usedTokens(call), 0) });
       console.log(`${item.id}: PASS (${calls.length} requests)`);
     } catch (error) {
-      results.push({ id: item.id, passed: false, error: f.scrub(error.message), requests: f.calls.length - begin });
+      results.push({ id: item.id, passed: false, interactionChecks, error: f.scrub(error.message), requests: f.calls.length - begin });
       await f.page.screenshot({ path: join(evidence, `${item.id}-failure.png`), fullPage: true }).catch(() => {});
       await writeFile(join(evidence, `${item.id}-page.txt`), f.scrub(await f.page.locator('body').innerText()), { mode: 0o600 });
       console.log(`${item.id}: FAIL (${f.scrub(error.message)})`);
     }
-    await f.writeEvidence('summary.json', { mode: 'packaged-native-cli-web-real-model', naturalQuestions:Boolean(args['natural-questions']), model: f.model, health, packageSha256: f.packageSha256, perCaseGeneratedTokenCeiling: f.generatedTokenCeiling, configuredModelCapabilities:{contextWindow:f.modelDefinition.contextWindow,maxTokens:f.modelDefinition.maxTokens,input:f.modelDefinition.input},perCaseRealRequestCap: requestCap, explicitRepairTurns: repair ? 1 : 0, priorGeneratedTokens, results,
+    await f.writeEvidence('summary.json', { mode: 'packaged-native-cli-web-real-model', naturalQuestions:Boolean(args['natural-questions']), model: f.model, health, packageSha256: f.packageSha256, ...(nativeCodex ? { nativeProvider:f.nativeProvider, nativeProtocol:f.nativeProtocol, subscriptionsPackageSha256:f.subscriptionsPackageSha256, nativeNetworkDispatches:await nativeDispatches(), outputBudgetEnforcement:'client-observed generated output and terminal usage; no server max_output_tokens parameter' } : {}), perCaseGeneratedTokenCeiling: f.generatedTokenCeiling, configuredModelCapabilities:{contextWindow:f.modelDefinition.contextWindow,maxTokens:f.modelDefinition.maxTokens,input:f.modelDefinition.input},perCaseRealRequestCap: requestCap, explicitRepairTurns: repair ? 1 : 0, priorGeneratedTokens, results,
       notRun: selected.filter(item => !results.some(result => result.id === item.id)).map(item => item.id),
       offeredReasoningEfforts: f.offeredReasoningEfforts,
       calls: f.calls.map(({ number, case: id, usage, finishReason, error, errorScope, reasoningEffort }) => ({ number, case: id, usage, finishReason, error, errorScope, reasoningEffort })), auxiliaryLocalTitles: f.auxiliary.length, hostErrors: f.errors });

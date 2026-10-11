@@ -20,10 +20,11 @@ function currentScene(scene, value) {
 function sceneBudget() { return budget({ source:128000,tokens:24000,statements:512,depth:40,ops:12000,nodes:1000,array:2000,string:32000,stateBytes:131072,stateKeys:256 }); }
 export function sceneView(scene, record) {
   const next = currentScene(scene, record), b = sceneBudget();
+  const expression = value => value && typeof value === 'object' && Object.hasOwn(value,'expr') ? evaluateFormula(value.expr,{state:next.record.values,locals:{}},b) : value;
   const marks = next.scene.marks.map(mark => {
     const out = {};
     for (const [key,value] of Object.entries(mark)) {
-      const v = value && typeof value === 'object' && Object.hasOwn(value,'expr') ? evaluateFormula(value.expr,{state:next.record.values,locals:{}},b) : value;
+      const v = expression(value);
       if (['x','y','x2','y2','width','height','r','strokeWidth','opacity','fontSize'].includes(key)) {
         if (typeof v !== 'number' || !Number.isFinite(v) || Math.abs(v)>10000 || ['width','height','r','strokeWidth','fontSize'].includes(key)&&v<0 || key==='opacity'&&(v<0||v>1) || key==='fontSize'&&v>128 || key==='strokeWidth'&&v>32) throw new UIError('GEOMETRY','图形参数超出范围');
       }
@@ -34,7 +35,24 @@ export function sceneView(scene, record) {
     }
     return out;
   });
-  charge(b); return { state:next.record.values,marks,width:next.scene.width,height:next.scene.height };
+  const ids=new Set(),shortcuts=new Set();
+  const actions=next.scene.actions.map(action=>{
+    if(!action.id.length||ids.has(action.id))throw new UIError('SCENE_ACTION','操作卡需要独立标识');
+    ids.add(action.id);
+    if(action.shortcut){const key=action.shortcut.toLowerCase();if(shortcuts.has(key))throw new UIError('SCENE_ACTION','操作卡快捷键不能重复');shortcuts.add(key);}
+    const out={};
+    for(const [key,value]of Object.entries(action)){
+      const v=expression(value);
+      if(['label','detail'].includes(key)&&!['string','number','boolean'].includes(typeof v))throw new UIError('TEXT','操作卡文字需要简单值');
+      if(['label','detail'].includes(key)&&typeof v==='string'&&v.length>16000)throw new UIError('TEXT','操作卡文字过长');
+      if(key==='symbol'&&(typeof v!=='string'||v.length>16))throw new UIError('TEXT','操作卡符号过长');
+      if(['selected','disabled'].includes(key)&&typeof v!=='boolean')throw new UIError('SCENE_ACTION','操作卡状态需要布尔值');
+      if(key==='color'&&!(typeof v==='string'&&(colors.has(v)||/^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(v))))throw new UIError('COLOR','操作卡颜色无效');
+      out[key]=v;
+    }
+    return out;
+  });
+  charge(b); return { state:next.record.values,marks,actions,width:next.scene.width,height:next.scene.height };
 }
 export function sceneTransition(scene, record, event, payload = {}) {
   return transition(scene,record,event,payload);

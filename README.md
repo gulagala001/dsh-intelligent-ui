@@ -13,29 +13,29 @@
 - 在回答里直接操作。改变控件会更新本地内容并保存设置；明确点击提交或继续才会向原会话发送消息。
 - 点击回答底部的展开按钮，在原生作品页签查看；复制与导出可以保留源文和当前设置。
 
-详细用法见 [使用说明](docs/usage.md)。资源与选型见 [资源调查](docs/resource-research.md)。
+小游戏可在同一作品中组合标题、得分、提示和语义操作卡；图表可按作者明确标注的单位切换指标组。详细用法见 [使用说明](docs/usage.md)。资源与选型见 [资源调查](docs/resource-research.md)。
 
 ## 当前界面
 
-以下为 macOS 隔离 profile 中 DSH 0.2.1-alpha.2 与 OMD 0.13 的原生实拍，使用 localhost 合成模型；表单是工程验收示例，不代表真实模型生成质量。图片来自先前的 1.0.3 验收，仍展示旧入口；当前 1.6.0 按三个精确宿主分别构建和验收，当前结果不由旧图外推。
+以下为 1.7.0 在 macOS 隔离 profile、原版 DSH 0.2.1-alpha.2 中的实拍：整格新会话右侧悬停入口，以及回答与展开作品共享已保存设置。内容来自 localhost 合成模型，展示插件交互，不代表真实模型生成质量。
 
-![旧版入口与已保存的原生交互回答](docs/images/native-small-plus-saved.png)
+![整格新会话右侧悬停显示 Chat](docs/images/new-session-hover.png)
 
-![真实宿主冷重启后恢复已保存的交互预览](docs/images/native-cold-saved.png)
+![原版 DSH 中的回答与展开作品](docs/images/native-reply-expanded.png)
 
 ## 安装
 
-当前成品正在本地验收，**尚未正式发布**。安装与你的 **完整 DSH 版本一致**的本地构建；各宿主构建使用不同版本和资产，不能互换。正式渠道将在确认发布后开放。
+当前 1.7.0 为本地构建，**正式发布暂停**。以下命令使用本地安装包；实际兼容组合与验收记录随构建交付。安装与你的 **完整 DSH 版本一致**的构建；各宿主构建使用不同版本和资产，不能互换。正式渠道将在确认发布后开放。
 
 ```sh
 # DSH 0.2.0-rc.2
-dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.0-rc.2.iui.1.6.0.tgz
+dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.0-rc.2.iui.1.7.0.tgz
 
 # DSH 0.2.1-alpha.1
-dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.1-alpha.1.iui.1.6.0.tgz
+dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.1-alpha.1.iui.1.7.0.tgz
 
 # DSH 0.2.1-alpha.2
-dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.1-alpha.2.iui.1.6.0.tgz
+dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.1-alpha.2.iui.1.7.0.tgz
 ```
 
 将路径换成实际安装包的绝对路径，安装后重启对应 DSH profile。使用其他 profile 时把命令中的 `web` 替换为它的名称。OMD 的推荐入口已接入，公开下载会在正式发布后开放。运行需要 Node 22.19 或更新版本。

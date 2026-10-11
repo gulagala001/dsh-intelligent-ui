@@ -20,6 +20,10 @@ FigureViewport为Chart/Diagram/Scene提供视图本地的原尺寸查看；默�
 
 Simulation与Game接受局部fields/metrics；Game在原scene/bind/title/instructions之后追加这两个可选参数，四参数旧调用保持原语义。编辑参数先暂停并取消拖拽。“重新开始”保留fields中的当前值，恢复其他初始字段与种子后执行既有reset步骤；“重置”还原全部初始字段与种子后执行reset步骤。sceneRestart仅为组件内部动作，不进入生成Button动作白名单。游戏指标在画布外显示并提供polite反馈；连续模拟指标不创建读屏live区域。
 
+Scene的可选`actions`最多32项，每项有独立非空`id`和必需`label`；可用`detail/symbol/selected/disabled/color`，label和这些显示值可由有界公式派生。symbol最多16字符；selected/disabled必须是布尔值，color沿用mark颜色白名单。动作以原生DOM按钮呈现，点击与按钮上的原生Enter/Space激活都发送同一个`click`和`event.id`，不重复发送激活key事件。局部shortcut仅一ASCII字母或数字，大小写折叠后不能重复；作品内显式shortcut优先于自定义key规则，重复按键和修改键组合不能重复激活动作。非激活键仍可交给自定义`events.key`。actions与marks共享bind状态，`marks:[]`且有actions时不显示空画布；selected/disabled只表达当前状态，不创建另一套模型循环。Game统一呈现标题、说明、指标与操作区，选择/匹配等非空间玩法可用操作卡，空间命中与拖拽继续使用marks。
+
+Chart系列对象接受可选显式`unit`。非饼图按去掉首尾空白后的相同单位字符串分组，当前组内保留各系列筛选，单位组选择沿用作品本地状态；饼图仍选单个指标。未提供unit的旧系列仍属于原来的同一组，保留已有筛选与选择。单位不从label推断、不自动换算或归一；未知或失效的已存单位选择仅投影到当前首组，渲染时不修写状态。图例、选中说明和数据表使用作者标注的单位。
+
 `src/client/styles/surface.css` 默认导出样式字符串（构建器处理CSS导入）。必须全部限定 `.iui-surface` 或专用shadow root，不带body/:root/*宿主全局重置。不直接使用SDK Select/Popover（实际React19）；采用其官方设计token数值，React18原生控件。Portal只能进入本surface。
 
 ## 协议和运行时
@@ -28,14 +32,16 @@ UI fence语言为 `openui`（同时读`intelligent-ui`），首行可选`// iui:
 
 `compile(source,{streaming})` 返回文档 `{root, assignments, defaults, diagnostics, source}`。`evaluateDocument(document,state)` 返回验证过的元素树 `{name,props,children?}`；元素含稳定path身份。`splitResponse(text,{streaming})` 返回 `{kind:'text'|'ui',text,ordinal,complete,start}`。`safeEvaluate(expression,state,locals)` 支持白名单纯数学/数组函数。组件worker需要前期占位时不要另写eval。
 
-新作品使用protocolVersion 1、componentsVersion 3；组件版本1和2继续读取、编辑并按原版本导出，未知版本拒绝且保留原文件。drag仅作用于交互图形，支持start/move/end/cancel和有界SVG坐标；取消或源文更换舍弃待发move，正常结束先提交最后move。恢复后的播放器默认暂停。
+新作品使用protocolVersion 1、componentsVersion 4；组件版本1、2和3继续读取、编辑并按原版本导出，未知版本拒绝且保留原文件。drag仅作用于交互图形，支持start/move/end/cancel和有界SVG坐标；取消或源文更换舍弃待发move，正常结束先提交最后move。恢复后的播放器默认暂停。
 
 ## 服务
 
-主模型和host worker协定 authenticated API 前缀`/intelligent-ui/api`。GET `/state?session=&block=`返回 `{revision, sourceRevision, state, source?, protocolVersion:1}`；POST同路径body `{session,block,expectedRevision,sourceRevision,source,state}`，CAS冲突409含当前record。GET `/health`返回版本/host版本/feature能力，不含私密设置。
+主模型和host worker协定 authenticated API 前缀`/intelligent-ui/api`。GET `/state?session=&block=`返回 `{revision, sourceRevision, state, source?, protocolVersion:1, componentsVersion}`；宿主已换源但磁盘仍保存旧源时，只读返回当前源、空状态、原revision及`persisted:false`，不改写磁盘。POST同路径body `{session,block,expectedRevision,sourceRevision,source,state}`；CAS冲突返回409，仅同源冲突附当前record，跨源冲突不泄露旧源及其状态。GET `/health`返回版本/host版本/feature能力，不含私密设置。
 
 block身份为 session/turn/step/text-content-index/UI-ordinal；字符串用`turn:step:text:ordinal`，各数值非负整数。sourceRevision是SHA256或纯客户端稳定内容hash；只有文档完成后保存source。服务必须核验session存在且对应assistant原始text确有该block，源必须匹配宿主文本。GET不能凭任意session返回用户私密数据；复用宿主cookie认证和session资源权限。文件存储落宿主持久目录，原子写、大小限制、symlink拒绝、序列化写入。禁止将会话源投递到外部服务。
 
 host worker导出`src/index.mjs`（服务apply/inject），`src/host/prompt.mjs`（专用preset提示接入），`skills/intelligent-ui/SKILL.md`和分组references，preset patch。专用preset沿用DSH native loop，适当文件/网页/skill工具，无全局更改；普通preset skill仅短索引。Prompt组装以catalog真实契约为准，不复制未实现功能。英文文本变更记本地PROMPT_CHANGES.md。host worker自行查真实SDK source，不猜接口。
 
 客户端宿主适配由主模型另外指定worker；使用完整原生AssistantNodeView行为，仅response text换分段渲染。小＋必须创建明确session、选preset、打开，再允许首提交；首提交失败不串入默认会话。保留原新会话按钮。清理所有插槽、观察器、计时器、路由。
+
+本契约描述已完成集中验收的1.7.0本地实现：三个精确原版宿主、alpha.2与OMD 0.15.1完整共存及GPT-6.1-Sol五类生成结果已按各自范围核对。模拟题采用真实生成同输出回放，平台和证据边界见[实施与交付计划](implementation-plan.md#当前状态)。正式发布继续暂停。

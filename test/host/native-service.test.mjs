@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
-import { mkdtemp, realpath, rm, readdir, readFile } from 'node:fs/promises';
+import { mkdtemp, realpath, rm, readdir, readFile, writeFile, lstat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Readable } from 'node:stream';
@@ -62,6 +62,28 @@ async function fixture(t) {
   return { ctx, session, store, cookie, source, root, handler: createApiHandler(ctx, store, { version: 'fixture', hostVersion: 'actual-test-sdk' }) };
 }
 
+async function changedSourceFixture(t) {
+  const value = await fixture(t);
+  const block = '1:1:0:0';
+  const input = { session: value.session.id, block, source: value.source, sourceRevision: sourceHash(value.source), expectedRevision: 0, state: { privateOldValue: 'source-A-only' } };
+  const saved = await request(value.handler, value.cookie, 'POST', '/intelligent-ui/api/state', input);
+  assert.equal(saved.status, 200);
+  const path = value.store.path(value.session.id, block);
+  // Model an existing v3 document independently of the current writer contract.
+  await writeFile(path, JSON.stringify({ ...saved.body, componentsVersion: 3 }));
+  const source = 'root = Text("Replacement source B")\n';
+  const events = value.session.snapshotEvents().map(event => event.type !== 'assistant/message' ? event : {
+    ...event, data: { ...event.data, message: LlmSDK.createMessage({ role: 'assistant', content: [{ type: 'text', text: 'intro\n```openui\n' + source + '```\nend' }], source: { kind: 'model', provider: 'fixture', model: 'fixture' } }) },
+  });
+  // Replay the host's current snapshot with the same session/block identity.
+  const currentSession = SessionSDK.Session.create(value.session.id, events, value.session.header);
+  let sessionReads = 0;
+  const ctx = { connection: value.ctx.connection, sessionPersistence: value.ctx.sessionPersistence, sessions: { get(id) { sessionReads++; return id === currentSession.id ? currentSession : value.ctx.sessions.get(id); } } };
+  const handler = createApiHandler(ctx, value.store, { version: 'fixture', hostVersion: 'actual-test-sdk' });
+  const disk = await readFile(path);
+  return { ...value, handler, source, previousSource: value.source, input, path, disk, ctx, sessionReads: () => sessionReads, url: `/intelligent-ui/api/state?session=${value.session.id}&block=${block}` };
+}
+
 test('native Cookie, Host and Origin authentication gate every endpoint before session access', async t => {
   const { handler, cookie } = await fixture(t);
   assert.equal((await request(handler)).status, 401);
@@ -85,6 +107,73 @@ test('native assistant text identity controls CAS and cold JSONL session restora
   const coldCtx = { sessions: { get: () => undefined }, sessionPersistence: ctx.sessionPersistence };
   assert.equal((await verifyBlock(coldCtx, session.id, input.block)).source, source);
   assert.deepEqual((await request(handler, cookie, 'GET', url)).body.state, { count: 5 });
+});
+
+test('native HTTP source replacement projects the current block without mutating legacy disk state', async t => {
+  const { handler, cookie, source, previousSource, store, path, disk, ctx, session, sessionReads, url } = await changedSourceFixture(t);
+  assert.equal((await request(handler, undefined, 'GET', url)).status, 401);
+  assert.equal((await request(handler, cookie, 'GET', url, undefined, { origin: 'https://evil.example' })).status, 403);
+  assert.equal((await request(handler, cookie, 'GET', url, undefined, { host: 'evil.example' })).status, 403);
+  assert.equal(sessionReads(), 0, 'authentication rejects callers before looking up the changed session');
+  assert.equal((await verifyBlock(ctx, session.id, '1:1:0:0')).source, source, 'the host owns B before stored A is read');
+  const beforeStat = await lstat(path);
+  const beforeEntries = await readdir(store.directory);
+  const fileMetadata = async () => Promise.all(beforeEntries.map(async name => {
+    const stat = await lstat(join(store.directory, name));
+    return { name, ino: stat.ino, size: stat.size, mtimeMs: stat.mtimeMs, ctimeMs: stat.ctimeMs };
+  }));
+  const beforeFiles = await fileMetadata();
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const projected = await request(handler, cookie, 'GET', url);
+    assert.equal(projected.status, 200);
+    assert.equal(projected.body.revision, 1);
+    assert.equal(projected.body.source, source);
+    assert.equal(projected.body.sourceRevision, sourceHash(source));
+    assert.deepEqual(projected.body.state, {});
+    assert.equal(projected.body.protocolVersion, 1);
+    assert.equal(projected.body.componentsVersion, 4);
+    assert.equal(projected.body.persisted, false);
+    assert.ok(!JSON.stringify(projected.body).includes(previousSource));
+    assert.ok(!JSON.stringify(projected.body).includes('source-A-only'));
+  }
+  assert.deepEqual(await readFile(path), disk, 'GET preserves the exact legacy record bytes');
+  const afterStat = await lstat(path);
+  assert.deepEqual({ ino: afterStat.ino, size: afterStat.size, mtimeMs: afterStat.mtimeMs, ctimeMs: afterStat.ctimeMs }, { ino: beforeStat.ino, size: beforeStat.size, mtimeMs: beforeStat.mtimeMs, ctimeMs: beforeStat.ctimeMs }, 'GET does not replace or touch the stored record');
+  assert.deepEqual(await readdir(store.directory), beforeEntries, 'GET creates no persistence files');
+  assert.deepEqual(await fileMetadata(), beforeFiles, 'GET does not touch any persistence file or acquire a writer transaction');
+});
+
+test('native HTTP source replacement rejects old ownership and hides cross-source CAS records', async t => {
+  const { handler, cookie, source, input, path, disk } = await changedSourceFixture(t);
+  const oldWrite = await request(handler, cookie, 'POST', '/intelligent-ui/api/state', { ...input, expectedRevision: 1 });
+  assert.equal(oldWrite.status, 409);
+  assert.equal(oldWrite.body.record, undefined, 'old A cannot receive a merge record after ownership changes');
+  assert.deepEqual(await readFile(path), disk, 'rejected old-source write preserves the record');
+  const conflict = await request(handler, cookie, 'POST', '/intelligent-ui/api/state', { ...input, source, sourceRevision: sourceHash(source), state: { count: 7 } });
+  assert.equal(conflict.status, 409);
+  assert.equal(conflict.body.record, undefined, 'CAS on B must not expose the obsolete A record');
+  assert.ok(!JSON.stringify(conflict.body).includes('source-A-only'));
+  assert.deepEqual(await readFile(path), disk, 'rejected cross-source CAS preserves the record');
+});
+
+test('native HTTP source replacement saves B with the old revision and current component contract', async t => {
+  const { handler, cookie, source, input, path, url } = await changedSourceFixture(t);
+  const next = { ...input, expectedRevision: 1, source, sourceRevision: sourceHash(source), state: { count: 7 } };
+  const saved = await request(handler, cookie, 'POST', '/intelligent-ui/api/state', next);
+  assert.equal(saved.status, 200);
+  assert.equal(saved.body.revision, 2);
+  assert.equal(saved.body.source, source);
+  assert.equal(saved.body.sourceRevision, sourceHash(source));
+  assert.equal(saved.body.componentsVersion, 4, 'a changed source starts the current component contract');
+  assert.deepEqual(saved.body.state, { count: 7 });
+  assert.deepEqual(JSON.parse(await readFile(path, 'utf8')), saved.body);
+  const loaded = await request(handler, cookie, 'GET', url);
+  assert.equal(loaded.status, 200);
+  assert.deepEqual(loaded.body, saved.body);
+  const conflict = await request(handler, cookie, 'POST', '/intelligent-ui/api/state', next);
+  assert.equal(conflict.status, 409);
+  assert.deepEqual(conflict.body.record, saved.body, 'same-source conflicts retain the valid merge record');
+  assert.deepEqual(JSON.parse(await readFile(path, 'utf8')), saved.body);
 });
 
 test('native skill summary stays short, resources are generated, and dedicated prompt leaves global assembly unchanged', async t => {

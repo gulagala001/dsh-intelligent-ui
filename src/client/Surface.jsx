@@ -47,14 +47,16 @@ export function IntelligentSurface({source='',streaming=false,sessionId,blockId,
     return()=>{document.removeEventListener('pointerdown',outside);document.removeEventListener('scroll',reposition,true);window.removeEventListener('resize',reposition);window.visualViewport?.removeEventListener('resize',reposition);window.visualViewport?.removeEventListener('scroll',reposition);};
   },[actionsOpen]);
   useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4000);return()=>clearTimeout(timer);},[notice]);
-  const api=store.api(onSubmit);const states={loading:'读取设置…',streaming:'正在生成…',saving:'正在保存…',saved:'已保存',unsaved:'等待保存',conflict:'设置冲突','save-error':'尚未保存','load-error':'读取失败',invalid:'内容有误'};
+  const api=store.api(onSubmit);const states={loading:'读取设置…',streaming:'正在生成…',saving:'正在保存…',saved:'已保存',default:'默认设置',unsaved:'等待保存',conflict:'设置冲突','save-error':'尚未保存','load-error':'读取失败',invalid:'内容有误'};
   const copy=async()=>{closeActions(true);const epoch=actionEpoch.current;try{await navigator.clipboard.writeText(source);if(epoch===actionEpoch.current)setNotice('已复制');}catch{if(epoch===actionEpoch.current)setNotice('复制失败，可展开源文复制');}};
   const repair=()=>{
     if(repairPending.current)return;repairPending.current=true;setRepairing(true);const epoch=actionEpoch.current;
     void Promise.resolve().then(()=>onSubmit(`这段交互内容无法显示：${snapshot.error.slice(0,1200)}。请读取所需组件与表达式说明，修复这段交互内容并保持原来的功能。`)).then(()=>{if(epoch===actionEpoch.current)setNotice('修复请求已发送');},error=>{if(epoch===actionEpoch.current)setNotice(error?.message||'修复请求未发送，请重试');}).finally(()=>{if(epoch===actionEpoch.current){repairPending.current=false;setRepairing(false);}});
   };
   return <div className="iui-surface" data-iui-block={blockId} aria-busy={streaming||snapshot.status==='loading'}>
-    <Boundary source={source}><Tree node={snapshot.tree} api={api}/></Boundary>
+    {/* A held native Space/pointer press belongs to the original document.
+        Retire its DOM along with its API so release cannot activate new content. */}
+    <Boundary key={JSON.stringify([sessionId,blockId,api.playbackVersion])} source={source}><Tree node={snapshot.tree} api={api}/></Boundary>
     {!snapshot.tree&&!snapshot.error&&<div className="iui-skeleton" aria-label="正在生成交互内容"/>}
     {snapshot.error&&<p role="alert" className="iui-error">{snapshot.error}{snapshot.status==='invalid'&&onSubmit&&<button type="button" disabled={repairing} aria-busy={repairing} onClick={repair}>{repairing?'正在请求修复…':'修复'}</button>}{snapshot.status==='conflict'&&<button type="button" onClick={()=>void store.save({resolveConflict:true})}>保留当前设置并保存</button>}{snapshot.status==='save-error'&&<button type="button" onClick={()=>void store.save()}>重试保存</button>}{snapshot.status==='load-error'&&<button type="button" onClick={()=>store.update(source,streaming,{reload:true})}>重试读取</button>}</p>}
     <div className="iui-surface-toolbar"><span className="iui-surface-feedback"><span role="status">{states[snapshot.status]}</span>{notice&&<span role="status">{notice}</span>}</span>

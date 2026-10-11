@@ -46,6 +46,47 @@ test('generic scene is deterministic, transactional and numerically bounded',()=
   assert.throws(()=>sceneTransition({...scene,events:{click:[{name:'x',value:'1/0'}]}},original,'click'));assert.equal(original.values.x,10);
   const big={initial:{data:[]},events:{click:[{name:'data',value:'each(range(4),i,range(2000))'}]},marks:[],width:200,height:100};assert.throws(()=>sceneTransition(big,initialScene(big),'click'));assert.deepEqual(sceneTransition(big,{values:{data:Array.from({length:4},()=>Array(2000).fill(1))},seed:1},'reset'),initialScene(big));
 });
+test('scene action views follow current state and click transitions without mutating earlier records',()=>{
+  const scene={initial:{score:0,last:''},seed:7,events:{click:[{name:'score',value:'score + (event.id == "choose" ? 1 : 0)'},{name:'last',value:'event.id'}]},marks:[],actions:[{
+    id:'choose',shortcut:'C',label:{expr:'concat("选择 ", score)'},detail:{expr:'score'},symbol:{expr:'score == 0 ? "○" : "✓"'},
+    selected:{expr:'last == "choose"'},disabled:{expr:'score >= 2'},color:{expr:'score == 0 ? "blue" : "#0F0"'},
+  }],width:200,height:100};
+  const original=initialScene(scene),savedScene=structuredClone(scene),savedRecord=structuredClone(original),before=sceneView(scene,original);
+  assert.deepEqual(before.actions,[{id:'choose',shortcut:'C',label:'选择 0',detail:0,symbol:'○',selected:false,disabled:false,color:'blue'}]);
+  const clicked=sceneTransition(scene,original,'click',{id:'choose'}),after=sceneView(scene,clicked);
+  assert.deepEqual(clicked.values,{score:1,last:'choose'});
+  assert.deepEqual(after.actions,[{id:'choose',shortcut:'C',label:'选择 1',detail:1,symbol:'✓',selected:true,disabled:false,color:'#0F0'}]);
+  assert.equal(sceneView(scene,sceneTransition(scene,clicked,'click',{id:'choose'})).actions[0].disabled,true);
+  assert.equal(sceneView(scene,{values:{score:9,last:'other'},seed:19}).actions[0].selected,false,'views use the supplied record instead of initial or previously rendered state');
+  assert.deepEqual(sceneView(scene,original),before);assert.deepEqual(original,savedRecord);assert.deepEqual(scene,savedScene);
+  assert.deepEqual(before.state,{score:0,last:''});assert.deepEqual(clicked.values,{score:1,last:'choose'},'later transitions do not mutate the intermediate record');
+});
+test('scene actions enforce unique targets, bounded lists and strict resolved presentation types',()=>{
+  const base={initial:{value:0},events:{},marks:[],width:200,height:100},view=actions=>sceneView({...base,actions});
+  const full=Array.from({length:32},(_,i)=>({id:`item-${i}`,label:i}));assert.equal(view(full).actions.length,32);
+  assert.throws(()=>view([...full,{id:'overflow',label:'33'}]));
+  assert.throws(()=>view([{id:'same',label:'A'},{id:'same',label:'B'}]),error=>error.code==='SCENE_ACTION');
+  assert.throws(()=>view([{id:'a',label:'A',shortcut:'q'},{id:'b',label:'B',shortcut:'Q'}]),error=>error.code==='SCENE_ACTION');
+  assert.throws(()=>view([{id:'',label:'empty'}]));
+  assert.deepEqual(view([{id:'a',label:false,detail:12,symbol:'x'.repeat(16),selected:false,disabled:true,color:'#abc'}]).actions[0],{id:'a',label:false,detail:12,symbol:'x'.repeat(16),selected:false,disabled:true,color:'#abc'});
+  for(const field of ['selected','disabled'])for(const value of [0,1,'false',null,{expr:'value'}])assert.throws(()=>view([{id:'a',label:'A',[field]:value}]),undefined,`${field} must resolve to a boolean: ${JSON.stringify(value)}`);
+  for(const symbol of ['x'.repeat(17),{expr:'concat("1234567890", "1234567")'},{expr:'1'}])assert.throws(()=>view([{id:'a',label:'A',symbol}]));
+  for(const color of ['url(https://example.com/image.svg)','rgb(0,0,0)','#abcd',1,{expr:'"invalid"'},{expr:'{}'}])assert.throws(()=>view([{id:'a',label:'A',color}]));
+  for(const field of ['label','detail'])for(const value of [{nested:'text'},{expr:'{}'},{expr:'[]'},null])assert.throws(()=>view([{id:'a',label:'A',[field]:value}]),undefined,`${field} rejects non-scalar text`);
+});
+test('dynamic scene action text shares literal length bounds and formulas cannot escape execution limits',()=>{
+  const base={initial:{text:'x'.repeat(16000)},events:{},marks:[],actions:[{id:'a',label:{expr:'text'},detail:{expr:'text'}}],width:200,height:100};
+  const atLimit=sceneView(base);assert.equal(atLimit.actions[0].label.length,16000);assert.equal(atLimit.actions[0].detail.length,16000);
+  for(const field of ['label','detail']){
+    const scene={...base,initial:{text:'x'.repeat(16001)},actions:[{id:'a',label:'A',[field]:{expr:'text'}}]};
+    assert.throws(()=>sceneView(scene),undefined,`dynamic ${field} cannot exceed the literal text limit`);
+    assert.throws(()=>sceneView({...scene,actions:[{id:'a',label:'A',[field]:'x'.repeat(16001)}]}));
+  }
+  for(const expr of ['globalThis.fetch("https://example.com")','text.constructor','Text("component")','rand()','1 / 0','count(each(range(2000),i,count(range(2000))))']){
+    const record=initialScene(base),saved=structuredClone(record);
+    assert.throws(()=>sceneView({...base,actions:[{id:'a',label:{expr}}]},record),undefined,expr);assert.deepEqual(record,saved,'failed action formulas leave state intact');
+  }
+});
 test('drag updates are atomic and reject invalid phases, targets and coordinates',()=>{
   const scene={initial:{x:40,held:false},events:{drag:[{name:'x',value:'event.phase == "move" ? x + event.dx : x'},{name:'held',value:'event.phase == "start" || event.phase == "move"'}]},marks:[{id:'ball',type:'circle',x:{expr:'x'},y:20,r:10,interactive:true},{id:'label',type:'text',x:0,y:0,text:'fixed'}],width:200,height:100};
   const original=initialScene(scene),payload={id:'ball',x:50,y:20,dx:0,dy:0,phase:'start'};

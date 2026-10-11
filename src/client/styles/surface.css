@@ -192,6 +192,15 @@
 .iui-surface .iui-chart-legend-value { font-size: 11px; font-variant-numeric: tabular-nums; }
 .iui-surface .iui-chart-metric { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; font-size: 12px; color: var(--iui-muted); }
 .iui-surface .iui-chart-metric select { max-width: 100%; padding: 5px 28px 5px 8px; min-height: 32px; border: 1px solid var(--iui-border); border-radius: 8px; background: var(--iui-surface); color: var(--iui-text); }
+.iui-surface .iui-chart-categories { min-width: 0; margin-bottom: 12px; border: 1px solid var(--iui-border); border-radius: 10px; background: var(--iui-secondary); }
+.iui-surface .iui-chart-categories > summary { min-height: 36px; padding: 7px 10px; cursor: pointer; font-size: 13px; font-weight: 500; }
+.iui-surface .iui-chart-category-count { margin-left: 8px; color: var(--iui-muted); font-size: 12px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.iui-surface .iui-chart-category-list { display: flex; flex-wrap: wrap; gap: 4px; max-height: 180px; overflow-y: auto; overscroll-behavior: contain; padding: 6px; }
+.iui-surface .iui-chart-category-item { max-width: 100%; min-width: 0; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.iui-surface .iui-chart-category-item > span:first-child { flex-shrink: 0; }
+.iui-surface .iui-chart-category-item[aria-pressed="true"] { background: var(--iui-surface); color: var(--iui-text); }
+.iui-surface .iui-chart-category-item[aria-pressed="false"] { opacity: 1; }
+.iui-surface .iui-chart-category-item[aria-pressed="false"] > span:first-child { opacity: .4; }
 .iui-surface .iui-chart-canvas { width: 100%; overflow: hidden; }
 .iui-surface .iui-chart-mark { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .iui-surface .iui-chart-mark[aria-disabled="true"] { cursor: default; }
@@ -200,7 +209,7 @@
 .iui-surface .iui-chart-point-hit { pointer-events: all; }
 .iui-surface .iui-chart-clear { border: 0; border-radius: 6px; padding: 4px 8px; min-height: 32px; color: var(--iui-accent); background: var(--iui-accent-soft); font-size: 12px; }
 @media (pointer: coarse) {
-  .iui-surface :is(.iui-chart-legend-item,.iui-chart-clear,.iui-chart-metric select,.iui-chart-data .iui-data-select,.iui-chart-data summary) { min-height: 44px; }
+  .iui-surface :is(.iui-chart-legend-item,.iui-chart-clear,.iui-chart-metric select,.iui-chart-data .iui-data-select,.iui-chart-data summary,.iui-chart-categories > summary) { min-height: 44px; }
 }
 .iui-surface .iui-chart-canvas svg, .iui-surface .iui-diagram svg { display: block; width: 100%; height: auto; }
 .iui-surface .iui-figure-viewport { display: flex; flex-direction: column; gap: 4px; min-width: 0; width: 100%; }
@@ -224,6 +233,15 @@
 .iui-surface .iui-result-grid.iui-scene-metrics { min-width: 0; gap: 8px; grid-template-columns: repeat(auto-fit,minmax(min(100%,140px),1fr)); }
 .iui-surface .iui-scene-metrics .iui-calculation-result { min-width: 0; padding: 12px; border: 1px solid var(--iui-border); }
 .iui-surface .iui-scene-metrics .iui-calculation-result > .iui-muted { font-size: 13px; }
+.iui-surface .iui-game { padding: 18px; border: 1px solid var(--iui-border); border-radius: var(--iui-radius); }
+.iui-surface .iui-card-content > .iui-game { padding: 0; border: 0; }
+.iui-surface .iui-game-header { display: grid; gap: 14px; min-width: 0; }
+.iui-surface .iui-game-heading { min-width: 0; display: grid; gap: 6px; }
+.iui-surface .iui-game-heading > p { max-width: 65ch; font-size: 13px; line-height: 1.6; }
+.iui-surface .iui-game-header .iui-scene-metrics { margin: 0; grid-template-columns: repeat(auto-fit,minmax(min(100%,140px),1fr)); }
+.iui-surface .iui-game-header .iui-calculation-result { padding: 10px 12px; gap: 4px; }
+.iui-surface .iui-game-header .iui-calculation-result[data-long-value="true"] { grid-column: 1 / -1; flex-direction: row; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
+.iui-surface .iui-game-header [data-value-kind="text"] > .iui-result-value { font-size: 16px; line-height: 1.5; font-weight: 500; }
 .iui-surface .iui-calculation-result { display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: 12px; background: var(--iui-secondary); }
 .iui-surface .iui-result-value { font-size: 28px; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .iui-surface .iui-result-value > span { margin-left: 6px; font-size: 14px; font-weight: 400; color: var(--iui-muted); }
@@ -240,6 +258,19 @@
 .iui-surface .iui-scene { display: flex; flex-direction: column; gap: 12px; }
 .iui-surface .iui-scene-canvas { display: block; width: 100%; height: auto; max-height: 600px; background: var(--iui-secondary); border: 1px solid var(--iui-border); border-radius: 12px; touch-action: manipulation; }
 .iui-surface .iui-scene-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.iui-surface .iui-scene-actions { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,140px),1fr)); gap: 8px; min-width: 0; }
+.iui-surface .iui-scene-actions[data-compact="true"] { grid-template-columns: repeat(auto-fit,minmax(min(100%,88px),1fr)); }
+.iui-surface .iui-scene-action { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 0; min-height: 100px; padding: 14px 10px; border: 1px solid var(--iui-border); border-radius: 12px; color: var(--iui-text); background: var(--iui-secondary); text-align: center; font: inherit; cursor: pointer; touch-action: manipulation; }
+.iui-surface .iui-scene-action:hover:not(:disabled) { background: var(--iui-tertiary); }
+.iui-surface .iui-scene-action.is-selected { border-color: var(--iui-action-color); box-shadow: inset 0 0 0 1px var(--iui-action-color); }
+.iui-surface .iui-scene-action:focus-visible { outline: 2px solid var(--iui-accent); outline-offset: 2px; }
+.iui-surface .iui-scene-action:disabled { opacity: .5; cursor: default; }
+.iui-surface .iui-scene-action-symbol { font-size: 32px; line-height: 1.2; color: var(--iui-action-color); }
+.iui-surface .iui-scene-action-label { font-weight: 600; overflow-wrap: anywhere; }
+.iui-surface .iui-scene-action-detail { color: var(--iui-muted); font-size: 12px; overflow-wrap: anywhere; }
+.iui-surface .iui-scene-action kbd { min-width: 22px; padding: 1px 4px; border: 1px solid var(--iui-border); border-radius: 4px; background: var(--iui-surface); color: var(--iui-muted); font: 11px ui-monospace,monospace; }
+.iui-surface .iui-game .iui-scene-toolbar { padding-top: 12px; border-top: 1px solid var(--iui-border); }
+.iui-surface .iui-game .iui-scene-toolbar > .iui-button-ghost { border-color: var(--iui-border); }
 .iui-surface .iui-scene-help { margin-left: auto; min-width: 0; color: var(--iui-muted); font-size: 12px; }
 .iui-surface .iui-scene-help > summary { cursor: pointer; padding: 8px 2px; white-space: nowrap; }
 .iui-surface .iui-scene-help[open] { flex: 1 1 100%; margin-left: 0; }
@@ -277,9 +308,15 @@
   .iui-surface .iui-grid { grid-template-columns: 1fr; }
   .iui-surface .iui-card { padding: 14px; }
   .iui-surface .iui-metric-value { font-size: 28px; }
+  .iui-surface .iui-game { padding: 14px; }
 }
 @container (max-width: 400px) {
   .iui-surface .iui-form-fields > :is(.iui-field-select,.iui-field-textarea,.iui-field-text) { grid-column: 1 / -1; }
+  .iui-surface .iui-game-header .iui-scene-metrics { grid-template-columns: repeat(auto-fit,minmax(min(100%,90px),1fr)); }
+  .iui-surface .iui-scene-actions, .iui-surface .iui-scene-actions[data-compact="true"] { grid-template-columns: repeat(auto-fit,minmax(min(100%,68px),1fr)); gap: 6px; }
+  .iui-surface .iui-scene-action { min-height: 112px; padding: 12px 6px; font-size: 14px; }
+  .iui-surface .iui-scene-action-symbol { font-size: 28px; }
+  .iui-surface .iui-scene-action-detail { line-height: 1.5; }
 }
 @container (max-width: 360px) {
   .iui-surface .iui-facts dl > div { grid-template-columns: minmax(0,1fr); gap: 4px; padding: 10px 0; }

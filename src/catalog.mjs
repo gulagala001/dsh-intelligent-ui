@@ -29,6 +29,13 @@ const fields = z.array(fieldSchema).max(100);
 const formula = text.max(4000);
 const metric = z.object({ label: text, formula, unit: optionalText, precision: z.number().int().min(0).max(10).optional() }).strict();
 const exprValue = z.union([scalar, z.object({ expr: formula }).strict()]);
+const exprBoolean = z.union([z.boolean(), z.object({ expr: formula }).strict()]);
+const sceneAction = z.object({
+  id: text.max(128), label: exprValue, detail: exprValue.optional(),
+  symbol: z.union([z.string().max(16), z.object({ expr: formula }).strict()]).optional(),
+  selected: exprBoolean.optional(), disabled: exprBoolean.optional(), color: exprValue.optional(),
+  shortcut: z.string().length(1).regex(/^[A-Za-z0-9]$/).optional(),
+}).strict();
 const mark = z.object({
   id: text.max(128), type: z.enum(['circle', 'rect', 'line', 'text', 'path']),
   x: exprValue.optional(), y: exprValue.optional(), x2: exprValue.optional(), y2: exprValue.optional(),
@@ -42,6 +49,7 @@ export const sceneSchema = z.object({
   initial: z.record(name, json), seed: z.number().int().min(0).max(4294967295).optional(),
   events: z.partialRecord(z.enum(['click', 'key', 'tick', 'reset', 'drag']), z.array(z.object({ name, value: formula }).strict()).max(100)),
   marks: z.array(mark).max(1000), width: number.positive().max(2000).default(600), height: number.positive().max(2000).default(320),
+  actions: z.array(sceneAction).max(32).default([]),
 }).strict();
 function component(group, description, args, shape, childField) {
   return { group, description, args, schema: z.object(shape).strict(), ...(childField ? { children: childField } : {}) };
@@ -62,11 +70,11 @@ export const catalog = {
     columns: z.array(z.union([text, z.object({ key: text.max(128), label: text, align: z.enum(['left', 'right', 'center']).optional(), format: z.enum(['text', 'number', 'percent', 'currency']).optional() }).strict()])).min(1).max(30),
     rows: z.array(z.union([z.record(text.max(128), scalar), z.array(scalar).max(30)])).max(1000), caption: optionalText, bind,
   }),
-  Chart: component('data', 'Interactive SVG line, area, bar, scatter or pie chart with accessible data table.', ['type', 'data', 'x', 'series', 'title', 'bind'], {
+  Chart: component('data', 'Interactive SVG line, area, bar, scatter or pie chart with accessible raw data table. Explicit series units keep compatible scales together; optional category filters and category colors support local comparison.', ['type', 'data', 'x', 'series', 'title', 'bind', 'categoryFilters', 'colorBy'], {
     type: z.enum(['line', 'area', 'bar', 'scatter', 'pie']).default('line'),
     data: z.array(z.record(text.max(128), scalar)).max(1000), x: text.max(128),
-    series: z.array(z.union([text.max(128), z.object({ key: text.max(128), label: text, color: z.enum(['blue', 'green', 'orange', 'purple', 'red', 'gray']).optional() }).strict()])).min(1).max(12),
-    title: optionalText, bind,
+    series: z.array(z.union([text.max(128), z.object({ key: text.max(128), label: text, color: z.enum(['blue', 'green', 'orange', 'purple', 'red', 'gray']).optional(), unit: z.string().max(40).optional() }).strict()])).min(1).max(12),
+    title: optionalText, bind, categoryFilters: z.boolean().default(false), colorBy: z.enum(['series', 'category']).default('series'),
   }),
   Button: component('inputs', 'Explicit user-triggered local action or conversation submission.', ['label', 'action', 'variant'], { label: text, action, variant: z.enum(['primary', 'secondary', 'ghost', 'danger']).default('primary') }),
   Input: component('inputs', 'Bound text input.', ['label', 'bind', 'value', 'placeholder', 'hint'], { label: text, bind: name, value: text.default(''), placeholder: optionalText, hint: optionalText }),
@@ -83,7 +91,7 @@ export const catalog = {
     nodes: z.array(z.object({ id: text.max(128), label: text, detail: optionalText, x: number.optional(), y: number.optional(), tone: tone.optional() }).strict()).max(100),
     edges: z.array(z.object({ from: text.max(128), to: text.max(128), label: optionalText }).strict()).max(200), title: optionalText, bind,
   }),
-  Scene: component('interactive', 'General bounded SVG scene with click, key and drag interaction. Events update local state through safe formulas; playback is explicit and pauses while hidden.', ['scene', 'bind', 'title'], { scene: sceneSchema, bind: name, title: optionalText }),
+  Scene: component('interactive', 'General bounded scene with SVG drawing and semantic action cards. Click, key and drag events update local state through safe formulas; playback is explicit and pauses while hidden.', ['scene', 'bind', 'title'], { scene: sceneSchema, bind: name, title: optionalText }),
   Simulation: component('interactive', 'General scene simulation with parameter controls and calculated metrics.', ['scene', 'bind', 'title', 'fields', 'metrics'], { scene: sceneSchema, bind: name, title: optionalText, fields: fields.default([]), metrics: z.array(metric).max(20).default([]) }),
   Game: component('interactive', 'General scene game using click, key or drag rules and deterministic bounded state, with optional parameter controls and live score or progress metrics.', ['scene', 'bind', 'title', 'instructions', 'fields', 'metrics'], { scene: sceneSchema, bind: name, title: optionalText, instructions: optionalText, fields: fields.default([]), metrics: z.array(metric).max(20).default([]) }),
 };
@@ -97,7 +105,15 @@ export const examples = [
   'root = Tabs(["对比","趋势"],[Table(["方案","月费","容量"],[["轻量",29,"100 GB"],["标准",59,"500 GB"],["专业",99,"2 TB"]],"方案对比"),Chart("line",[{month:"一月",a:18,b:12},{month:"二月",a:24,b:22},{month:"三月",a:31,b:28},{month:"四月",a:38,b:35}],"month",[{key:"a",label:"方案 A"},{key:"b",label:"方案 B"}],"使用趋势")],"compare")',
   'root = Diagram([{id:"sun",label:"太阳光",detail:"光提供能量。",x:100,y:120},{id:"leaf",label:"叶绿体",detail:"将光能转化为化学能。",x:300,y:120},{id:"sugar",label:"葡萄糖",detail:"储存能量，并用于生长。",x:500,y:120}],[{from:"sun",to:"leaf",label:"吸收"},{from:"leaf",to:"sugar",label:"合成"}],"光合作用","photosynthesis")',
   'root = Simulation({initial:{x:50,v:45},seed:1,events:{tick:[{name:"x",value:"mod(x + v * event.dt, 560)"}],reset:[{name:"x",value:"50"}]},marks:[{id:"track",type:"line",x:20,y:100,x2:580,y2:100,stroke:"gray"},{id:"ball",type:"circle",x:{expr:"x + 20"},y:100,r:16,fill:"blue",label:"小球"}],width:600,height:200},"motion","匀速运动",[{name:"v",label:"速度",type:"slider",value:45,min:0,max:120,step:1,unit:"px/s"}],[{label:"位置",formula:"x",unit:"px",precision:1}])',
-  'root = Game({initial:{score:0,x:80,y:100},seed:7,events:{click:[{name:"score",value:"event.id == \'target\' ? score + 1 : score"},{name:"x",value:"event.id == \'target\' ? 40 + rand() * 520 : x"},{name:"y",value:"event.id == \'target\' ? 40 + rand() * 220 : y"}],key:[{name:"score",value:"event.key == \'Enter\' ? score + 1 : score"},{name:"x",value:"event.key == \'Enter\' ? 40 + rand() * 520 : x"},{name:"y",value:"event.key == \'Enter\' ? 40 + rand() * 220 : y"}]},marks:[{id:"target",type:"circle",x:{expr:"x"},y:{expr:"y"},r:22,fill:"blue",label:"点击目标",interactive:true}],width:600,height:320},"targetGame","点中目标","点击蓝色圆点，或聚焦场景后按 Enter。",[],[{label:"得分",formula:"score",precision:0}])',
+  `root = Game({
+  initial:{target:0,score:0,attempts:0,last:"",correct:false},seed:7,
+  events:{
+    click:[{name:"correct",value:"(event.id == 'spring' && target == 0) || (event.id == 'summer' && target == 1) || (event.id == 'winter' && target == 2)"},{name:"score",value:"correct ? min(5, score + 1) : score"},{name:"attempts",value:"attempts + 1"},{name:"last",value:"event.id"},{name:"target",value:"correct && score < 5 ? floor(rand() * 3) : target"}],
+    reset:[{name:"target",value:"0"}]
+  },
+  actions:[{id:"spring",label:"春天",detail:"新芽与生长",symbol:"🌱",color:"green",shortcut:"1",selected:{expr:"last == 'spring'"},disabled:{expr:"score >= 5"}},{id:"summer",label:"夏天",detail:"阳光与热浪",symbol:"☀",color:"orange",shortcut:"2",selected:{expr:"last == 'summer'"},disabled:{expr:"score >= 5"}},{id:"winter",label:"冬天",detail:"冰雪与寒冷",symbol:"❄",color:"blue",shortcut:"3",selected:{expr:"last == 'winter'"},disabled:{expr:"score >= 5"}}],
+  marks:[]
+},"seasonMatch","季节配对","根据提示选择季节。点击操作卡，或聚焦后按 1/2/3；匹配正确得 1 分，达到 5 分完成，重置可重新开始。",[],[{label:"提示",formula:"target == 0 ? '万物复苏' : target == 1 ? '烈日蝉鸣' : '冰雪纷飞'"},{label:"得分",formula:"score",precision:0},{label:"进度",formula:"concat(score, ' / 5')"},{label:"尝试次数",formula:"attempts",precision:0},{label:"反馈",formula:"score >= 5 ? '挑战完成' : last == '' ? '请选择与提示相符的季节' : correct ? '匹配正确，继续下一题' : '暂未匹配，再试一次'"}])`,
   'root = Stack([Image("https://images.unsplash.com/photo-1472396961693-142e6e269027?w=1000","山林中的两只鹿","森林生态观察","wide"),Heading("给自然留一点时间"),Text("放慢脚步，观察一处自然环境。记录温度、植物与动物的变化。"),Grid([Card([Input("观察地点","place","附近公园"),Slider("观察时长","minutes",20,5,60,5,"分钟"),Checkbox("准备好记录本","notebook",false)],"开始之前"),Card([NumberInput("气温","temperature",22,-20,50,1,"°C"),Select("天气","weather",["晴","多云","雨"],"晴"),Button("整理观察记录",{type:"submit",text:"请整理我的自然观察记录。",fields:["place","minutes","temperature","weather"]})],"记录")],2),Divider(),Text("图片来自 Unsplash 公共资源。","neutral","sm")])',
   '$people = 5\nroot = Stack([Heading("周末烧烤需要准备多少？"),Text("按每人 400 克主菜、300 克蔬菜估算，调整人数查看采购量。"),Grid([Card([Counter("用餐人数","people",5,1,30,1,"人"),Facts([{label:"主菜总量",value:round($people * 0.4,1),unit:"kg"},{label:"蔬菜总量",value:$people * 300,unit:"g"}])]),Card([Facts([{label:"羊肉",value:round($people * 0.4,1),unit:"kg"},{label:"土豆",value:$people * 300,unit:"g"},{label:"饮用水",value:round($people * 0.6,1),unit:"L"}])],"采购清单", "数量按食量适中估算。")],2)])',
   'root = Card([Heading("一起分账"),Calculator([{name:"total",label:"账单金额",value:288,min:0,unit:"元"},{name:"diners",label:"用餐人数",value:4,min:1,max:30,step:1}],"total / diners",null,"每人应付","元",2),Text("把结果分享给朋友，或继续调整账单。","neutral","sm")],null,null,"paper")',

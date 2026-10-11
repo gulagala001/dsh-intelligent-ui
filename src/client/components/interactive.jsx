@@ -48,7 +48,7 @@ function SceneMark({ mark, onClick, onPointerDown, draggable, inactive, keyboard
   return <g data-iui-mark-id={mark.id} pointerEvents={mark.interactive ? undefined : 'none'} className={mark.interactive ? `iui-scene-target${draggable ? ' iui-scene-draggable' : ''}` : undefined} role={mark.interactive ? 'button' : undefined} tabIndex={mark.interactive && !inactive ? 0 : undefined} aria-label={mark.label || (mark.interactive ? mark.id : undefined)} aria-disabled={mark.interactive ? inactive : undefined} onPointerDown={mark.interactive && draggable ? event => onPointerDown(mark.id, event) : undefined} onClick={mark.interactive ? event => { event.stopPropagation(); onClick(mark.id, event); } : undefined} onKeyDown={mark.interactive && !keyboardEvents ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onClick(mark.id, undefined, { x: numeric(mark.x) + (mark.type === 'rect' ? numeric(mark.width) / 2 : 0), y: numeric(mark.y) + (mark.type === 'rect' ? numeric(mark.height) / 2 : 0) }); } } : undefined}>{element}{mark.label && <title>{mark.label}</title>}</g>;
 }
 
-export function Scene({ props: p, api, controls = true, restartFields = [] }) {
+export function Scene({ props: p, api, controls = true, restartFields = [], showTitle = true }) {
   const container = useRef(null);
   const latest = useRef({ api, p });
   const localPlayback=useMemo(()=>new ScenePlayback(),[]);
@@ -83,7 +83,8 @@ export function Scene({ props: p, api, controls = true, restartFields = [] }) {
   const unavailable = !view || Boolean(view.error);
   const timed = Boolean(p.scene.events?.tick);
   const draggable = Boolean(p.scene.events?.drag);
-  const hasHelp=Boolean(draggable||p.scene.events?.key||p.scene.events?.click||timed||restartFields.length>0);
+  const hasShortcuts=Boolean(view?.actions?.some(action=>action.shortcut));
+  const hasHelp=Boolean(draggable||p.scene.events?.key||p.scene.events?.click||timed||restartFields.length>0||hasShortcuts);
   useEffect(() => { mounted.current=true;return () => { mounted.current=false; }; }, []);
   // Evaluation recreates scene objects after local state changes; compare the
   // definition and source version rather than cancelling on object identity.
@@ -220,15 +221,38 @@ export function Scene({ props: p, api, controls = true, restartFields = [] }) {
     if (mapped) Object.assign(payload, mapped);
     eventAction('click', payload);
   };
-  return <section className="iui-scene" ref={container} aria-label={p.title || '交互场景'}>
-    {p.title && <h3 id={titleId}>{p.title}</h3>}
-    {!view || view.error ? <ErrorMessage>{view?.error || '场景服务尚未就绪'}</ErrorMessage> : <FigureViewport width={view.width} height={view.height} label={p.title || '交互场景'}><svg className="iui-scene-canvas" viewBox={`0 0 ${view.width} ${view.height}`} role="group" aria-label={p.title || '交互场景'} aria-describedby={hasHelp?`${titleId}-help`:undefined} tabIndex={inactive || !p.scene.events?.key ? undefined : 0} aria-disabled={inactive} onPointerDownCapture={event => { if (event.isPrimary && event.button===0) suppressClick.current.delete(event.pointerId); }} onClick={event => click('background', event)} onKeyDown={event => {
+  const activate=action=>{
+    if(inactive||unavailable||action.disabled||!p.scene.events?.click||!visible||!foreground)return;
+    player.cancelGesture();click(action.id,undefined);
+  };
+  const shortcut=event=>{
+    if(event.ctrlKey||event.metaKey||event.altKey||event.target.closest?.('input,textarea,select,[contenteditable="true"]'))return;
+    const action=view?.actions?.find(action=>action.shortcut?.toLowerCase()===event.key.toLowerCase());
+    if(!action)return;
+    event.preventDefault();event.stopPropagation();if(!event.repeat)activate(action);
+  };
+  return <section className="iui-scene" ref={container} aria-label={p.title || '交互场景'} tabIndex={!inactive&&hasShortcuts&&!view?.marks.length?0:undefined} onKeyDownCapture={shortcut} onKeyDown={event=>{
+    const action=event.target.closest?.('[data-iui-scene-action]');
+    if(!action||inactive||unavailable||!visible||!foreground||!p.scene.events?.key||['Tab','Enter',' '].includes(event.key)||event.ctrlKey||event.metaKey||event.altKey)return;
+    const card=view.actions?.find(item=>item.id===action.getAttribute('data-iui-scene-action'));
+    if(!card||card.disabled||!p.scene.events?.click)return;
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(event.key))event.preventDefault();
+    eventAction('key',{key:event.key,id:action.getAttribute('data-iui-scene-action')});
+  }}>
+    {showTitle && p.title && <h3 id={titleId}>{p.title}</h3>}
+    {!view || view.error ? <ErrorMessage>{view?.error || '场景服务尚未就绪'}</ErrorMessage> : (view.marks.length>0||!view.actions?.length) && <FigureViewport width={view.width} height={view.height} label={p.title || '交互场景'}><svg className="iui-scene-canvas" viewBox={`0 0 ${view.width} ${view.height}`} role="group" aria-label={p.title || '交互场景'} aria-describedby={hasHelp?`${titleId}-help`:undefined} tabIndex={inactive || !p.scene.events?.key ? undefined : 0} aria-disabled={inactive} onPointerDownCapture={event => { if (event.isPrimary && event.button===0) suppressClick.current.delete(event.pointerId); }} onClick={event => click('background', event)} onKeyDown={event => {
       if (inactive || !p.scene.events?.key || event.key === 'Tab' || event.ctrlKey || event.metaKey || event.altKey) return;
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Enter'].includes(event.key)) event.preventDefault();
       eventAction('key', { key: event.key, id: event.target.closest?.('[data-iui-mark-id]')?.getAttribute('data-iui-mark-id') || 'scene' });
     }}>{view.marks.map(mark => <SceneMark key={mark.id} mark={mark} onClick={click} onPointerDown={beginDrag} draggable={draggable} inactive={inactive} keyboardEvents={Boolean(p.scene.events?.key)} />)}</svg></FigureViewport>}
+    {view?.actions?.length>0&&!unavailable&&<div className="iui-scene-actions" data-compact={view.actions.every(action=>action.detail===undefined)} role="group" aria-label="场景操作">{view.actions.map((action,index)=><button key={action.id} type="button" className={`iui-scene-action${action.selected?' is-selected':''}`} data-iui-scene-action={action.id} aria-label={display(action.label)} aria-describedby={action.detail===undefined?undefined:`${titleId}-action-${index}`} aria-pressed={action.selected} aria-keyshortcuts={action.shortcut} disabled={inactive||action.disabled||!p.scene.events?.click} style={{'--iui-action-color':action.color?paint(action.color):'var(--iui-accent)'}} onClick={()=>activate(action)}>
+      {action.symbol&&<span className="iui-scene-action-symbol" aria-hidden="true">{action.symbol}</span>}
+      <span className="iui-scene-action-label">{display(action.label)}</span>
+      {action.detail!==undefined&&<span className="iui-scene-action-detail" id={`${titleId}-action-${index}`}>{display(action.detail)}</span>}
+      {action.shortcut&&<kbd aria-hidden="true">{action.shortcut}</kbd>}
+    </button>)}</div>}
     <div className="iui-scene-toolbar">{controls && p.scene.events?.tick && <button type="button" className={`iui-button ${playing ? 'iui-button-secondary' : 'iui-button-primary'}`} disabled={inactive || Boolean(view?.error) || !view} aria-pressed={playing} onClick={() => { setActionError(''); player.toggle(); }}>{playing ? '暂停' : '播放'}</button>}{restartFields.length>0 && <button type="button" className="iui-button iui-button-secondary" title="保留当前参数，重新开始" disabled={inactive || !view || Boolean(view?.error)} onClick={() => { player.cancelGesture(); player.pause(); setActionError(''); invoke(api,{type:'sceneRestart',name:p.bind,scene:p.scene,fields:restartFields},setActionError); }}>重新开始</button>}<button type="button" className="iui-button iui-button-ghost" title="恢复全部初始设置" disabled={inactive || !view || Boolean(view?.error)} onClick={() => { player.cancelGesture(); player.pause(); eventAction('reset', {}); }}>重置</button>
-      {hasHelp&&<details className="iui-scene-help"><summary role="button">操作说明</summary><p className="iui-hint" id={`${titleId}-help`}>{draggable && '拖动图形调整位置。'}{p.scene.events?.key && '聚焦场景或图形后可用键盘操作。'}{p.scene.events?.click && '点击图形进行操作。'}{timed && '离屏或离开页面后暂停。'}{restartFields.length>0 && '重新开始保留参数，重置恢复全部初始设置。'}</p></details>}
+      {hasHelp&&<details className="iui-scene-help"><summary role="button">操作说明</summary><p className="iui-hint" id={`${titleId}-help`}>{draggable && '拖动图形调整位置。'}{p.scene.events?.key && '聚焦场景或图形后可用键盘操作。'}{p.scene.events?.click && '点击图形或操作卡进行操作。'}{hasShortcuts&&'聚焦场景后，可按操作卡显示的按键。'}{timed && '离屏或离开页面后暂停。'}{restartFields.length>0 && '重新开始保留参数，重置恢复全部初始设置。'}</p></details>}
     </div>
     {actionError && <ErrorMessage>{actionError}</ErrorMessage>}
   </section>;
@@ -237,7 +261,7 @@ export function Scene({ props: p, api, controls = true, restartFields = [] }) {
 function SceneMetrics({ metrics, api, state, game }) {
   return <div className="iui-result-grid iui-scene-metrics" role={game ? 'status' : 'group'} aria-label={game ? '游戏指标' : '模拟指标'} aria-live={game ? 'polite' : undefined} aria-atomic={game ? true : undefined}>{metrics.map((item, index) => {
     const result=evaluate(api,item.formula,state);
-    return <div className="iui-calculation-result" key={index}><span className="iui-muted">{item.label}</span>{result.error ? <ErrorMessage>{result.error}</ErrorMessage> : <span className="iui-result-value">{formatNumber(result.value,item.precision??2)}{item.unit && <span>{item.unit}</span>}</span>}</div>;
+    return <div className="iui-calculation-result" data-value-kind={typeof result.value==='number'?'number':'text'} data-long-value={typeof result.value==='string'&&result.value.length>8} key={index}><span className="iui-muted">{item.label}</span>{result.error ? <ErrorMessage>{result.error}</ErrorMessage> : <span className="iui-result-value">{formatNumber(result.value,item.precision??2)}{item.unit && <span>{item.unit}</span>}</span>}</div>;
   })}</div>;
 }
 
@@ -267,9 +291,9 @@ function SceneExperience({ props: p, api, game = false }) {
     invoke(api,{type:'sceneSet',name:p.bind,scene:p.scene,field,value},message=>{if(isCurrent())setError(message);});
   }};
   return <div className={game ? 'iui-game' : 'iui-simulation'}>
-    {game && p.instructions && <p className="iui-text iui-text-sm iui-muted">{p.instructions}</p>}
-    <Scene props={p} api={sceneApi} restartFields={fields.map(field=>field.name)} />
-    {metrics.length>0 && <SceneMetrics metrics={metrics} api={api} state={sceneState} game={game} />}
+    {game&&<div className="iui-game-header"><div className="iui-game-heading">{p.title&&<h3>{p.title}</h3>}{p.instructions&&<p className="iui-text iui-text-sm iui-muted">{p.instructions}</p>}</div>{metrics.length>0&&<SceneMetrics metrics={metrics} api={api} state={sceneState} game />}</div>}
+    <Scene props={p} api={sceneApi} restartFields={fields.map(field=>field.name)} showTitle={!game} />
+    {!game&&metrics.length>0 && <SceneMetrics metrics={metrics} api={api} state={sceneState} />}
     {fields.length>0 && <div className="iui-form-fields iui-scene-parameters" role="group" aria-label={game ? '游戏参数' : '模拟参数'}>{fields.map(field=><InputControl key={field.name} props={{...field,bind:field.name}} api={parameterApi} kind={field.type||'number'} error={fieldError(field,sceneState[field.name]??field.value)} />)}</div>}
     {error && <ErrorMessage>{error}</ErrorMessage>}
   </div>;

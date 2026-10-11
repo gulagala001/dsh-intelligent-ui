@@ -60,7 +60,11 @@ export function createApiHandler(ctx, storage, { version, hostVersion, sdkVersio
         const session = url.searchParams.get('session'), block = url.searchParams.get('block');
         const original = await verifyBlock(ctx, session, block);
         const record = await storage.get(session, block);
-        if (record && record.source !== original.source) throw new StateError(409, 'Stored source no longer matches the assistant block');
+        if (record && record.source !== original.source) {
+          // Project only the verified current source. Keep the previous record
+          // on disk until a user edit replaces it through the normal CAS path.
+          sendJson(res, 200, { revision: record.revision, ...original, state: {}, protocolVersion, componentsVersion, persisted: false }); return;
+        }
         sendJson(res, 200, record ?? { revision: 0, sourceRevision: original.sourceRevision, source: original.source, state: {}, protocolVersion, componentsVersion }); return;
       }
       if (req.method === 'POST') {

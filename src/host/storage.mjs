@@ -170,8 +170,9 @@ export class StateStorage {
       await cleanupAbandonedFiles(this.directory);
       await verify?.(input);
       const current = await this.get(input.session, input.block);
-      if ((current?.revision ?? 0) !== input.expectedRevision) throw new StateError(409, 'State revision conflict', current);
-      const record = { protocolVersion, componentsVersion: current?.componentsVersion ?? componentsVersion, session: input.session, block: input.block, revision: (current?.revision ?? 0) + 1, sourceRevision: input.sourceRevision, source: input.source, state: input.state };
+      const sameSource = current?.source === input.source;
+      if ((current?.revision ?? 0) !== input.expectedRevision) throw new StateError(409, 'State revision conflict', sameSource ? current : undefined);
+      const record = { protocolVersion, componentsVersion: sameSource ? current.componentsVersion : componentsVersion, session: input.session, block: input.block, revision: (current?.revision ?? 0) + 1, sourceRevision: input.sourceRevision, source: input.source, state: input.state };
       const bytes = Buffer.from(JSON.stringify(record));
       if (bytes.length > LIMITS.recordBytes) throw new StateError(413, 'Record exceeds limit');
       let total = 0, records = 0;

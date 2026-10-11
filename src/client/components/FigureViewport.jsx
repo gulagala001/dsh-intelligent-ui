@@ -1,16 +1,23 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 
 // View-local magnification only: the same SVG stays mounted, with its original
-// coordinates and event handlers. No document or playback state is involved.
-export function FigureViewport({ width, height, label, children }) {
+// event handlers. Responsive figures may recompute their view-local geometry.
+// No document or playback state is involved.
+export function FigureViewport({ width, height, label, children, onWidthChange }) {
   const viewport = useRef(null);
   const id = useId();
+  const reportWidth = useRef(onWidthChange);
+  reportWidth.current = onWidthChange;
   const [narrow, setNarrow] = useState(false);
   const [original, setOriginal] = useState(false);
   useEffect(() => {
     const element = viewport.current;
     if (!element) return;
-    const measure = () => setNarrow(element.clientWidth > 0 && element.clientWidth + 1 < width);
+    const measure = () => {
+      const available = element.clientWidth;
+      setNarrow(available > 0 && available + 1 < width);
+      if (available > 0) reportWidth.current?.(original ? width : Math.min(width, available));
+    };
     measure();
     if (typeof ResizeObserver === 'function') {
       const observer = new ResizeObserver(measure);
@@ -19,7 +26,7 @@ export function FigureViewport({ width, height, label, children }) {
     }
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
-  }, [width]);
+  }, [width, original]);
   return <div className="iui-figure-viewport">
     <div className="iui-figure-scroll" ref={viewport} id={id} data-original={original}
       role={original ? 'region' : undefined}

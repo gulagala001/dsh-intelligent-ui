@@ -60,7 +60,7 @@ test('packaged native Web drag: final deltas, shared expanded scene, cancel, key
   const { page } = f;
   const health = await f.api('/health');
   assert.equal(health.status, 200);
-  assert.equal(health.body.componentsVersion, 3, 'this real installed package exposes the new drag component contract');
+  assert.equal(health.body.componentsVersion, 4, 'this installed contract retains drag with semantic scene controls');
   const { sessionId } = await f.rpc('session/create', { request: { workspaceId: f.workspace.workspace.workspaceId, agentPreset: 'intelligent-chat' } });
   await f.rpc('session/selectModel', { request: { sessionId, provider: 'fixture', model: 'fixture' } });
   await f.rpc('session/prompt', { request: { requestId: crypto.randomUUID(), sessionId, mode: 'queue', content: [{ type: 'text', text: 'IUI_NATIVE_SCENE_DRAG_PUBLIC_ACCEPTANCE' }], clientTimeZone: 'Asia/Shanghai' } });
@@ -162,7 +162,7 @@ test('packaged native Web drag: final deltas, shared expanded scene, cancel, key
   await assertPoint(expanded, 240, 160);
   await until(async () => (await expanded.innerText()).includes('已保存'));
   const durable = (await f.api(stateURL(sessionId, block))).body;
-  assert.equal(durable.componentsVersion, 3);
+  assert.equal(durable.componentsVersion, 4);
   assert.deepEqual(durable.state, cancelled.state);
   assert.equal(durable.state.dragDemo.values.clicks, 1, 'cancelled gesture and late mouseup never click');
   assert.ok(near(durable.state.dragDemo.values, 240, 160));noteLocal('native artwork close unmount cancellation and reopen');
@@ -178,7 +178,7 @@ test('packaged native Web drag: final deltas, shared expanded scene, cancel, key
   await assertPoint(inline, 240, 160);await inline.getByText('已松开', { exact: true }).waitFor();
   const restarted = (await f.api(stateURL(sessionId, block))).body;
   assert.deepEqual(restarted.state, durable.state, 'native process restart restores point, counters and released drag state');
-  assert.equal((await f.api('/health')).body.componentsVersion, 3);
+  assert.equal((await f.api('/health')).body.componentsVersion, 4);
   noteLocal('native process restart');assert.deepEqual(f.errors, []);
   screenshots.push(join(evidence, 'scene-drag-restarted.png'));
   await page.screenshot({ path: screenshots[2], fullPage: true });

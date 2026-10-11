@@ -199,17 +199,95 @@ test('forged source hash and failed ownership check cannot mutate an existing re
 });
 
 test('records retain their component contract and refuse unknown versions without overwriting source', async t => {
-  const {store}=await fixture(t);const saved=await store.save(input());assert.equal(saved.componentsVersion,3);
+  const {store}=await fixture(t);const saved=await store.save(input());assert.equal(saved.componentsVersion,4);
   const path=store.path('session-A','1:2:0:0');
-  for(const componentsVersion of [1,2]){
+  for(const componentsVersion of [1,2,3]){
     const legacy={...saved,componentsVersion};await writeFile(path,JSON.stringify(legacy));
     assert.equal((await store.get('session-A','1:2:0:0')).componentsVersion,componentsVersion);
     assert.equal((await store.save(input({expectedRevision:1}))).componentsVersion,componentsVersion,'editing an existing legacy document retains its contract');
   }
-  const newer={...saved,componentsVersion:4};await writeFile(path,JSON.stringify(newer));
+  const newer={...saved,componentsVersion:5};await writeFile(path,JSON.stringify(newer));
   await assert.rejects(store.get('session-A','1:2:0:0'),/Invalid stored record/);
   await assert.rejects(store.save(input({expectedRevision:1})),/Invalid stored record/);
   assert.deepEqual(JSON.parse(await readFile(path,'utf8')),newer);
+});
+
+test('verified source replacements use the current component contract while same-source legacy edits retain theirs', async t => {
+  const { store } = await fixture(t);
+  const saved = await store.save(input());
+  const path = store.path('session-A', '1:2:0:0');
+  const replacementSource = 'root = Text("替换后的材料")\n';
+  for (const componentsVersion of [1, 2, 3]) {
+    await t.test(`legacy components ${componentsVersion}`, async () => {
+      const legacy = { ...saved, componentsVersion, state: { legacyOnly: componentsVersion } };
+      await writeFile(path, JSON.stringify(legacy));
+      let verified = 0;
+      const sameSource = await store.save(input({ expectedRevision: 1, state: { edited: true } }), async candidate => {
+        verified++;
+        assert.equal(candidate.source, source);
+        assert.equal(candidate.sourceRevision, sourceHash(source));
+        assert.equal(candidate.expectedRevision, 1);
+      });
+      assert.equal(verified, 1);
+      assert.equal(sameSource.componentsVersion, componentsVersion, 'same-source state edits retain the legacy contract');
+      assert.equal(sameSource.revision, 2);
+      assert.deepEqual(await store.get('session-A', '1:2:0:0'), sameSource);
+
+      const replacementInput = input({ expectedRevision: 2, source: replacementSource, sourceRevision: sourceHash(replacementSource), state: { replacementOnly: componentsVersion } });
+      const replacement = await store.save(replacementInput, async candidate => {
+        verified++;
+        assert.deepEqual(candidate, replacementInput, 'ownership verification receives the replacement source, hash and expected revision');
+      });
+      assert.equal(verified, 2);
+      assert.equal(replacement.componentsVersion, 4, 'a verified new source starts with the current contract');
+      assert.equal(replacement.revision, 3);
+      assert.equal(replacement.source, replacementSource);
+      assert.equal(replacement.sourceRevision, sourceHash(replacementSource));
+      assert.deepEqual(replacement.state, replacementInput.state);
+      assert.deepEqual(JSON.parse(await readFile(path, 'utf8')), replacement);
+      const restarted = new StateStorage(store.directory);
+      await restarted.initialize();
+      assert.deepEqual(await restarted.get('session-A', '1:2:0:0'), replacement, 'replacement contract and state survive restart');
+    });
+  }
+});
+
+test('rejected source replacements preserve durable state and never expose another source through a conflict', async t => {
+  const { store } = await fixture(t);
+  const saved = await store.save(input({ state: { privateOldSource: 'belongs only to the original source' } }));
+  const path = store.path('session-A', '1:2:0:0');
+  const before = await readFile(path, 'utf8');
+  const replacementSource = 'root = Text("另一个源文")\n';
+  const replacementInput = input({ source: replacementSource, sourceRevision: sourceHash(replacementSource), state: { replacementOnly: true } });
+  let verified = 0;
+  await assert.rejects(store.save(replacementInput, async candidate => {
+    verified++;
+    assert.deepEqual(candidate, replacementInput);
+  }), error => {
+    assert.equal(error.statusCode, 409, 'stale revision rejects even after ownership verification succeeds');
+    assert.equal(error.record, undefined, 'cross-source conflict must not return the stored source or state');
+    assert.ok(!JSON.stringify(error).includes('privateOldSource'));
+    return true;
+  });
+  assert.equal(verified, 1);
+  assert.equal(await readFile(path, 'utf8'), before, 'CAS rejection does not replace the persisted record');
+  assert.deepEqual(await store.get('session-A', '1:2:0:0'), saved);
+
+  const denied = Object.assign(new Error('replacement assistant block ownership denied'), { statusCode: 403 });
+  await assert.rejects(store.save({ ...replacementInput, expectedRevision: 1 }, async candidate => {
+    verified++;
+    assert.equal(candidate.expectedRevision, 1);
+    assert.equal(candidate.source, replacementSource);
+    throw denied;
+  }), error => {
+    assert.equal(error, denied, 'ownership rejection takes precedence over saving a matching revision');
+    assert.equal(error.record, undefined);
+    return true;
+  });
+  assert.equal(verified, 2);
+  assert.equal(await readFile(path, 'utf8'), before, 'ownership rejection does not replace the persisted record');
+  assert.deepEqual(await store.get('session-A', '1:2:0:0'), saved);
+  assert.ok(!(await readdir(store.directory)).some(name => name.endsWith('.tmp')), 'rejected replacements leave no pending record writes');
 });
 
 test('state and identity validation reject traversal, unsafe object keys and bounded-data violations', () => {

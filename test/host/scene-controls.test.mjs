@@ -38,7 +38,8 @@ const fields = [
 ];
 const simulationMetrics = [{ label: '位置', formula: 'x', precision: 2 }, { label: '速度', formula: 'v', precision: 2 }];
 const gameMetrics = [{ label: '得分', formula: 'score', precision: 0 }, { label: '当前速度', formula: 'v', precision: 2 }];
-const source = `root = Stack([Simulation(${JSON.stringify(scene)},"controlsSimulation","参数模拟器",${JSON.stringify(fields)},${JSON.stringify(simulationMetrics)}),Game(${JSON.stringify(scene)},"controlsGame","参数小游戏","点击圆点或按回车得分，拖动圆点改变位置。",${JSON.stringify(fields)},${JSON.stringify(gameMetrics)})])`;
+const gameScene={...scene,actions:[{id:'award',label:'记分操作卡',symbol:'★',selected:{expr:'score > 0'},disabled:{expr:'held'},shortcut:'1'},{id:'locked',label:'暂不可用',disabled:true,shortcut:'2'}]};
+const source = `root = Stack([Simulation(${JSON.stringify(scene)},"controlsSimulation","参数模拟器",${JSON.stringify(fields)},${JSON.stringify(simulationMetrics)}),Game(${JSON.stringify(gameScene)},"controlsGame","参数小游戏","点击圆点或操作卡得分，拖动圆点改变位置。",${JSON.stringify(fields)},${JSON.stringify(gameMetrics)})])`;
 const stateURL = (session, block) => `/state?session=${encodeURIComponent(session)}&block=${encodeURIComponent(block)}`;
 const dot = scope => scope.locator('[data-iui-mark-id="dot"]');
 const input = (scope, label) => scope.getByLabel(label, { exact: true });
@@ -63,7 +64,7 @@ async function assertMetrics(scope, game) {
   assert.equal(await metrics.getAttribute('aria-live'), game ? 'polite' : null);
   assert.equal(await metrics.getAttribute('aria-atomic'), game ? 'true' : null);
   assert.equal(await metrics.locator('svg, output').count(), 0, 'metrics are outside the SVG; continuous simulation values have no implicit output live region');
-  assert.equal(await metrics.evaluate(node => node.previousElementSibling?.classList.contains('iui-scene')), true, 'metrics sit next to the scene');
+  assert.equal(await metrics.evaluate((node,game)=>game?node.parentElement.classList.contains('iui-game-header'):node.previousElementSibling?.classList.contains('iui-scene'),game), true, 'game feedback is grouped in the header; simulation feedback follows its figure');
 }
 
 test('packaged native Web scene controls: parameter restart, game feedback, drag cancellation and isolated durable state stay local', { timeout: 300000 }, async t => {
@@ -71,7 +72,7 @@ test('packaged native Web scene controls: parameter restart, game feedback, drag
   const { page } = f;
   const health = await f.api('/health');
   assert.equal(health.status, 200);
-  assert.equal(health.body.componentsVersion, 3, 'the actual installed package exposes the fields/metrics and restart contract');
+  assert.equal(health.body.componentsVersion, 4, 'the actual installed package exposes semantic actions and unit metadata');
   const { sessionId } = await f.rpc('session/create', { request: { workspaceId: f.workspace.workspace.workspaceId, agentPreset: 'intelligent-chat' } });
   await f.rpc('session/selectModel', { request: { sessionId, provider: 'fixture', model: 'fixture' } });
   await f.rpc('session/prompt', { request: { requestId: crypto.randomUUID(), sessionId, mode: 'queue', content: [{ type: 'text', text: 'IUI_NATIVE_SCENE_CONTROLS_PUBLIC_ACCEPTANCE' }], clientTimeZone: 'Asia/Shanghai' } });
@@ -107,6 +108,15 @@ test('packaged native Web scene controls: parameter restart, game feedback, drag
   await assertParameters(simulation, 30, 10);await assertParameters(game, 30, 10);
   await assertMetrics(simulation, false);await assertMetrics(game, true);
   assert.equal(await metric(game, '得分').textContent(), '0');noteLocal('initial controls and metric semantics');
+  const award=button(game,'记分操作卡');await award.click();await readSaved((_sim,other)=>other.score===1);
+  await award.press('Enter');await readSaved((_sim,other)=>other.score===2);
+  await award.press('Space');await readSaved((_sim,other)=>other.score===3);
+  await award.press('1');const actionRecord=await readSaved((_sim,other)=>other.score===4);
+  assert.equal(await award.getAttribute('aria-pressed'),'true');assert.equal(await award.getAttribute('aria-keyshortcuts'),'1');
+  await award.dispatchEvent('keydown',{key:'1',repeat:true});await award.press('2');
+  await button(game,'暂不可用').dispatchEvent('click');
+  assert.deepEqual((await f.api(stateURL(sessionId,block))).body.state,actionRecord.state,'disabled and repeating shortcuts leave shared state intact');
+  await button(game,'重置').click();await readSaved((_sim,other)=>other.score===0);noteLocal('semantic card pointer, native Enter/Space, scoped shortcut, disabled and repeat suppression');
 
   await input(simulation, '初速度').fill('60');await input(simulation, '加速度').fill('20');
   records.parameters = await readSaved((sim, other) => sim.v0 === 60 && sim.a === 20 && other.v0 === 30 && other.a === 10);
@@ -181,7 +191,7 @@ test('packaged native Web scene controls: parameter restart, game feedback, drag
   await button(expandedSimulation, '重新开始').click();
   records.durable = await readSaved((sim, other) => sim.v0 === 50 && sim.a === 12 && sim.v === 50 && sim.x === 20 && sim.t === 0 && !sim.held && other.v0 === 45 && other.a === 5 && other.score === 2);
   assert.deepEqual(values(records.durable, 'controlsGame'), values(records.scored, 'controlsGame'));
-  assert.equal(records.durable.componentsVersion, 3);
+  assert.equal(records.durable.componentsVersion, 4);
   await assertParameters(simulation, 50, 12);await assertParameters(game, 45, 5);
   await assertMetrics(expandedSimulation, false);await assertMetrics(expandedGame, true);
   assert.equal(await metric(simulation, '速度').textContent(), '50');
@@ -205,7 +215,7 @@ test('packaged native Web scene controls: parameter restart, game feedback, drag
   await page.reload();records.reloaded = await assertRestored();noteLocal('page reload');
   await f.stop();await page.goto(await f.boot());await sessionRow().click();
   records.nativeRestarted = await assertRestored();
-  assert.equal((await f.api('/health')).body.componentsVersion, 3);
+  assert.equal((await f.api('/health')).body.componentsVersion, 4);
   noteLocal('native process restart');assert.deepEqual(f.errors, []);
   await screenshot('scene-controls-restarted.png');
   if (evidence) await writeFile(join(evidence, 'scene-controls-result.json'), JSON.stringify({

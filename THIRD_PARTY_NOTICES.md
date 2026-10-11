@@ -85,7 +85,7 @@ SOFTWARE.
 
 ```
 
-## DSH 0.2.0-rc.2 / 0.2.1-alpha.1
+## DSH 0.2.0-rc.2 / 0.2.1-alpha.1 / 0.2.1-alpha.2
 
 MIT；宿主SDK及测试用原生renderer摘录，不发行另一个宿主实现。https://github.com/deepseek-ai/deepseek-harness
 

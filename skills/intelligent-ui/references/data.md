@@ -2,12 +2,16 @@
 
 Generated from src/catalog.mjs. Positional argument order and allowed enum values are authoritative. Omit optional gap for standard spacing; numeric gap is pixels from 0 to 48. Read signatures and examples first. For Scene/Game events and drawing, read expressions.md. Detailed schemas are below; use native paging or search for a specific component when needed.
 
+Chart series objects may specify an explicit unit. For line, area, bar and scatter charts, series with the same unit can be plotted together; different unit groups use the metric selector. Values are shown as supplied; the chart does not convert units. For a requested chart, put the requested primary measure first and include its known unit. Do not place monthly fees and storage capacities on the same comparable axis; add other metrics only when they help answer the request.
+
+Chart accepts categoryFilters (default false) and colorBy ("series" by default, or "category") after bind. Enable categoryFilters to show grouped controls for the x column; equal typed category values filter together. Category colors stay consistent while filtering or reordering the same full category set; the six-color palette repeats, and changing that set may change colors. With colorBy:"category", bar/scatter/pie marks use category colors, and line/area charts use matching point colors and gradients. Filtering changes visible plots, scales and hit targets while the raw data table retains every row and series. Pie charts show one selected metric and already support category filtering; categoryFilters uses the grouped controls. All selectors and filters update only local state.
+
 ## Signatures
 
 Metric(label: string, value: string|number|boolean|null, unit?: string|null, detail?: string|null, tone: "neutral"|"info"|"success"|"warning"|"danger" = "neutral") — A headline value, unit and supporting trend.
 Facts(items: object[] (max 100), title?: string|null) — Compact divided definition rows, with labels and emphasized values. Values can be computed by OpenUI expressions.
 Table(columns: string|object[] (max 30), rows: object|string|number|boolean|null[] (max 30)[] (max 1000), caption?: string|null, bind?: string) — Scrollable data table with client-side sorting and optional selection.
-Chart(type: "line"|"area"|"bar"|"scatter"|"pie" = "line", data: object[] (max 1000), x: string, series: string|object[] (max 12), title?: string|null, bind?: string) — Interactive SVG line, area, bar, scatter or pie chart with accessible data table.
+Chart(type: "line"|"area"|"bar"|"scatter"|"pie" = "line", data: object[] (max 1000), x: string, series: string|object[] (max 12), title?: string|null, bind?: string, categoryFilters: boolean = false, colorBy: "series"|"category" = "series") — Interactive SVG line, area, bar, scatter or pie chart with accessible raw data table. Explicit series units keep compatible scales together; optional category filters and category colors support local comparison.
 
 ## Examples
 
@@ -302,7 +306,7 @@ Schema:
   "additionalProperties": false
 }
 
-Chart(type: "line"|"area"|"bar"|"scatter"|"pie" = "line", data: object[] (max 1000), x: string, series: string|object[] (max 12), title?: string|null, bind?: string) — Interactive SVG line, area, bar, scatter or pie chart with accessible data table.
+Chart(type: "line"|"area"|"bar"|"scatter"|"pie" = "line", data: object[] (max 1000), x: string, series: string|object[] (max 12), title?: string|null, bind?: string, categoryFilters: boolean = false, colorBy: "series"|"category" = "series") — Interactive SVG line, area, bar, scatter or pie chart with accessible raw data table. Explicit series units keep compatible scales together; optional category filters and category colors support local comparison.
 Schema:
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -382,6 +386,10 @@ Schema:
                   "red",
                   "gray"
                 ]
+              },
+              "unit": {
+                "type": "string",
+                "maxLength": 40
               }
             },
             "required": [
@@ -407,13 +415,27 @@ Schema:
     "bind": {
       "type": "string",
       "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$"
+    },
+    "categoryFilters": {
+      "default": false,
+      "type": "boolean"
+    },
+    "colorBy": {
+      "default": "series",
+      "type": "string",
+      "enum": [
+        "series",
+        "category"
+      ]
     }
   },
   "required": [
     "type",
     "data",
     "x",
-    "series"
+    "series",
+    "categoryFilters",
+    "colorBy"
   ],
   "additionalProperties": false
 }

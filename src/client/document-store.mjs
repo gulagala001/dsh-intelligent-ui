@@ -30,7 +30,9 @@ export class DocumentStore {
     if(this.disposed||!reload&&this.snapshot.source===source&&this.snapshot.streaming===streaming)return;
     const changedSource=this.snapshot.source!==source;
     const incomingDraft=changedSource&&this.previousDraft?.source===source?this.previousDraft:null;
+    const knownVersion=incomingDraft?.componentsVersion??(changedSource?componentsVersion:this.snapshot.componentsVersion??componentsVersion);
     this.playback.reset();const ticket=++this.generation;this.controller?.abort();clearTimeout(this.timer);this.sourceRevision=null;
+    this.writing?.controller.abort();this.writing=null;this.reloadBeforeSave=false;
     if(changedSource){
       // A cancel may legally finish the old gesture before its API retires.
       // Keep that draft under its old source, never merge it into the new one.
@@ -43,8 +45,8 @@ export class DocumentStore {
       let tree=evaluateDocument(this.document,this.state);
       this.defaults={...this.document.defaults,...collectDefaults(tree)};
       this.state={...this.defaults,...this.state};tree=evaluateDocument(this.document,this.state);
-      this.publish({source,streaming,tree,error:'',componentsVersion,status:streaming?'streaming':'loading'});
-    } catch(error) { this.document=null;this.publish({source,streaming,tree:null,status:streaming?'streaming':'invalid',error:streaming?'':error.message}); }
+      this.publish({source,streaming,tree,error:'',componentsVersion:knownVersion,status:streaming?'streaming':'loading'});
+    } catch(error) { this.document=null;this.publish({source,streaming,tree:null,componentsVersion:knownVersion,status:streaming?'streaming':'invalid',error:streaming?'':error.message}); }
     if(!streaming&&this.document) {
       this.controller=new AbortController();
       void this.hydrate(source,ticket,this.controller.signal);
@@ -62,7 +64,7 @@ export class DocumentStore {
       assertJSON(record.state);const draft=this.restoreJournal(source);this.revision=record.revision;this.sourceRevision=hash;
       const next={...this.defaults,...record.state};for(const name of this.dirty)next[name]=this.state[name];this.state=next;
       if(draft){for(const name of this.dirty)if(JSON.stringify(record.state[name]??this.defaults[name])===JSON.stringify(this.state[name]))this.dirty.delete(name);if(this.dirty.size&&(draft.revision!==record.revision||draft.conflict))this.conflictRecord=record;}
-      this.publish({tree:evaluateDocument(this.document,this.state),componentsVersion:record.componentsVersion??1,status:this.conflictRecord?'conflict':this.dirty.size?'unsaved':'saved',error:this.conflictRecord?'其他地方已修改设置。你的草稿已恢复，确认后可以合并保存。':''});
+      this.publish({tree:evaluateDocument(this.document,this.state),componentsVersion:record.componentsVersion??1,status:this.conflictRecord?'conflict':this.dirty.size?'unsaved':record.persisted===false?'default':'saved',error:this.conflictRecord?'其他地方已修改设置。你的草稿已恢复，确认后可以合并保存。':''});
       if(this.dirty.size&&!this.conflictRecord)this.scheduleSave();
     }catch(error){if(error.name!=='AbortError'&&!this.disposed&&ticket===this.generation)this.publish({status:'load-error',error:'设置读取失败：'+error.message});}
   }
@@ -107,24 +109,42 @@ export class DocumentStore {
   async save({resolveConflict=false}={}) {
     clearTimeout(this.timer);
     if(this.disposed||this.snapshot.streaming||!this.sourceRevision||!this.dirty.size||this.writing||this.conflictRecord&&!resolveConflict)return;
-    const beforeState=structuredClone(this.state),state=structuredClone(this.conflictRecord?{...this.defaults,...this.conflictRecord.state,...Object.fromEntries([...this.dirty].map(name=>[name,this.state[name]]))}:this.state),names=new Set(this.dirty),ticket=this.generation;this.writing=true;this.publish({status:'saving'});
+    const ticket=this.generation,source=this.snapshot.source,hash=this.sourceRevision;
+    const writing={controller:new AbortController()};this.writing=writing;this.publish({status:'saving'});
     try{
-      const record=await this.request(this.sessionId,this.blockId,{session:this.sessionId,block:this.blockId,expectedRevision:this.revision,sourceRevision:this.sourceRevision,source:this.snapshot.source,state});
+      if(this.reloadBeforeSave){
+        // Recovery owns the same write slot as the following POST. A second
+        // retry cannot race its GET and overwrite a newer save receipt.
+        const knownRevision=this.revision;
+        const current=await this.request(this.sessionId,this.blockId,undefined,writing.controller.signal);
+        if(this.disposed||ticket!==this.generation)return;
+        if(current.sourceRevision!==hash)throw new UIError('SOURCE','作品内容已变化，请重新打开');
+        assertJSON(current.state);this.reloadBeforeSave=false;
+        this.revision=current.revision;
+        if(current.persisted!==false&&current.revision!==knownRevision){
+          this.conflictRecord=current;
+          this.publish({status:'conflict',error:'另一处修改了设置。你的操作已保留，可确认后保存。'});return;
+        }
+        const next={...this.defaults,...current.state};for(const name of this.dirty)next[name]=this.state[name];this.state=next;
+        this.publish({tree:evaluateDocument(this.document,this.state),componentsVersion:current.componentsVersion??this.snapshot.componentsVersion});
+      }
+      const beforeState=structuredClone(this.state),state=structuredClone(this.conflictRecord?{...this.defaults,...this.conflictRecord.state,...Object.fromEntries([...this.dirty].map(name=>[name,this.state[name]]))}:this.state),names=new Set(this.dirty);
+      const record=await this.request(this.sessionId,this.blockId,{session:this.sessionId,block:this.blockId,expectedRevision:this.revision,sourceRevision:hash,source,state},writing.controller.signal);
       if(this.disposed||ticket!==this.generation)return;
       this.revision=record.revision;this.conflictRecord=null;
       // A delayed receipt acknowledges only the exact values it wrote.
       for(const name of names)if(JSON.stringify(this.state[name])===JSON.stringify(state[name]))this.dirty.delete(name);
       const settled={...this.defaults,...(record.state??state)};for(const name of Object.keys(this.state))if(JSON.stringify(this.state[name])!==JSON.stringify(beforeState[name]))settled[name]=this.state[name];this.state=settled;this.writeJournal();
-      this.publish({tree:evaluateDocument(this.document,this.state),status:this.dirty.size?'unsaved':'saved',error:''});
-    }catch(error){if(!this.disposed&&ticket===this.generation){if(error.status===409&&error.record){this.revision=error.record.revision;this.conflictRecord=error.record;this.publish({status:'conflict',error:'另一处修改了设置。你的操作已保留，可确认后保存。'});}else this.publish({status:'save-error',error:'设置尚未保存：'+error.message});}}
-    finally{this.writing=false;if(this.dirty.size&&this.snapshot.status==='unsaved')this.scheduleSave();}
+      this.publish({tree:evaluateDocument(this.document,this.state),componentsVersion:record.componentsVersion??this.snapshot.componentsVersion,status:this.dirty.size?'unsaved':'saved',error:''});
+    }catch(error){if(!this.disposed&&ticket===this.generation){if(error.status===409&&error.record&&error.record.sourceRevision===this.sourceRevision&&(error.record.source===undefined||error.record.source===this.snapshot.source)){this.revision=error.record.revision;this.conflictRecord=error.record;this.publish({status:'conflict',error:'另一处修改了设置。你的操作已保留，可确认后保存。'});}else{if(error.status===409){this.conflictRecord=null;this.reloadBeforeSave=true;}this.publish({status:'save-error',error:'设置尚未保存：'+error.message});}}}
+    finally{if(this.writing===writing){this.writing=null;if(this.dirty.size&&this.snapshot.status==='unsaved')this.scheduleSave();}}
   }
   api(onSubmit) {
     const generation=this.generation;
     const current=run=>{if(this.disposed||generation!==this.generation)throw new UIError('SOURCE','作品内容已变化，请等待当前内容完成后再操作');return run();};
     return {state:this.state,streaming:this.snapshot.streaming,disabled:this.snapshot.streaming||['loading','load-error'].includes(this.snapshot.status),blockId:this.blockId,playback:this.playback,playbackVersion:this.generation,set:(n,v)=>current(()=>this.set(n,v)),widget:(path,initial)=>this.widget(path,initial),setWidget:(path,value)=>current(()=>this.setWidget(path,value)),reset:n=>current(()=>this.reset(n)),action:a=>current(()=>this.action(a,onSubmit)),evaluate:(formula,locals={})=>safeEvaluate(formula,this.state,locals),sceneView:(scene,bind)=>sceneView(scene,this.state[bind])};
   }
-  dispose(){if(this.disposed)return;this.writeJournal();this.playback.reset();clearTimeout(this.timer);this.controller?.abort();this.disposed=true;this.listeners.clear();}
+  dispose(){if(this.disposed)return;this.writeJournal();this.playback.reset();clearTimeout(this.timer);this.controller?.abort();this.writing?.controller.abort();this.writing=null;this.disposed=true;this.listeners.clear();}
   writeJournal(){
     try{const storage=globalThis.sessionStorage;if(!storage)return false;const key='dsh-iui.draft.v1:'+this.sessionId+':'+this.blockId;
       if(!this.dirty.size){storage.removeItem(key);this.journalError='';return true;}

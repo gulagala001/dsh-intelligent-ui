@@ -6,7 +6,7 @@ Generated from src/catalog.mjs. Positional argument order and allowed enum value
 
 Calculator(fields: object[] (max 100), formula: string, title?: string|null, resultLabel: string = "计算结果", unit?: string|null, precision: integer = 2 <= 10 >= 0, results?: object[] (max 20)) — Parameter-driven calculation using bounded formulas, with optional additional results.
 Diagram(nodes: object[] (max 100), edges: object[] (max 200), title?: string|null, bind?: string) — Interactive labeled graph; selecting a node displays its details.
-Scene(scene: object, bind: string, title?: string|null) — General bounded SVG scene with click, key and drag interaction. Events update local state through safe formulas; playback is explicit and pauses while hidden.
+Scene(scene: object, bind: string, title?: string|null) — General bounded scene with SVG drawing and semantic action cards. Click, key and drag events update local state through safe formulas; playback is explicit and pauses while hidden.
 Simulation(scene: object, bind: string, title?: string|null, fields: object[] (max 100) = [], metrics: object[] (max 20) = []) — General scene simulation with parameter controls and calculated metrics.
 Game(scene: object, bind: string, title?: string|null, instructions?: string|null, fields: object[] (max 100) = [], metrics: object[] (max 20) = []) — General scene game using click, key or drag rules and deterministic bounded state, with optional parameter controls and live score or progress metrics.
 
@@ -37,7 +37,15 @@ root = Simulation({initial:{x:50,v:45},seed:1,events:{tick:[{name:"x",value:"mod
 ```
 
 ```openui
-root = Game({initial:{score:0,x:80,y:100},seed:7,events:{click:[{name:"score",value:"event.id == 'target' ? score + 1 : score"},{name:"x",value:"event.id == 'target' ? 40 + rand() * 520 : x"},{name:"y",value:"event.id == 'target' ? 40 + rand() * 220 : y"}],key:[{name:"score",value:"event.key == 'Enter' ? score + 1 : score"},{name:"x",value:"event.key == 'Enter' ? 40 + rand() * 520 : x"},{name:"y",value:"event.key == 'Enter' ? 40 + rand() * 220 : y"}]},marks:[{id:"target",type:"circle",x:{expr:"x"},y:{expr:"y"},r:22,fill:"blue",label:"点击目标",interactive:true}],width:600,height:320},"targetGame","点中目标","点击蓝色圆点，或聚焦场景后按 Enter。",[],[{label:"得分",formula:"score",precision:0}])
+root = Game({
+  initial:{target:0,score:0,attempts:0,last:"",correct:false},seed:7,
+  events:{
+    click:[{name:"correct",value:"(event.id == 'spring' && target == 0) || (event.id == 'summer' && target == 1) || (event.id == 'winter' && target == 2)"},{name:"score",value:"correct ? min(5, score + 1) : score"},{name:"attempts",value:"attempts + 1"},{name:"last",value:"event.id"},{name:"target",value:"correct && score < 5 ? floor(rand() * 3) : target"}],
+    reset:[{name:"target",value:"0"}]
+  },
+  actions:[{id:"spring",label:"春天",detail:"新芽与生长",symbol:"🌱",color:"green",shortcut:"1",selected:{expr:"last == 'spring'"},disabled:{expr:"score >= 5"}},{id:"summer",label:"夏天",detail:"阳光与热浪",symbol:"☀",color:"orange",shortcut:"2",selected:{expr:"last == 'summer'"},disabled:{expr:"score >= 5"}},{id:"winter",label:"冬天",detail:"冰雪与寒冷",symbol:"❄",color:"blue",shortcut:"3",selected:{expr:"last == 'winter'"},disabled:{expr:"score >= 5"}}],
+  marks:[]
+},"seasonMatch","季节配对","根据提示选择季节。点击操作卡，或聚焦后按 1/2/3；匹配正确得 1 分，达到 5 分完成，重置可重新开始。",[],[{label:"提示",formula:"target == 0 ? '万物复苏' : target == 1 ? '烈日蝉鸣' : '冰雪纷飞'"},{label:"得分",formula:"score",precision:0},{label:"进度",formula:"concat(score, ' / 5')"},{label:"尝试次数",formula:"attempts",precision:0},{label:"反馈",formula:"score >= 5 ? '挑战完成' : last == '' ? '请选择与提示相符的季节' : correct ? '匹配正确，继续下一题' : '暂未匹配，再试一次'"}])
 ```
 
 ## Complete argument schemas
@@ -625,6 +633,194 @@ Schema:
       "type": "number",
       "exclusiveMinimum": 0,
       "maximum": 2000
+    },
+    "actions": {
+      "default": [],
+      "maxItems": 32,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "label": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 16000
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "expr": {
+                    "type": "string",
+                    "maxLength": 4000
+                  }
+                },
+                "required": [
+                  "expr"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 16000
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "expr": {
+                    "type": "string",
+                    "maxLength": 4000
+                  }
+                },
+                "required": [
+                  "expr"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "expr": {
+                    "type": "string",
+                    "maxLength": 4000
+                  }
+                },
+                "required": [
+                  "expr"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "selected": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "expr": {
+                    "type": "string",
+                    "maxLength": 4000
+                  }
+                },
+                "required": [
+                  "expr"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "disabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "expr": {
+                    "type": "string",
+                    "maxLength": 4000
+                  }
+                },
+                "required": [
+                  "expr"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "color": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 16000
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "expr": {
+                    "type": "string",
+                    "maxLength": 4000
+                  }
+                },
+                "required": [
+                  "expr"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "shortcut": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1,
+            "pattern": "^[A-Za-z0-9]$"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "required": [
@@ -632,7 +828,8 @@ Schema:
     "events",
     "marks",
     "width",
-    "height"
+    "height",
+    "actions"
   ],
   "additionalProperties": false,
   "$defs": {
@@ -1046,7 +1243,7 @@ Schema:
   "additionalProperties": false
 }
 
-Scene(scene: object, bind: string, title?: string|null) — General bounded SVG scene with click, key and drag interaction. Events update local state through safe formulas; playback is explicit and pauses while hidden.
+Scene(scene: object, bind: string, title?: string|null) — General bounded scene with SVG drawing and semantic action cards. Click, key and drag events update local state through safe formulas; playback is explicit and pauses while hidden.
 Schema:
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",

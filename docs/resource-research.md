@@ -40,10 +40,12 @@
 
 ## 宿主调查结论
 
-DSH 默认 npm 通道当前是 0.2.0-rc.2，最新官方预发布为 0.2.1-alpha.1。OMD 已发布对应的 0.10.0，分别固定在 `bb5afae4088183c09e349f98b6bc13a891412be3` 和 `de86711d2341e5239b2d95adde62bf48acf54cef`。两条构建的 Cordis、Schemastery 和 DSH SDK 应分别对齐。
+初始调查基线为 DSH 0.2.0-rc.2 与 0.2.1-alpha.1，以及对应的 OMD 0.10.0；当时的 OMD 源码分别固定在 `bb5afae4088183c09e349f98b6bc13a891412be3` 和 `de86711d2341e5239b2d95adde62bf48acf54cef`。这些版本、提交和下方发行链接保留为历史来源，不代表当前最新发行或本轮 OMD 共存验收结果。
 
-宿主使用同一原生会话循环，产品的专用 chat 通过独立 preset 组成有限提示词和能力。preset 首回合后锁定，小＋必须创建新会话并在发送前选择 preset。普通 agent 通过原生 `skill({ name })` 读取详细规则，平时仅暴露短技能摘要；资源在原生文件读取能力支持下继续按需读。
+当前构建配置分别对应 DSH 0.2.0-rc.2、0.2.1-alpha.1 和 0.2.1-alpha.2 三个完整版本，DSH SDK 与 peer 各自精确锁定。rc.2 对齐 Cordis 4.0.4 / Schemastery 3.18.4；两个 alpha 对齐 Cordis 4.0.5-alpha.1 / Schemastery 3.18.5-alpha.1。各构建不能互换，支持范围以实际验收为准。IUI 1.7.0 为本地构建，正式发布暂停；源码回归、原版宿主、OMD 共存和真实模型生成分别记录，不能互相替代。
 
-当前没有按代码块语言注册 renderer 的公开接口，也没有新会话旁小＋的公开插槽。需要局部、可清理的 assistant-step 和入口呈现适配，保留普通 Markdown、附件、工具配对、取消与历史回放。原生右侧页签、模型选择、SessionFace.prompt、会话存储和认证路由可继续复用。
+宿主使用同一原生会话循环，产品的专用 chat 通过独立 preset 组成有限提示词和能力。preset 首回合后锁定，因此智能聊天入口创建新会话并在发送前选择 preset。初始“小＋”入口已更新为整格“新会话”右内侧悬停浮现的 Chat 图标；键盘聚焦时同样显示，触屏和折叠侧栏保留直接入口。点击格子其他位置继续按原生方式创建普通会话。普通 agent 通过原生 `skill({ name })` 读取详细规则，平时仅暴露短技能摘要；资源在原生文件读取能力支持下继续按需读。
 
-[DSH 官方预发布](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-alpha.1)、[OMD alpha 发行](https://github.com/gulagala001/oh-my-dsh/releases/tag/v0.2.1-alpha.1.omd.0.10.0)、[OMD rc2 发行](https://github.com/gulagala001/oh-my-dsh/releases/tag/v0.2.0-rc.2.omd.0.10.0)。桌面和跨平台支持以新插件实际验收为准。
+上述宿主版本没有按代码块语言注册 renderer 或专用新会话入口的公开插槽。实现采用局部、可清理的 assistant-step 和入口呈现适配，保留普通 Markdown、附件、工具配对、取消与历史回放。原生右侧页签、模型选择、SessionFace.prompt、会话存储和认证路由可继续复用。
+
+历史来源：[DSH alpha.1 官方预发布](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-alpha.1)、[OMD alpha.1 0.10.0 发行](https://github.com/gulagala001/oh-my-dsh/releases/tag/v0.2.1-alpha.1.omd.0.10.0)、[OMD rc.2 0.10.0 发行](https://github.com/gulagala001/oh-my-dsh/releases/tag/v0.2.0-rc.2.omd.0.10.0)。桌面和跨平台支持以插件对应版本的实际验收为准。

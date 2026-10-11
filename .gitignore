@@ -9,5 +9,6 @@ work/
 AGENTS.md
 PROMPT_MAINTENANCE.md
 PROMPT_CHANGES.md
+docs/implementation-plan.md
 *.log
 .DS_Store

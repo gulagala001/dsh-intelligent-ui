@@ -13,7 +13,7 @@ Updated 2026-10-11. These receipts refer to **gulagala001/dsh-intelligent-ui, IU
 
 ## 已提交 / Submitted
 
-以下 18 个独立目录均已取得正式回执；状态为本次核对时的状态，后续以链接中的审核结果为准。 最近复核：**2026-10-11 18:15（北京时间）**；17 个 GitHub 投稿入口仍待合并或处理，dsh-ai 当前回执接口无法访问。
+以下 18 个独立目录均已取得正式回执；状态为本次核对时的状态，后续以链接中的审核结果为准。 最近复核：**2026-10-11 20:36（北京时间）**；Harness Registry 已确认进入线上目录，其余 16 个 GitHub 投稿仍待合并或处理；dsh-ai 回执恢复可读，状态仍为 queued。
 
 | 市场／目录与规则入口 | 投稿回执 | 状态 / Status |
 | --- | --- | --- |
@@ -23,7 +23,7 @@ Updated 2026-10-11. These receipts refer to **gulagala001/dsh-intelligent-ui, IU
 | [52DSH Registry](https://github.com/tuofangzhe/dsh-plugins/blob/main/docs/plugin-author-guide.md) | [Issue #3](https://github.com/tuofangzhe/dsh-plugins/issues/3) | 固定源码与权限材料已提交 / Pending review |
 | [DSH Hub](https://github.com/coderPerseus/dsh-hub/blob/main/.github/ISSUE_TEMPLATE/submit-plugin.yml) | [Issue #47](https://github.com/coderPerseus/dsh-hub/issues/47) | 正式投稿待审 / Pending review |
 | [DSH Marketplace](https://github.com/DshMarketPlace/dshmarketplace#contributing) | [Issue #6](https://github.com/DshMarketPlace/dshmarketplace/issues/6) | Issue 仍待审；本次目录/API 不可访问，实际收录未核实 / Pending review; live listing unverified |
-| [dsh-ai.org](https://dsh-ai.org/submit) | [表单状态回执](https://dsh-ai.org/api/submissions/a120018a-c9dc-4170-b999-24b602e5a737) | 此前回执已入队；本次接口及网页均返回 403，当前状态未核实 / Previously queued; current status unavailable |
+| [dsh-ai.org](https://dsh-ai.org/submit) | [表单状态回执](https://dsh-ai.org/api/submissions/a120018a-c9dc-4170-b999-24b602e5a737) | 回执接口已恢复，当前为 queued，尚无 plugin 条目 / Queued; no listed plugin yet |
 | [DeepSeek Plugin Store](https://github.com/Ericwong5021/deepseek-plugin-store) | [Issue #297](https://github.com/Ericwong5021/deepseek-plugin-store/issues/297) → [自动生成 PR #298](https://github.com/Ericwong5021/deepseek-plugin-store/pull/298) | 录入检查与 validate 均通过，仍待合并 / Intake and validation passed, PR pending |
 | [HackSing DSH Plugins](https://github.com/HackSing/dsh-plugins) | [Issue #314](https://github.com/HackSing/dsh-plugins/issues/314) | 正式投稿待审 / Pending review |
 | [TYEclipse DSH Plugins Hub](https://github.com/TYEclipse/dsh-plugins-hub/blob/main/.github/ISSUE_TEMPLATE/plugin-submission.yml) | [Issue #42](https://github.com/TYEclipse/dsh-plugins-hub/issues/42) | 提交 Web／技能验收说明，待审 / Pending review |
@@ -33,7 +33,7 @@ Updated 2026-10-11. These receipts refer to **gulagala001/dsh-intelligent-ui, IU
 | [losebird Plugin Market](https://github.com/losebird/dsh-plugin-market/blob/main/docs/SUBMIT.md) | [PR #38](https://github.com/losebird/dsh-plugin-market/pull/38) | 本地目录校验通过；远端工作流待维护者批准，PR 待审 / PR pending |
 | [Sunrisepeak DSH Index](https://github.com/Sunrisepeak/dsh-index) | [Issue #52](https://github.com/Sunrisepeak/dsh-index/issues/52) | 已提名请求扫描／维护者纳入；未冒称 xlings 验证 / Nomination submitted |
 | [DSH Suite](https://github.com/whyihaveyou/dsh-suite) | [Issue #61](https://github.com/whyihaveyou/dsh-suite/issues/61) | 正式投稿待审 / Pending review |
-| [Harness Registry](https://github.com/majiayu000/dsh-plugin-registry/blob/main/docs/submission-review.md) | [Issue #73](https://github.com/majiayu000/dsh-plugin-registry/issues/73) | 维护者要求 patch 数组依据；已[补充三个宿主的官方类型与 loader 源码](https://github.com/majiayu000/dsh-plugin-registry/issues/73#issuecomment-6107993127)，待复核 / Official contract evidence supplied, review pending |
+| [Harness Registry](https://github.com/majiayu000/dsh-plugin-registry/blob/main/docs/submission-review.md) | [Issue #73](https://github.com/majiayu000/dsh-plugin-registry/issues/73) | **已收录**：[PR #74](https://github.com/majiayu000/dsh-plugin-registry/pull/74) 已合并；[线上目录](https://plugin.dshdesk.com/data/plugins.json)已核对精确仓库与 alpha.2 固定 tgz；Issue 已完成 / Listed in production with the correct fixed install target |
 | [WhaleHub](https://github.com/vvlife/whalehub-dsh) | [Issue #85](https://github.com/vvlife/whalehub-dsh/issues/85) | 已提交；固定 tgz 安装目标需人工处理 / Pending review of install target |
 
 部分上游 Issue 模板引用的标签不存在或不允许外部作者添加。投稿正文保留原模板字段及完整材料，未创建上游标签，也未把标签权限问题写成已获审核。

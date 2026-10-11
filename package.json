@@ -22,7 +22,9 @@
     "build": "node scripts/build.mjs",
     "test": "node --test test/*.test.mjs",
     "test:host": "node --test --test-concurrency=1 test/host/*.test.mjs",
-    "prepack": "npm run build"
+    "check:public": "node scripts/check-public-files.mjs",
+    "check:public:test": "node scripts/check-public-files.mjs --self-test",
+    "prepack": "npm run build && npm run check:public"
   },
   "files": [
     "src",

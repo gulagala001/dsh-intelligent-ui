@@ -8,7 +8,7 @@ Updated 2026-10-11. These receipts refer to **gulagala001/dsh-intelligent-ui, IU
 
 - [中文介绍与真实场景](../README.md) · [English documentation and screenshots](../README_EN.md)
 - [三个宿主构建与安装方式](../README.md#installation)：DSH `0.2.0-rc.2`、`0.2.1-alpha.1`、`0.2.1-alpha.2` 分别使用同前缀的 IUI `1.0.0` 包；所有投稿保留精确兼容范围。
-- [固定 alpha.2 源码](https://github.com/gulagala001/dsh-intelligent-ui/tree/f21a12cf0df045c31196df09ffa4a5838e951d2b) · [MIT](../LICENSE) · [数据与执行边界](contracts.md)
+- [固定 alpha.2 源码](https://github.com/gulagala001/dsh-intelligent-ui/tree/83c9ffe35a9a4d1ede4dce062af4bf20aa9676fc) · [MIT](../LICENSE) · [数据与执行边界](contracts.md)
 - 安装渠道为本仓库的固定 GitHub Release `.tgz`。**同名 npm 包及 `yunyv/dsh-intelligent-ui` 属于其他项目**，不作为本插件的安装目标。Each host requires its matching GitHub release; the similarly named npm package and `yunyv` repository are separate projects.
 
 ## 已提交 / Submitted

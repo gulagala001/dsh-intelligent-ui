@@ -4,6 +4,7 @@ import {parse,stringify} from 'yaml';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const host=process.argv[2];const pins={'0.2.0-rc.2':{cordis:'4.0.4',schema:'3.18.4',personaCwd:true},'0.2.1-alpha.1':{cordis:'4.0.5-alpha.1',schema:'3.18.5-alpha.1',personaCwd:true},'0.2.1-alpha.2':{cordis:'4.0.5-alpha.1',schema:'3.18.5-alpha.1',personaCwd:false}};
 if(!pins[host])throw Error('Choose a pinned full DSH version: 0.2.0-rc.2, 0.2.1-alpha.1 or 0.2.1-alpha.2');
+execFileSync(process.execPath,[join(root,'scripts/check-public-files.mjs')],{cwd:root,stdio:'inherit',timeout:120000});
 const dir=resolve(process.env.IUI_BUILD_ROOT??resolve(root,'work','builds'),host),out=resolve(process.env.IUI_PACKAGE_OUT??resolve(root,'work','packages'));await mkdir(dir,{recursive:true});await mkdir(out,{recursive:true});
 for(const name of ['src','scripts','skills','presets','docs','test','README.md','README_EN.md','LICENSE','CHANGELOG.md','THIRD_PARTY_NOTICES.md','cordis.patch.yml'])await cp(join(root,name),join(dir,name),{recursive:true,force:true});
 const pkg=JSON.parse(await readFile(join(root,'package.json'),'utf8'));
@@ -18,5 +19,6 @@ if(pins[host].personaCwd)persona.config.suffix='Your working directory is {{cwd}
 await writeFile(presetPath,stringify(preset,{lineWidth:0}));
 const run=(command,args)=>execFileSync(command,args,{cwd:dir,stdio:'inherit',timeout:300000,shell:process.platform==='win32'});
 run(process.platform==='win32'?'npm.cmd':'npm',['install','--ignore-scripts','--no-audit','--no-fund']);run(process.execPath,['scripts/build.mjs']);
+run(process.execPath,['scripts/check-public-files.mjs']);
 const packed=JSON.parse(execFileSync(process.platform==='win32'?'npm.cmd':'npm',['pack','--ignore-scripts','--json','--pack-destination',out],{cwd:dir,encoding:'utf8',shell:process.platform==='win32'}))[0];
 console.log(JSON.stringify({host,version:pkg.version,package:join(out,packed.filename),buildDirectory:dir}));

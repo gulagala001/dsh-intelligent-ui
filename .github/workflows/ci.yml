@@ -29,6 +29,8 @@ jobs:
         host: ${{ fromJSON(inputs.host != '' && inputs.host != 'all' && format('["{0}"]', inputs.host) || '["0.2.0-rc.2","0.2.1-alpha.1","0.2.1-alpha.2"]') }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
@@ -37,6 +39,8 @@ jobs:
         with:
           version: '11.23.0'
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run check:public:test
+      - run: npm run check:public
       - run: npx playwright install --with-deps chromium
       - run: npm run build
       - name: Windows private state diagnostic

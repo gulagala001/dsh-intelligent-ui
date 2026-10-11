@@ -84,16 +84,31 @@ test('a read survives actual atomic replacement and bounds continuously detached
   const {store}=await fixture(t);await store.save(input());
   const probe=await open(store.path('session-A','1:2:0:0'),'r');
   const prototype=Object.getPrototypeOf(probe),originalStat=prototype.stat;await probe.close();
-  let detached;
+  const recordPath=store.path('session-A','1:2:0:0'),before=await readFile(recordPath,'utf8');
+  let detached,blockedReplacement=false;
   try {
     prototype.stat=async function(...args){
       prototype.stat=originalStat;
-      await store.save(input({expectedRevision:1,state:{checked:false}}));
+      if(process.platform==='win32') {
+        // The forced schedule keeps this read handle open until save returns.
+        // Windows rejects replacing that target; prove preservation and cleanup,
+        // then retry only after get has released the handle below.
+        await assert.rejects(store.save(input({expectedRevision:1,state:{checked:false}})),error=>error.code==='EPERM'&&error.syscall==='rename'&&error.dest===recordPath);
+        blockedReplacement=true;
+        assert.equal(await readFile(recordPath,'utf8'),before,'a blocked replacement leaves the complete durable record untouched');
+        assert.ok(!(await readdir(store.directory)).some(name=>name.endsWith('.tmp')),'failed replacement cleans its temporary file');
+      } else await store.save(input({expectedRevision:1,state:{checked:false}}));
       const result=await originalStat.apply(this,args);detached=result.nlink===0;return result;
     };
     const record=await store.get('session-A','1:2:0:0');
     assert.equal(record.revision,detached?2:1,'reads return a complete snapshot with a valid source and revision');
     assert.deepEqual(record.state,{checked:!detached});
+    if(blockedReplacement) {
+      assert.deepEqual(record,JSON.parse(before),'the active read returns the unchanged source, revision and state');
+      const retried=await store.save(input({expectedRevision:1,state:{checked:false}}));
+      assert.equal(retried.revision,2,'the original CAS revision remains valid after the read closes');
+      assert.deepEqual(retried.state,{checked:false});
+    }
     assert.equal((await store.get('session-A','1:2:0:0')).revision,2);
     let attempts=0;
     prototype.stat=async function(...args){const result=await originalStat.apply(this,args);result.nlink=0;attempts++;return result;};

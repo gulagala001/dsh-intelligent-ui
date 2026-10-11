@@ -266,7 +266,6 @@ npm run test:host
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)：原生宿主与插件能力。
 - [OpenUI](https://github.com/thesysdev/openui)：低层语言解析。
 - [Apps SDK UI](https://github.com/openai/apps-sdk-ui)：设计 token 参考。
-- [DSH-better-sidebar](https://github.com/omdsh-dev/DSH-better-sidebar)：本仓库介绍结构参考与 DSH 生态项目。
 - [Oh My DSH](https://github.com/gulagala001/oh-my-dsh)：可选共存与推荐集成。
 
 本项目采用 [MIT License](LICENSE)。依赖版本、许可与来源见 [第三方声明](THIRD_PARTY_NOTICES.md)。

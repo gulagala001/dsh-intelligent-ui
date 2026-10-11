@@ -309,7 +309,6 @@ Report problems or suggestions in [Issues](https://github.com/gulagala001/dsh-in
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness): native host and plugin capabilities.
 - [OpenUI](https://github.com/thesysdev/openui): low-level language parsing.
 - [Apps SDK UI](https://github.com/openai/apps-sdk-ui): design token reference.
-- [DSH-better-sidebar](https://github.com/omdsh-dev/DSH-better-sidebar): a DSH ecosystem project and the structural reference for this README.
 - [Oh My DSH](https://github.com/gulagala001/oh-my-dsh): optional coexistence and recommendation integration.
 
 This project uses the [MIT License](LICENSE). See [third-party notices](THIRD_PARTY_NOTICES.md) for dependency versions, licenses, and sources.

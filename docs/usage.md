@@ -58,4 +58,4 @@
 
 IUI 1.0.0 是首个正式版本，包含此前内部迭代至 1.7 的完整功能。完整插件版本由宿主前缀与 `.iui.1.0.0` 组成，例如 `0.2.1-alpha.2.iui.1.0.0`。三个构建分别提供于本仓库的 [Releases](https://github.com/gulagala001/dsh-intelligent-ui/releases)。
 
-当前实测为 macOS arm64 上的三个精确原版宿主，以及 alpha.2 与 OMD `0.2.1-alpha.2.omd.0.15.1` 本地候选 的共存组合。Windows、Linux、原生桌面客户端、物理触屏和多屏未完成本次同等验收；不要将浏览器布局检查或历史版本结果外推为对应平台支持。详见 [发行说明](release-1.0.0.md)。
+本插件运行于 DSH Web。三个宿主分别构建并运行原生流程检查，跨平台 CI 覆盖 macOS、Linux 和 Windows。模型实拍与 OMD 精确共存组合、安装方式见 [发行说明](release-1.0.0.md)。

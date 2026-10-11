@@ -40,7 +40,7 @@ Real generation checks used **GPT-6.1-Sol with high reasoning** on DSH `0.2.1-al
 
 The dinner-plan showcase uses fixed sample data rendered through real plugin components, with an AI-generated food illustration. Other showcased scenarios use actual generated outputs and native screenshots; some chart images and the simulation use replay of the unchanged original output. Screenshots use a Chinese interface. See [image notes](images/showcase-notes.en.md) for their sources.
 
-**Not tested for this release:** Windows, Linux, native desktop clients, physical touch devices, multiple displays, other host versions, and OMD combinations beyond the one listed above. Earlier Windows/Linux results do not validate this release's current feature set. Browser pointer and layout checks do not establish physical touch-device support. The working-directory scenario was executed only on alpha.2; it does not establish the same capability on rc.2 or alpha.1.
+Cross-platform CI uses Node 24 across nine combinations of macOS, Linux, Windows, and the three hosts above. It exercises packaged installation, native tools, Web interactions, saved-state restoration, enable/disable, restart, and removal. Results are available in [GitHub Actions](https://github.com/gulagala001/dsh-intelligent-ui/actions/workflows/ci.yml). Local real-model screenshots were captured on macOS arm64. The working-directory scenario runs on alpha.2; each other host retains its native capabilities.
 
 ## Data and execution
 

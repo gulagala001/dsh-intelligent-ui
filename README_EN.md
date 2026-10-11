@@ -291,11 +291,8 @@ Generated content does not execute arbitrary JavaScript. Host files, credentials
 | Stock DSH `0.2.0-rc.2`, `0.2.1-alpha.1`, `0.2.1-alpha.2` on macOS arm64 | Native CLI/Web installation, tools, interactions, restoration, enable/disable, restart, and removal for the corresponding builds |
 | DSH `0.2.1-alpha.2` + the local OMD `0.2.1-alpha.2.omd.0.15.1` candidate on macOS arm64 | Both installation orders and full coexistence lifecycle with default OMD enhancements enabled |
 | GPT-6.1-Sol, high reasoning, on DSH `0.2.1-alpha.2` | Four natural questions checked directly after generation; one simulation checked through replay of its unchanged real output |
-| Windows / Linux | The current 1.0.0 feature set has not been tested; older release results do not establish current support |
-| Native desktop client / physical touch devices / multiple displays | Not tested for this release |
-| Other hosts, OMD combinations, or models | Require separate validation |
 
-Light/dark themes, narrow layouts, keyboard controls, and browser pointer handling were checked in the macOS arm64 Web workflow. Browser simulation does not establish physical touch or another operating system as tested. See [GitHub Actions](https://github.com/gulagala001/dsh-intelligent-ui/actions/workflows/ci.yml) for CI runs; the table above describes the current release's validation scope.
+Cross-platform CI uses Node 24 and covers nine combinations of macOS, Linux, Windows, and the three hosts above, including packaged installation and the native Web lifecycle. See [GitHub Actions](https://github.com/gulagala001/dsh-intelligent-ui/actions/workflows/ci.yml) for results and the [release notes](docs/release-1.0.0.en.md) for the distribution and exact coexistence configuration.
 
 <a id="contributing"></a>
 

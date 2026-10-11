@@ -50,7 +50,7 @@ IUI 1.0.0 是 DSH Intelligent UI 的首个正式版本，包含此前内部迭�
 
 原版宿主与 OMD 生命周期使用隔离宿主和本地脚本模型，真实模型结果单独验证。OMD 保持默认增强开启；该结果仅覆盖上表精确组合。
 
-**本次未完成同等实测**：Windows、Linux、原生桌面客户端/PTY、物理触屏、多屏，以及其他宿主和 OMD 组合。浏览器明暗、窄屏与粗指针检查不等同于对应平台或设备通过；历史平台验收不外推到本次正式版本。工作目录专项仅在 alpha.2 实际执行，不外推 rc.2 或 alpha.1 的相同能力。
+跨平台 CI 使用 Node 24，覆盖 macOS、Linux、Windows 与三个宿主的九种组合，检查安装包、原生工具、Web 交互、保存恢复、启停、重启和卸载。执行结果见 [GitHub Actions](https://github.com/gulagala001/dsh-intelligent-ui/actions/workflows/ci.yml)。本地真实模型实拍使用 macOS arm64；工作目录专项在 alpha.2 执行，其他宿主沿用各自原生能力。
 
 ## 更新与已知限制
 

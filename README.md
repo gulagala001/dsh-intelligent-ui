@@ -248,9 +248,8 @@ npm run test:host
 | macOS arm64 · 原版 DSH `0.2.0-rc.2` / `0.2.1-alpha.1` / `0.2.1-alpha.2` | 对应构建的安装、原生 CLI/Web、交互、恢复及生命周期 |
 | OMD 共存 | 仅 DSH `0.2.1-alpha.2` + OMD `0.2.1-alpha.2.omd.0.15.1` 本地候选；两种安装顺序、启停、冷重启与两种卸载顺序 |
 | 真实模型场景 | GPT-6.1-Sol，alpha.2；四题原始直接通过、一题真实生成同输出回放 |
-| Windows / Linux / 原生桌面客户端 / 物理触屏 / 多屏 | 本次正式版本未完成同等实测 |
 
-浏览器的明暗、窄屏与粗指针检查不等同于对应设备验收。历史版本的平台结果不外推为本次正式版本支持；具体交付与差异见 [发行说明](docs/release-1.0.0.md)。
+跨平台 CI 使用 Node 24，覆盖 macOS、Linux、Windows 与上面三个宿主的九种组合，运行安装包及原生 Web 生命周期检查。结果见 [GitHub Actions](https://github.com/gulagala001/dsh-intelligent-ui/actions/workflows/ci.yml)；安装、运行方式与精确共存组合见 [发行说明](docs/release-1.0.0.md)。
 
 <a id="contributing"></a>
 

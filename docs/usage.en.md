@@ -85,4 +85,4 @@ dsh plugin --profile web remove dsh-intelligent-ui
 
 Replace `web` with your profile name and restart it afterward. Original conversation content and saved settings remain available for a later reinstall.
 
-This release's host workflows were validated on macOS arm64. OMD coexistence was validated only with DSH `0.2.1-alpha.2` and the local OMD `0.2.1-alpha.2.omd.0.15.1` candidate. Current Windows/Linux, native desktop client, physical touch, and multiple-display behavior remain untested. See the [compatibility table](../README_EN.md#compatibility).
+The plugin runs in DSH Web. Each host has its own build and native workflow checks; cross-platform CI covers macOS, Linux, and Windows. See the [compatibility table](../README_EN.md#compatibility) and [release notes](release-1.0.0.en.md) for the exact model and OMD coexistence configurations.

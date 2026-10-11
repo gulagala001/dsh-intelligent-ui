@@ -208,6 +208,8 @@ dsh plugin --profile web remove dsh-intelligent-ui
 
 本仓库独立维护安装包、版本与生命周期。OMD 的推荐与共存接线是可选集成，当前已验证组合见下方兼容性表。
 
+插件市场的投稿回执、审核状态与目录覆盖见[市场投稿记录](docs/marketplace-submissions.md)。
+
 <a id="development"></a>
 
 ## 🛠️ 开发与构建

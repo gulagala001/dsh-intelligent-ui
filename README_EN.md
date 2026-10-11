@@ -250,6 +250,8 @@ The plugin uses DSH's native sessions, models, tool loop, skills, and artifact t
 
 **OMD recommendations and coexistence wiring are optional integrations.** This plugin has its own repository, packages, versions, documentation, and lifecycle. Its core workflow runs with stock DSH. The current coexistence validation covers DSH `0.2.1-alpha.2` with the local OMD `0.2.1-alpha.2.omd.0.15.1` candidate, including both installation orders, enable/disable, restart, and both removal orders with OMD's default enhancements enabled.
 
+See [marketplace submission records](docs/marketplace-submissions.md) for receipts, review status, and shared catalog coverage.
+
 <a id="development"></a>
 
 ## 🛠️ Development and builds

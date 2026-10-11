@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        host: ['0.2.0-rc.2', '0.2.1-alpha.1']
+        host: ['0.2.0-rc.2', '0.2.1-alpha.1', '0.2.1-alpha.2']
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -42,5 +42,6 @@ jobs:
         run: |
           export IUI_TEST_SDK_ROOT="$PWD/work/builds/$HOST"
           export IUI_TEST_CLI="$PWD/work/builds/$HOST/node_modules/@deepseek-ai/dsh/lib/bin.js"
-          export IUI_TEST_PACKAGE="$PWD/work/packages/dsh-intelligent-ui-$HOST.iui.1.0.0.tgz"
+          IUI_REVISION="$(node -p 'JSON.parse(require("fs").readFileSync("package.json", "utf8")).version.split(".iui.")[1]')"
+          export IUI_TEST_PACKAGE="$PWD/work/packages/dsh-intelligent-ui-$HOST.iui.$IUI_REVISION.tgz"
           node --test --test-concurrency=1 test/host/*.test.mjs

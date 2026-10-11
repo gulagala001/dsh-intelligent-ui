@@ -1,0 +1,20 @@
+Tool: Built-in image_gen.imagegen (not CLI fallback)
+Mode: Reference-guided generation; opaque background
+Reference image: weekend meal image from repository commit e9072a9 (retired documentation asset)
+Output: docs/images/weekend-meal-1.0.png
+Usage: Pure food photograph embedded as a content image in the actual IUI weekend meal planning component. UI screenshots must use real rendered controls; this asset contains no UI.
+
+Complete prompt:
+Use case: photorealistic-natural
+Asset type: food photograph content asset for a real weekend meal planning component. Generate ONLY the food photograph, never an interface.
+Input images: Image 1 is a reference for natural ceramic dishes and warm everyday table setting, not an edit target; improve realism and clarity while changing the meal and composition.
+Primary request: A realistic casual weekend family meal suitable for an East Asian household, appetizing home cooking, a pure tabletop food photograph without people.
+Scene/backdrop: A simple natural pale wood dining table with a few off-white linen napkins, realistically spaced dishes, no elaborate decorations.
+Subject: In the center a cream ceramic oval platter with golden roast chicken portions, with realistically crisp skin and modest herbs; beside it a small ceramic bowl of sautéed leafy green vegetables with natural leaf veins, and a ceramic bowl of fresh salad with cucumber and tomato. Two simple clear glasses of citrus water, natural lemon slices. Modest family sharing portions, not an enormous banquet.
+Style/medium: Authentic editorial food photography, natural imperfection, true food textures and physically plausible objects. Soft overhead three-quarter viewing angle.
+Composition/framing: Horizontal banner approximately 2:1 aspect ratio, balanced full table view, modest breathing room between plates, all main food clearly readable at small display sizes, a few tableware edges may naturally extend beyond the frame.
+Lighting/mood: Soft diffused afternoon daylight from a nearby window, gentle shadows, warm calm weekend mood, well exposed and clear, no dramatic spotlight.
+Color palette: Restrained neutral cream, warm wood, gentle greens and warm roast tones. Natural saturation.
+Materials/textures: Realistic ceramic glaze, crisp roasted chicken skin, delicate vegetable texture, fresh cucumber surfaces, subtle water condensation.
+Constraints: No people, no hands, no text, no UI, no labels, no poster, no branding, no watermark. This is an actual content photograph that will be embedded in separately rendered real UI, so do not draw any UI or surrounding page.
+Avoid: Oversaturated glossy commercial staging, oversized flowers, extravagant decoration, duplicated identical food pieces, deformed plates or utensils, plastic-looking food, crowded composition.

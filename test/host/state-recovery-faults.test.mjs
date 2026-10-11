@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { hostFixture, until } from '../fixtures/host.mjs';
 
@@ -10,7 +10,7 @@ const evidenceRoot=()=>resolve(process.env.IUI_STATE_EVIDENCE??'work/rea-parity/
 const stateURL=(session,block)=>`/state?session=${encodeURIComponent(session)}&block=${encodeURIComponent(block)}`;
 async function findStateRecord(home,session,block){
   const filename=createHash('sha256').update(`${session}\0${block}`).digest('hex')+'.json',matches=[];
-  const walk=async directory=>{for(const entry of await readdir(directory,{withFileTypes:true})){const path=join(directory,entry.name);if(entry.isDirectory()&&!entry.isSymbolicLink())await walk(path);else if(entry.isFile()&&path.endsWith('/intelligent-ui/state/'+filename))matches.push(path);}};
+  const walk=async directory=>{for(const entry of await readdir(directory,{withFileTypes:true})){const path=join(directory,entry.name);if(entry.isDirectory()&&!entry.isSymbolicLink())await walk(path);else if(entry.isFile()&&entry.name===filename&&basename(directory)==='state'&&basename(dirname(directory))==='intelligent-ui')matches.push(path);}};
   await walk(home);assert.equal(matches.length,1,'one actually saved native state file must exist in the fixture HOME');return matches[0];
 }
 

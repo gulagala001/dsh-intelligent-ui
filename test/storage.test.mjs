@@ -59,6 +59,17 @@ async function fixture(t) {
 const source = 'root = Text("原始材料")\n';
 const input = patch => ({ session: 'session-A', block: '1:2:0:0', expectedRevision: 0, source, sourceRevision: sourceHash(source), state: { checked: true }, ...patch });
 
+async function waitForWriter(child, event) {
+  await new Promise((resolve, reject) => {
+    const finish = error => { child.off('message', onMessage); child.off('error', onError); child.off('exit', onExit); error ? reject(error) : resolve(); };
+    const onMessage = message => message?.event === event ? finish() : finish(Error('Unexpected writer readiness message'));
+    const onError = error => finish(error);
+    const onExit = code => finish(Error(`Writer exited before holding its transaction: ${code}`));
+    child.on('message', onMessage); child.once('error', onError); child.once('exit', onExit);
+  });
+  assert.equal(child.connected, true, 'the releasable IPC gate remains reachable while the writer holds its lock');
+}
+
 test('CAS serializes concurrent writes, preserves the winning state across restart and uses private files', async t => {
   const { store } = await fixture(t);
   const [a, b] = await Promise.allSettled([store.save(input()), store.save(input({ state: { checked: false } }))]);
@@ -349,10 +360,10 @@ test('separate storage instances respect a held writer lock and recover after ve
 
 test('an actual killed writer leaves previous durable state intact and a new process can recover its lock', async t => {
   const { store } = await fixture(t); await store.save(input());
-  const script = `import {StateStorage} from ${JSON.stringify(new URL('../src/host/storage.mjs', import.meta.url).href)}; const store = new StateStorage(process.argv[1]); await store.save(JSON.parse(process.argv[2]), async () => { process.stdout.write('locked\\n'); setInterval(() => {}, 1000); await new Promise(() => {}); });`;
-  const child = spawn(process.execPath, ['--input-type=module', '-e', script, store.directory, JSON.stringify(input({ expectedRevision: 1, state: { checked: false } }))], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const script = `import {StateStorage} from ${JSON.stringify(new URL('../src/host/storage.mjs', import.meta.url).href)}; const store = new StateStorage(process.argv[1]); await store.save(JSON.parse(process.argv[2]), async () => { await new Promise(resolve => { process.once('message', resolve); setImmediate(() => { global.gc(); process.send({event:'locked'}); }); }); });`;
+  const child = spawn(process.execPath, ['--expose-gc', '--input-type=module', '-e', script, store.directory, JSON.stringify(input({ expectedRevision: 1, state: { checked: false } }))], { stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
   t.after(() => child.kill('SIGKILL'));
-  await new Promise((resolve, reject) => { child.stdout.once('data', resolve); child.once('error', reject); child.once('exit', code => reject(Error(`writer exited before lock: ${code}`))); });
+  await waitForWriter(child, 'locked');
   const exited = new Promise(resolve => child.once('exit', (_code, signal) => resolve(signal))); child.kill('SIGKILL'); assert.equal(await exited, 'SIGKILL');
   assert.deepEqual((await store.get('session-A', '1:2:0:0')).state, { checked: true });
   assert.equal((await new StateStorage(store.directory).save(input({ expectedRevision: 1, state: { checked: false } }))).revision, 2);
@@ -362,10 +373,10 @@ test('killing a recovering writer cannot strand a second lock and orphan tempora
   const { store } = await fixture(t); await store.save(input());
   const moduleUrl = new URL('../src/host/storage.mjs', import.meta.url).href;
   const start = async filename => {
-    const script = `import {StateStorage} from ${JSON.stringify(moduleUrl)}; import {writeFile} from 'node:fs/promises'; import {join} from 'node:path'; const store=new StateStorage(process.argv[1]); await store.save(JSON.parse(process.argv[2]), async()=>{ await writeFile(join(store.directory,process.argv[3]),'abandoned',{mode:0o600});process.stdout.write('exclusive-after-recovery\\n');setInterval(()=>{},1000);await new Promise(()=>{}); });`;
-    const child = spawn(process.execPath, ['--input-type=module', '-e', script, store.directory, JSON.stringify(input({ expectedRevision: 1 })), filename], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const script = `import {StateStorage} from ${JSON.stringify(moduleUrl)}; import {writeFile} from 'node:fs/promises'; import {join} from 'node:path'; const store=new StateStorage(process.argv[1]); await store.save(JSON.parse(process.argv[2]), async()=>{ await writeFile(join(store.directory,process.argv[3]),'abandoned',{mode:0o600});await new Promise(resolve=>{process.once('message',resolve);setImmediate(()=>{global.gc();process.send({event:'exclusive-after-recovery'});});}); });`;
+    const child = spawn(process.execPath, ['--expose-gc', '--input-type=module', '-e', script, store.directory, JSON.stringify(input({ expectedRevision: 1 })), filename], { stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
     t.after(() => child.kill('SIGKILL'));
-    await new Promise((resolve, reject) => { child.stdout.once('data', resolve); child.once('error', reject); child.once('exit', code => reject(Error(`recovery writer exited before transaction: ${code}`))); });
+    await waitForWriter(child, 'exclusive-after-recovery');
     return child;
   };
   const kill = async child => { const exited = new Promise(resolve => child.once('exit', (_code, signal) => resolve(signal))); child.kill('SIGKILL'); assert.equal(await exited, 'SIGKILL'); };

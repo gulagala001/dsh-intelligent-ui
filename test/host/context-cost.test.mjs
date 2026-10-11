@@ -79,7 +79,11 @@ test('native request context: ordinary agents keep a short skill index and uncha
   const dedicatedSystem = JSON.stringify(dedicated.messages.filter(message => message.role === 'system'));
   assert.ok(dedicatedSystem.includes('Installed base catalog'), 'dedicated native preset includes its own catalog section');
   assert.ok(dedicatedSystem.includes('Calculator argument schema'));
-  assert.ok(messagesText(dedicated).includes(installed.cwd), 'the actual assembled dedicated request includes its current native working directory');
+  // Inspect decoded content: serializing messages escapes Windows paths again.
+  // Older hosts interpolate the persona suffix; newer hosts JSON-quote runtime cwd.
+  const cwdContexts = [`Your working directory is ${installed.cwd}.`, `Current working directory: ${JSON.stringify(installed.cwd)}.`];
+  assert.ok(dedicated.messages.some(message => typeof message.content === 'string'
+    && cwdContexts.some(context => message.content.includes(context))), 'the actual assembled dedicated request includes its current native working directory');
   assert.ok(!messagesText(dedicated).includes('{{cwd}}'), 'the retired cwd template never reaches a model request');
   const plainAfterDedicated = await ask(installed, 'standard');
   assert.ok(!messagesText(plainAfterDedicated[0]).includes('Installed base catalog'), 'dedicated scope must not leak into a later ordinary session');

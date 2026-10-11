@@ -25,8 +25,8 @@ if (hostVersion === '0.2.1-alpha.2') test('alpha.2 native working_directory upda
   assert.equal(nativeRequests.length, 2, 'the native tool loop runs exactly one directory change');
   assert.ok(nativeRequests[0].tools.some(tool => tool.function.name === 'working_directory'));
   const contexts = nativeRequests.map(payload => payload.messages.filter(message => typeof message.content === 'string' && message.content.includes('Current runtime context.')).at(-1)?.content);
-  assert.ok(contexts[0]?.includes(f.cwd));
-  assert.ok(contexts[1]?.includes(nextCwd), 'the next actual model request receives the new current directory');
+  assert.ok(contexts[0]?.includes(`Current working directory: ${JSON.stringify(f.cwd)}.`));
+  assert.ok(contexts[1]?.includes(`Current working directory: ${JSON.stringify(nextCwd)}.`), 'the next actual model request receives the new current directory');
   assert.ok(!JSON.stringify(nativeRequests).includes('{{cwd}}'));
   const snapshot = await f.snapshot(sessionId);
   assert.equal(snapshot.header.cwd, f.cwd, 'changing current directory does not rewrite native session/project origin');

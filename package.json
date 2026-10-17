@@ -1,12 +1,12 @@
 {
   "name": "dsh-intelligent-ui",
-  "version": "0.2.1-rc.2.iui.1.0.9",
+  "version": "0.2.1-rc.1.iui.1.0.9",
   "type": "module",
   "description": "DSH 原生交互式回答：智能聊天与按需技能。",
   "license": "MIT",
   "engines": {
     "node": ">=22.19",
-    "dsh": "0.2.1-rc.2"
+    "dsh": "0.2.1-rc.1"
   },
   "main": "src/index.mjs",
   "exports": {
@@ -78,7 +78,7 @@
   },
   "devDependencies": {
     "@openai/apps-sdk-ui": "0.2.2",
-    "@deepseek-ai/dsh": "0.2.1-rc.2",
+    "@deepseek-ai/dsh": "0.2.1-rc.1",
     "@deepseek-ai/cordis": "4.0.5",
     "@deepseek-ai/schemastery": "3.18.5",
     "esbuild": "0.25.12",
@@ -92,7 +92,7 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "4.0.5",
     "@deepseek-ai/schemastery": "3.18.5",
-    "@deepseek-ai/dsh": "0.2.1-rc.2"
+    "@deepseek-ai/dsh": "0.2.1-rc.1"
   },
   "packageManager": "pnpm@11.28.5",
   "peerDependenciesMeta": {

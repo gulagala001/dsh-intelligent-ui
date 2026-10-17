@@ -5,7 +5,8 @@ import { fieldError, fieldValue, InputControl } from './controls.jsx';
 import { disabled, display, ErrorMessage, evaluate, formatNumber, invoke, numeric, paint, useBound } from './shared.jsx';
 
 function Result({ result, label, unit, precision = 2 }) {
-  return <div className="iui-calculation-result"><span className="iui-muted">{label}</span>{result.error ? <ErrorMessage>{result.error}</ErrorMessage> : <output className="iui-result-value">{formatNumber(result.value, precision)}{unit && <span>{unit}</span>}</output>}</div>;
+  const value=typeof result.value==='number'&&Number.isFinite(result.value)?new Intl.NumberFormat('zh-CN',{minimumFractionDigits:precision,maximumFractionDigits:precision}).format(result.value):display(result.value);
+  return <div className="iui-calculation-result"><span className="iui-muted">{label}</span>{result.error ? <ErrorMessage>{result.error}</ErrorMessage> : <output className="iui-result-value">{value}{unit && <span>{unit}</span>}</output>}</div>;
 }
 export function Calculator({ props: p, api }) {
   const locals = Object.fromEntries(p.fields.map(field => [field.name, fieldValue(field, api)]));
@@ -48,7 +49,29 @@ function SceneMark({ mark, onClick, onPointerDown, draggable, inactive, keyboard
   return <g data-iui-mark-id={mark.id} pointerEvents={mark.interactive ? undefined : 'none'} className={mark.interactive ? `iui-scene-target${draggable ? ' iui-scene-draggable' : ''}` : undefined} role={mark.interactive ? 'button' : undefined} tabIndex={mark.interactive && !inactive ? 0 : undefined} aria-label={mark.label || (mark.interactive ? mark.id : undefined)} aria-disabled={mark.interactive ? inactive : undefined} onPointerDown={mark.interactive && draggable ? event => onPointerDown(mark.id, event) : undefined} onClick={mark.interactive ? event => { event.stopPropagation(); onClick(mark.id, event); } : undefined} onKeyDown={mark.interactive && !keyboardEvents ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onClick(mark.id, undefined, { x: numeric(mark.x) + (mark.type === 'rect' ? numeric(mark.width) / 2 : 0), y: numeric(mark.y) + (mark.type === 'rect' ? numeric(mark.height) / 2 : 0) }); } } : undefined}>{element}{mark.label && <title>{mark.label}</title>}</g>;
 }
 
-export function Scene({ props: p, api, controls = true, restartFields = [], showTitle = true }) {
+const derivedScenes = new WeakMap();
+function deriveSceneView(api, scene, bind) {
+  try {
+    const owner=api?.playback,state=api?.state;
+    if(!owner||typeof owner!=='object'||!state||typeof state!=='object'||!scene||typeof scene!=='object')return api?.sceneView?.(scene,bind);
+    // Document state and the evaluated tree are immutable snapshots shared by
+    // inline and expanded surfaces. Charge each successful derivation once,
+    // while retiring cached snapshots with their document/source generation.
+    let cached=derivedScenes.get(owner);
+    if(!cached||cached.version!==api.playbackVersion){cached={version:api.playbackVersion,states:new WeakMap()};derivedScenes.set(owner,cached);}
+    let scenes=cached.states.get(state);
+    if(!scenes){scenes=new WeakMap();cached.states.set(state,scenes);}
+    let views=scenes.get(scene);
+    if(!views){views=new Map();scenes.set(scene,views);}
+    if(views.has(bind))return views.get(bind);
+    const view=api?.sceneView?.(scene,bind);
+    // A budget failure must be retried through the original guarded API.
+    if(view&&!view.error)views.set(bind,view);
+    return view;
+  } catch (error) { return {error:error?.message||'场景无法显示'}; }
+}
+
+export function Scene({ props: p, api, controls = true, restartFields = [], showTitle = true, view: suppliedView }) {
   const container = useRef(null);
   const latest = useRef({ api, p });
   const localPlayback=useMemo(()=>new ScenePlayback(),[]);
@@ -64,8 +87,7 @@ export function Scene({ props: p, api, controls = true, restartFields = [], show
   const [actionError, setActionError] = useState('');
   const inactive = disabled(api);
   const titleId = useId();
-  let view;
-  try { view = api?.sceneView?.(p.scene, p.bind); } catch (error) { view = { error: error?.message || '场景无法显示' }; }
+  const view = suppliedView ?? deriveSceneView(api,p.scene,p.bind);
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const change = () => setForeground(!document.hidden);
@@ -278,8 +300,7 @@ function SceneExperience({ props: p, api, game = false }) {
   const current=useRef(null);
   current.current={player,definition,version:api?.playbackVersion};
   useEffect(()=>{current.current={player,definition,version:api?.playbackVersion};setError('');return()=>{current.current=null;};},[player,definition,api?.playbackVersion]);
-  let view;
-  if(fields.length||metrics.length)try { view=api?.sceneView?.(p.scene,p.bind); } catch (failure) { view={error:failure?.message||'场景无法显示'}; }
+  const view=deriveSceneView(sceneApi,p.scene,p.bind);
   const sceneState=view?.state||p.scene.initial;
   const parameterApi={...sceneApi,state:sceneState,set:(field,value)=>{
     if(disabled(api))return;
@@ -292,7 +313,7 @@ function SceneExperience({ props: p, api, game = false }) {
   }};
   return <div className={game ? 'iui-game' : 'iui-simulation'}>
     {game&&<div className="iui-game-header"><div className="iui-game-heading">{p.title&&<h3>{p.title}</h3>}{p.instructions&&<p className="iui-text iui-text-sm iui-muted">{p.instructions}</p>}</div>{metrics.length>0&&<SceneMetrics metrics={metrics} api={api} state={sceneState} game />}</div>}
-    <Scene props={p} api={sceneApi} restartFields={fields.map(field=>field.name)} showTitle={!game} />
+    <Scene props={p} api={sceneApi} view={view} restartFields={fields.map(field=>field.name)} showTitle={!game} />
     {!game&&metrics.length>0 && <SceneMetrics metrics={metrics} api={api} state={sceneState} />}
     {fields.length>0 && <div className="iui-form-fields iui-scene-parameters" role="group" aria-label={game ? '游戏参数' : '模拟参数'}>{fields.map(field=><InputControl key={field.name} props={{...field,bind:field.name}} api={parameterApi} kind={field.type||'number'} error={fieldError(field,sceneState[field.name]??field.value)} />)}</div>}
     {error && <ErrorMessage>{error}</ErrorMessage>}

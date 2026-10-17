@@ -16,7 +16,12 @@ export function collectDefaults(tree) {
         else if(value.name==='Table')set(p.bind,{sort:null,direction:'asc',selected:null});
         else set(p.bind,p.value??null);
       }
-      if(!p.scene)for(const f of p.fields??[])set(f.name,f.value??(f.type==='checkbox'?false:f.type==='text'||f.type==='textarea'?'':f.type==='select'?(typeof f.options?.[0]==='object'?f.options[0].value:f.options?.[0]??null):0));
+      if(!p.scene)for(const f of p.fields??[]){
+        if(f.type==='select'){
+          const option=f.options?.find(item=>!item||typeof item!=='object'||!item.disabled);
+          set(f.name,f.value!==undefined?f.value:option&&typeof option==='object'?option.value:option??null);
+        }else set(f.name,f.value??(f.type==='checkbox'?false:f.type==='text'||f.type==='textarea'?'':0));
+      }
     }
     if(Array.isArray(value))value.forEach(walk);else Object.values(value).forEach(walk);
   };

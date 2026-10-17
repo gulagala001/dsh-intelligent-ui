@@ -4,11 +4,19 @@
 
 Updated 2026-10-11. These receipts refer to **gulagala001/dsh-intelligent-ui, IUI 1.0.0**. A submission or passing metadata check does not mean the plugin has been listed or independently runtime-verified by a marketplace.
 
+## 2026-10-17 版本更新 / Release update
+
+IUI **1.0.9** 分别提供 DSH **0.2.1-rc.1 / rc.2** 固定构建；[安装入口](../README.md#installation)及[发行说明](release-1.0.9.md)已同步。仓库归属仍为 `gulagala001/dsh-intelligent-ui`；同名 npm 包属于其他项目，不用于安装。许可为 MIT，运行于 DSH Web。
+
+既有申请与自动发现 topics 沿用；本次未向外部投稿、追加消息或创建重复条目。下方状态保留 **2026-10-11** 的核对日期，不能视为新版本已被市场同步或外部审核已结束。
+
+IUI 1.0.9 ships separate pinned packages for the two hosts. Existing receipts are retained with their original review date; this release does not establish marketplace synchronization. No new submission or message was sent.
+
 ## 发行材料 / Release material
 
 - [中文介绍与真实场景](../README.md) · [English documentation and screenshots](../README_EN.md)
-- [三个宿主构建与安装方式](../README.md#installation)：DSH `0.2.0-rc.2`、`0.2.1-alpha.1`、`0.2.1-alpha.2` 分别使用同前缀的 IUI `1.0.0` 包；所有投稿保留精确兼容范围。
-- [固定 alpha.2 源码](https://github.com/gulagala001/dsh-intelligent-ui/tree/83c9ffe35a9a4d1ede4dce062af4bf20aa9676fc) · [MIT](../LICENSE) · [数据与执行边界](contracts.md)
+- [当前双宿主构建与安装方式](../README.md#installation)：DSH `0.2.1-rc.1`、`0.2.1-rc.2` 使用同前缀的 IUI `1.0.9` 包。旧申请的 alpha 构建保留于历史 Release。
+- [rc.1 源码](https://github.com/gulagala001/dsh-intelligent-ui/tree/v0.2.1-rc.1.iui.1.0.9) · [rc.2 源码](https://github.com/gulagala001/dsh-intelligent-ui/tree/v0.2.1-rc.2.iui.1.0.9) · [MIT](../LICENSE) · [数据与执行边界](contracts.md)
 - 安装渠道为本仓库的固定 GitHub Release `.tgz`。**同名 npm 包及 `yunyv/dsh-intelligent-ui` 属于其他项目**，不作为本插件的安装目标。Each host requires its matching GitHub release; the similarly named npm package and `yunyv` repository are separate projects.
 
 ## 已提交 / Submitted

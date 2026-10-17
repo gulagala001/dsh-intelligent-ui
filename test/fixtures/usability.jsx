@@ -7,7 +7,7 @@ const root=createRoot(document.getElementById('root'));
 const source='root = Counter("人数","people",4,1,12)';
 const lease=acquireDocument('fixture-session','0:0:0:0');
 lease.store.request=async(_session,_block,input)=>({sourceRevision:await sourceHash(source),state:input?.state??{people:4},revision:input?input.revision+1:1});
-window.usability={store:lease.store,repairs:0,expand:[],render(value=source,streaming=false){root.render(<IntelligentSurface source={value} streaming={streaming} sessionId="fixture-session" blockId="0:0:0:0" onExpand={item=>window.usability.expand.push(item)} onSubmit={()=>{window.usability.repairs++;return new Promise(resolve=>window.usability.resolveRepair=resolve);}}/>);},dispose(){root.unmount();lease.release();disposeDocuments();}};
+window.usability={store:lease.store,repairs:0,expand:[],render(value=source,streaming=false){root.render(<IntelligentSurface source={value} streaming={streaming} sessionId="fixture-session" blockId="0:0:0:0" onExpand={item=>window.usability.expand.push(item)} onRepair={()=>{window.usability.repairs++;return new Promise(resolve=>window.usability.resolveRepair=resolve);}}/>);},dispose(){root.unmount();lease.release();disposeDocuments();}};
 window.usability.render();
 const entranceRoot=createRoot(document.getElementById('entrance'));
 window.entranceCalls=0;const entranceState={busy:false};const bridge={subscribe:()=>()=>{},getSnapshot:()=>entranceState,create:()=>{window.entranceCalls++;return Promise.resolve();}};

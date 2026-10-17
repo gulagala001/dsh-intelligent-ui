@@ -42,9 +42,15 @@ export function Field({ label, hint, error, children, unit, className = '' }) {
 export function numeric(value, fallback = 0) {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
+const numberFormats = new Map();
 export function formatNumber(value, precision = 2) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return display(value);
-  return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: precision }).format(value);
+  let formatter = numberFormats.get(precision);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: precision });
+    if (Number.isInteger(precision) && precision >= 0 && precision <= 20) numberFormats.set(precision, formatter);
+  }
+  return formatter.format(value);
 }
 export function invoke(api, action, onError) {
   if (disabled(api)) return;

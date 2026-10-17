@@ -1,4 +1,4 @@
-name: Native host acceptance
+name: Build and public files
 on:
   push:
     branches: [main, 'codex/**']
@@ -14,7 +14,7 @@ on:
         description: Exact DSH host (all keeps the full release matrix)
         type: choice
         default: all
-        options: [all, '0.2.0-rc.2', '0.2.1-alpha.1', '0.2.1-alpha.2']
+        options: [all, '0.2.1-rc.1', '0.2.1-rc.2']
 permissions:
   contents: read
 jobs:
@@ -26,7 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.platform != '' && inputs.platform != 'all' && format('["{0}"]', inputs.platform) || '["ubuntu-latest","macos-latest","windows-latest"]') }}
-        host: ${{ fromJSON(inputs.host != '' && inputs.host != 'all' && format('["{0}"]', inputs.host) || '["0.2.0-rc.2","0.2.1-alpha.1","0.2.1-alpha.2"]') }}
+        host: ${{ fromJSON(inputs.host != '' && inputs.host != 'all' && format('["{0}"]', inputs.host) || '["0.2.1-rc.1","0.2.1-rc.2"]') }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -34,23 +34,25 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
-          cache: npm
       - uses: pnpm/action-setup@v6
         with:
-          version: '11.23.0'
-      - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: npm run check:public:test
-      - run: npm run check:public
-      - run: npx playwright install --with-deps chromium
-      - run: npm run build
+          version: '11.28.5'
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm run check:public:test
+      - run: pnpm run check:public
+      - if: github.event_name == 'workflow_dispatch'
+        run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm run build
       - name: Windows private state diagnostic
-        if: runner.os == 'Windows'
+        if: github.event_name == 'workflow_dispatch' && runner.os == 'Windows'
         continue-on-error: true
         run: node scripts/windows-state-diagnostic.mjs
-      - run: npm test
+      - if: github.event_name == 'workflow_dispatch'
+        run: pnpm test
       - name: Build against exact host SDK and install the package
-        run: node scripts/package-host.mjs ${{ matrix.host }}
+        run: pnpm run package:host ${{ matrix.host }}
       - name: Native SDK and packaged Web lifecycle
+        if: github.event_name == 'workflow_dispatch'
         shell: bash
         env:
           HOST: ${{ matrix.host }}

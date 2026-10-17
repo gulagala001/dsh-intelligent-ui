@@ -85,7 +85,9 @@ SOFTWARE.
 
 ```
 
-## DSH 0.2.0-rc.2 / 0.2.1-alpha.1 / 0.2.1-alpha.2
+## DSH 0.2.1-rc.1 / 0.2.1-rc.2
+
+旧宿主构建继续引用相应 DSH SDK；各包的具体版本由 `release-manifest.json` 指定。
 
 MIT；宿主SDK及测试用原生renderer摘录，不发行另一个宿主实现。https://github.com/deepseek-ai/deepseek-harness
 

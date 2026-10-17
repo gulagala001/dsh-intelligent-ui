@@ -91,6 +91,32 @@ test('CAS serializes concurrent writes, preserves the winning state across resta
   assert.deepEqual((await restarted.get('session-A', '1:2:0:0')).state, { checked: false }, 'private permissions still permit CAS read and write after restart');
 });
 
+test('closing storage drains accepted writes and immediately refuses late writes', async t => {
+  const { store } = await fixture(t);
+  let release, began;
+  const started = new Promise(resolve => { began = resolve; });
+  const gate = new Promise(resolve => { release = resolve; });
+  const accepted = store.save(input(), async () => { began(); await gate; });
+  await started;
+  let drained = false;
+  const closing = store.close().then(() => { drained = true; });
+  let late;
+  try {
+    assert.equal(drained, false, 'close waits for the write already accepted by this instance');
+    try { late = store.save(input({ expectedRevision: 1, state: { late: true } })); }
+    catch (error) { late = error; }
+  } finally { release(); }
+  assert.equal((await accepted).revision, 1);
+  if (late instanceof Promise) await late;
+  await closing;
+  assert.equal(late.statusCode, 503, 'closing refuses new writes immediately');
+  assert.equal(drained, true);
+  assert.deepEqual((await store.get('session-A', '1:2:0:0')).state, { checked: true });
+  assert.throws(() => store.save(input({ expectedRevision: 1 })), error => error.statusCode === 503);
+  const restarted = new StateStorage(store.directory);
+  assert.equal((await restarted.save(input({ expectedRevision: 1, state: { restarted: true } }))).revision, 2, 'a new owner can continue using the preserved data');
+});
+
 test('a read survives actual atomic replacement and bounds continuously detached snapshots', async t => {
   const {store}=await fixture(t);await store.save(input());
   const probe=await open(store.path('session-A','1:2:0:0'),'r');

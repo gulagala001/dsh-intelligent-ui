@@ -8,7 +8,7 @@ import { hostFixture, until } from '../fixtures/host.mjs';
 const requireSdk = createRequire(join(resolve(process.env.IUI_TEST_SDK_ROOT ?? '.'), 'package.json'));
 const hostVersion = requireSdk('@deepseek-ai/dsh/package.json').version;
 
-if (hostVersion === '0.2.1-alpha.2') test('alpha.2 native working_directory updates required context while preserving IUI session origin and state', { timeout: 180000 }, async t => {
+if (['0.2.1-alpha.2', '0.2.1-alpha.3'].includes(hostVersion)) test(`${hostVersion} native working_directory updates required context while preserving IUI session origin and state`, { timeout: 180000 }, async t => {
   const evidence = resolve(process.env.IUI_DIRECTORY_EVIDENCE ?? 'work/a2-compat/working-directory');
   await mkdir(evidence, { recursive: true, mode: 0o700 });
   const f = await hostFixture(t, { reply: payload => {

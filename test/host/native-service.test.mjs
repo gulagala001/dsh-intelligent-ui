@@ -6,6 +6,7 @@ import { mkdtemp, realpath, rm, readdir, readFile, writeFile, lstat } from 'node
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Readable } from 'node:stream';
+import { request as httpRequest } from 'node:http';
 import { StateStorage, sourceHash } from '../../src/host/storage.mjs';
 import { createApiHandler, verifyBlock } from '../../src/host/service.mjs';
 import { installSkill, skillContent, skillDirectory, renderCatalog, groups } from '../../src/host/skill.mjs';
@@ -22,7 +23,8 @@ async function sdk(name) {
     if (!process.env.IUI_TEST_SDK_ROOT) throw error;
     const packageName = name.slice(name.lastIndexOf('/') + 1);
     const pnpm = join(sdkRoot, 'node_modules', '.pnpm');
-    const entries = (await readdir(pnpm)).filter(entry => entry.startsWith(`@deepseek-ai+${packageName}@`));
+    const version = requireSdk('@deepseek-ai/dsh/package.json').version;
+    const entries = (await readdir(pnpm)).filter(entry => entry.startsWith(`@deepseek-ai+${packageName}@${version}_`) || entry === `@deepseek-ai+${packageName}@${version}`);
     assert.equal(entries.length, 1, `one aligned SDK package required: ${name}`);
     path = createRequire(join(pnpm, entries[0], 'node_modules', name, 'package.json')).resolve(name);
   }
@@ -46,7 +48,7 @@ async function fixture(t) {
   ctx.provide('credentials', { async modifyRecord(_key, callback) { const update = await callback(secret); if (update) secret = update; return secret; } });
   await ctx.plugin(Connection);
   await ctx.plugin(SessionSDK.SessionStore);
-  await ctx.plugin(Persistence.default, { root: join(root, 'sessions'), compression: 'none' });
+  await ctx.plugin(Persistence.default ?? Persistence, { root: join(root, 'sessions'), compression: 'none' });
   const cookieResponse = { headers: {}, writeHead(status, headers) { this.status = status; Object.assign(this.headers, headers); }, end() {}, setHeader(key, value) { this.headers[key] = value; } };
   const authUrl = new URL(ctx.connection.authenticatedUrl('http://localhost:8111/'));
   ctx.connection.authorizeIndex({ method: 'GET', url: authUrl.pathname + authUrl.search, headers: { host: 'localhost:8111' } }, cookieResponse);
@@ -214,4 +216,46 @@ test('native server plugin mounts authenticated HTTP routes and fully removes ro
   await fiber.dispose();
   assert.equal((await fetch(url, { headers: { cookie } })).status, 404);
   assert.deepEqual(await ctx.skills.list(), []);
+});
+
+test('native disposal refuses an owned HTTP write whose body completes after the storage drains', async t => {
+  const { ctx, root, session, source } = await fixture(t);
+  await ctx.plugin(SkillSDK.default);
+  await ctx.plugin(WebServer.WebServer, { host: '127.0.0.1', port: 0 });
+  ctx.provide('dshHomePath', () => root);
+  const fiber = await ctx.plugin(IntelligentUI);
+  const port = ctx.webServer.port;
+  const authUrl = new URL(ctx.connection.authenticatedUrl(`http://127.0.0.1:${port}/`));
+  const cookieResponse = { headers: {}, writeHead(status, headers) { this.status = status; Object.assign(this.headers, headers); }, end() {} };
+  ctx.connection.authorizeIndex({ method: 'GET', url: authUrl.pathname + authUrl.search, headers: { host: `127.0.0.1:${port}` } }, cookieResponse);
+  const cookie = cookieResponse.headers['set-cookie'].split(';')[0];
+  const input = { session: session.id, block: '1:1:0:0', source, sourceRevision: sourceHash(source), expectedRevision: 0, state: { afterDisposal: true } };
+  const bytes = Buffer.from(JSON.stringify(input));
+  let began;
+  const started = new Promise(resolve => { began = resolve; });
+  const route = ctx.webServer.match('/intelligent-ui/api/state');
+  const handler = route.handler;
+  route.handler = (req, res) => { began(); return handler(req, res); };
+  let pending;
+  const completed = new Promise((resolve, reject) => {
+    pending = httpRequest({ hostname: '127.0.0.1', port, path: '/intelligent-ui/api/state', method: 'POST', headers: { cookie, 'content-type': 'application/json', 'content-length': bytes.length } }, res => {
+      let body = '';
+      res.setEncoding('utf8'); res.on('data', chunk => { body += chunk; });
+      res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(body) }));
+      res.on('error', reject);
+    });
+    pending.on('error', reject);
+  });
+  t.after(() => pending.destroy());
+  pending.flushHeaders();
+  await started;
+  await fiber.dispose();
+  assert.equal(ctx.webServer.match('/intelligent-ui/api/state'), undefined, 'native route ownership is released before the body completes');
+  pending.end(bytes);
+  const rejected = await completed;
+  assert.equal(rejected.status, 503, 'a draining storage rejects writes that were not accepted before disposal');
+  assert.equal(rejected.body.record, undefined);
+  const reloaded = new StateStorage(join(root, 'intelligent-ui', 'state'));
+  assert.equal(await reloaded.get(session.id, input.block), undefined, 'the late request cannot create state after plugin disposal');
+  assert.deepEqual(await readdir(reloaded.directory), [], 'no transaction or record files are created by the retired handler');
 });

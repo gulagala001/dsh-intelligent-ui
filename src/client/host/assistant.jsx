@@ -53,6 +53,7 @@ export function createAssistantAdapter(Native, { Surface, bridge, expand, Markdo
           sessionId: identity.sessionId, blockId };
         return <Surface key={`ui:${part.ordinal}`} {...item}
           onSubmit={text => bridge.submit(identity.sessionId, blockId, text)}
+          onRepair={(input, options) => bridge.repair(identity.sessionId, blockId, input, options)}
           onExpand={() => expand(item)} />;
       })}</React.Fragment>;
     });
@@ -71,7 +72,10 @@ export function createAssistantAdapter(Native, { Surface, bridge, expand, Markdo
       || rendered.props.groupPart !== props.groupPart
       || rendered.props.useDisclosure !== props.useDisclosure
       || rendered.props.usePresentation !== props.usePresentation
-      || rendered.props.renderMessageImages !== props.renderMessageImages
+      || (Object.hasOwn(rendered.props, 'renderMessageImages')
+        ? rendered.props.renderMessageImages !== props.renderMessageImages
+        : rendered.props.renderSlot !== props.renderSlot || rendered.props.loadImage !== props.loadImage)
+      || (Object.hasOwn(rendered.props, 'useGroupAction') && rendered.props.useGroupAction !== props.useGroupAction)
       || rendered.props.streaming !== (props.node.data.status === 'running')
       || rendered.props.interrupted !== (props.node.data.status === 'interrupted')) {
       unsupported('assistant-presentation', props, rendered); return rendered;

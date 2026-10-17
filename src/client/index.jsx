@@ -10,7 +10,7 @@ import { createSessionBridge } from './host/session.mjs';
 import { decorateAssistantSlot } from './host/slots.mjs';
 
 export const inject = ['slots', 'sessions', 'workspaces', 'uiSession', 'uiWorkspace', 'layout',
-  'sidebarRightTabs', 'sidebarRight', 'remote', 'remote.session', 'remote.agentPresets'];
+  'sidebarRightTabs', 'sidebarRight', 'fileUpload', 'remote', 'remote.session', 'remote.agentPresets'];
 
 export function apply(ctx) {
   const bridge = createSessionBridge(ctx);

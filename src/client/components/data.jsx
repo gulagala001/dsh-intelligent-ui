@@ -1,29 +1,106 @@
-import React, { useId, useRef, useState } from 'react';
+import React, { useId, useLayoutEffect, useRef, useState } from 'react';
 import { disabled, display, ErrorMessage, formatNumber, numeric, paint, palette, useBound } from './shared.jsx';
 import { FigureViewport } from './FigureViewport.jsx';
+import { identityDigest } from '../../runtime/identity.mjs';
+import { tableRowIdentities } from '../../runtime/table-selection.mjs';
 
+let percentFormatter, currencyFormatter;
 function cell(value, format) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return display(value);
-  if (format === 'percent') return new Intl.NumberFormat('zh-CN', { style: 'percent', maximumFractionDigits: 1 }).format(value);
-  if (format === 'currency') return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 2 }).format(value);
+  if (format === 'percent') return (percentFormatter ??= new Intl.NumberFormat('zh-CN', { style: 'percent', maximumFractionDigits: 1 })).format(value);
+  if (format === 'currency') return (currencyFormatter ??= new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 2 })).format(value);
   return format === 'number' ? formatNumber(value) : display(value);
 }
+let tableCollator;
+const mountedTableSelections = new WeakMap();
+function tableSelectionScope(api, bind) {
+  const owner = api?.playback;
+  if (!bind || !api?.componentPath || !owner || typeof owner !== 'object') return null;
+  return { owner, version: api.playbackVersion, key: JSON.stringify([api.componentPath, bind]) };
+}
+const tableSelectionEntry = scope => scope && mountedTableSelections.get(scope.owner)?.get(scope.version)?.get(scope.key);
 export function Table({ props: p, api }) {
   const [state, set, error] = useBound(api, p.bind, { sort: null, direction: 'asc', selected: null });
   const view = state && typeof state === 'object' && !Array.isArray(state) ? state : {};
+  const evidence = useRef(null), legacy = useRef(null);
+  const scope = tableSelectionScope(api, p.bind);
+  useLayoutEffect(() => {
+    if (!scope) return;
+    // Register only committed views. An abandoned render from another source
+    // generation must not replace the current document's selection evidence.
+    let versions = mountedTableSelections.get(scope.owner);
+    if (!versions) mountedTableSelections.set(scope.owner, versions = new Map());
+    let entries = versions.get(scope.version);
+    if (!entries) versions.set(scope.version, entries = new Map());
+    let entry = entries.get(scope.key);
+    if (!entry) entries.set(scope.key, entry = { value: null, viewers: 0 });
+    entry.viewers++;
+    return () => {
+      if (--entry.viewers === 0 && entries.get(scope.key) === entry) entries.delete(scope.key);
+      if (!entries.size && versions.get(scope.version) === entries) versions.delete(scope.version);
+      if (!versions.size && mountedTableSelections.get(scope.owner) === versions) mountedTableSelections.delete(scope.owner);
+    };
+  }, [scope?.owner, scope?.version, scope?.key]);
+  const mountedEvidence = scope ? tableSelectionEntry(scope)?.value : evidence.current;
+  // Optional keys from direct component consumers do not change the OpenUI
+  // schema. Without a unique business key, only an unchanged full row is safe.
+  const identities = tableRowIdentities(p.rows, p.rowKey);
+  const rowCounts = counts(identities), layout = identityDigest(JSON.stringify(identities));
+  const remember = index => index == null ? null : { identity: identities[index], index, layout, ambiguous: rowCounts.get(identities[index]) !== 1 };
+  const resolve = entry => !entry ? null : entry.ambiguous ? entry.layout === layout && identities[entry.index] === entry.identity ? entry.index : null : rowCounts.get(entry.identity) === 1 ? identities.indexOf(entry.identity) : null;
+  const validIndex = Number.isInteger(view.selected) && view.selected >= 0 && view.selected < p.rows.length;
+  // Read legacy numeric selections in their original view and follow that
+  // evidence on subsequent renders, without migrating or writing saved state.
+  if (view.selectedIdentity == null && view.selectedTransient == null) {
+    if (!legacy.current || legacy.current.state !== state || legacy.current.value !== view.selected) legacy.current = { state, value: view.selected, entry: validIndex ? remember(view.selected) : null };
+  } else legacy.current = null;
+  const selected = !Number.isInteger(view.selected) || view.selected < 0 ? null : view.selectedTransient ? mountedEvidence?.token === view.selectedTransient && mountedEvidence.entry.index === view.selected ? resolve(mountedEvidence.entry) : null
+    : typeof view.selectedIdentity === 'string' ? resolve({ identity: view.selectedIdentity }) : resolve(legacy.current?.entry);
+  const selectedValue = view.selected, selectedIdentity = view.selectedIdentity, selectedTransient = view.selectedTransient;
+  const latest = useRef(null);
+  latest.current = { state, api, set };
+  useLayoutEffect(() => {
+    if (selectedValue == null || selected === selectedValue) return;
+    const current = latest.current;
+    if (current.state !== state || disabled(current.api)) return;
+    let bound = p.bind && Object.hasOwn(current.api?.state || {}, p.bind) ? current.api.state[p.bind] : current.state;
+    try {
+      // Production evaluate/widget accessors read the store now, not the API
+      // snapshot captured by this render. A sibling may have already cleared
+      // this bind, or a new user selection may have superseded this effect.
+      if (p.bind && current.api?.evaluate && /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(p.bind)) bound = current.api.evaluate(`$${p.bind}`);
+      else if (!p.bind && current.api?.widget && current.api.componentPath) bound = current.api.widget(current.api.componentPath, state);
+    } catch { return; }
+    if (bound !== state || bound.selected !== selectedValue || bound.selectedIdentity !== selectedIdentity || bound.selectedTransient !== selectedTransient) return;
+    // One public index cannot represent two differently ordered row views.
+    // Clear incompatible projections before paint rather than rewrite indexes
+    // back and forth or leave formulas/actions reading a different record.
+    current.set({ ...view, selected: null, selectedIdentity: null, selectedTransient: null });
+  }, [state, selected, selectedValue, selectedIdentity, selectedTransient, layout, p.bind, api?.disabled, api?.streaming]);
+  const selectionFields = index => {
+    const entry = remember(index);
+    if (entry?.ambiguous) {
+      const shared = tableSelectionEntry(scope);
+      const current = shared ? shared.value : evidence.current;
+      evidence.current = current?.entry.layout === layout && current.entry.index === index ? current : { token: `table:${++selectionSequence}`, entry };
+      if (shared) shared.value = evidence.current;
+      return { selected: index, selectedIdentity: null, selectedTransient: evidence.current.token };
+    }
+    return { selected: index, selectedIdentity: entry?.identity || null, selectedTransient: null };
+  };
   const columns = p.columns.map((column, index) => typeof column === 'string' ? { key: column, label: column, index } : { ...column, index });
   const get = (row, column) => Array.isArray(row) ? row[column.index] : row[column.key];
   const sorted = p.rows.map((row, index) => ({ row, index }));
   const sortColumn = columns.find(column => column.key === view.sort);
   if (sortColumn) sorted.sort((a, b) => {
     const av = get(a.row, sortColumn), bv = get(b.row, sortColumn);
-    const result = typeof av === 'number' && typeof bv === 'number' ? av - bv : display(av).localeCompare(display(bv), 'zh-CN', { numeric: true });
+    const result = typeof av === 'number' && typeof bv === 'number' ? av - bv : (tableCollator ??= new Intl.Collator('zh-CN', { numeric: true })).compare(display(av), display(bv));
     return (view.direction === 'desc' ? -1 : 1) * result || a.index - b.index;
   });
   return <div className="iui-table-scroll" tabIndex={0} role="region" aria-label={p.caption || '数据表格'}><table className="iui-table">
     {p.caption && <caption>{p.caption}</caption>}
-    <thead><tr>{p.bind && <th scope="col" className="iui-table-selection">选择</th>}{columns.map(column => <th key={column.index} scope="col" className={`iui-cell-${column.align || 'left'}`} aria-sort={view.sort === column.key ? view.direction === 'desc' ? 'descending' : 'ascending' : 'none'}><button className="iui-table-sort" type="button" disabled={disabled(api)} onClick={() => set({ ...view, sort: column.key, direction: view.sort === column.key && view.direction !== 'desc' ? 'desc' : 'asc' })}>{column.label}<span aria-hidden="true">{view.sort === column.key ? view.direction === 'desc' ? ' ↓' : ' ↑' : ' ↕'}</span></button></th>)}</tr></thead>
-    <tbody>{sorted.map(({ row, index }) => <tr key={index} className={view.selected === index ? 'is-selected' : ''}>{p.bind && <td><button type="button" disabled={disabled(api)} className="iui-row-select" aria-label={`选择第 ${index + 1} 行`} aria-pressed={view.selected === index} onClick={() => set({ ...view, selected: view.selected === index ? null : index })}>{view.selected === index ? '●' : '○'}</button></td>}{columns.map(column => <td key={column.index} className={`iui-cell-${column.align || 'left'}${typeof get(row,column)==='number'?' iui-cell-numeric':''}`}>{cell(get(row, column), column.format)}</td>)}</tr>)}</tbody>
+    <thead><tr>{p.bind && <th scope="col" className="iui-table-selection">选择</th>}{columns.map(column => <th key={column.index} scope="col" className={`iui-cell-${column.align || 'left'}`} aria-sort={view.sort === column.key ? view.direction === 'desc' ? 'descending' : 'ascending' : 'none'}><button className="iui-table-sort" type="button" disabled={disabled(api)} onClick={() => { if (!disabled(api)) set({ ...view, ...selectionFields(selected), sort: column.key, direction: view.sort === column.key && view.direction !== 'desc' ? 'desc' : 'asc' }); }}>{column.label}<span aria-hidden="true">{view.sort === column.key ? view.direction === 'desc' ? ' ↓' : ' ↑' : ' ↕'}</span></button></th>)}</tr></thead>
+    <tbody>{sorted.map(({ row, index }) => <tr key={index} className={selected === index ? 'is-selected' : ''}>{p.bind && <td><button type="button" disabled={disabled(api)} className="iui-row-select" aria-label={`选择第 ${index + 1} 行`} aria-pressed={selected === index} onClick={() => { if (!disabled(api)) set({ ...view, ...selectionFields(selected === index ? null : index) }); }}>{selected === index ? '●' : '○'}</button></td>}{columns.map(column => <td key={column.index} className={`iui-cell-${column.align || 'left'}${typeof get(row,column)==='number'?' iui-cell-numeric':''}`}>{cell(get(row, column), column.format)}</td>)}</tr>)}</tbody>
   </table>{!p.rows.length && <p className="iui-empty">暂无数据</p>}{error && <ErrorMessage>{error}</ErrorMessage>}</div>;
 }
 

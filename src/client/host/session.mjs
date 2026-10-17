@@ -1,3 +1,5 @@
+import { repairPayload, repairText, repairSavedState, verifyRepairSource } from './repair.mjs';
+
 const PRESET = 'intelligent-chat';
 
 export function currentSessionId(ctx) {
@@ -173,34 +175,74 @@ export function createSessionBridge(ctx, { timeoutMs = 10000 } = {}) {
       const managed = creating;
       return managed;
     },
-    submit(sessionId, blockId, text, { signal: callerSignal } = {}) {
+    submit(sessionId, blockId, text, options = {}) {
+      return submit(sessionId, blockId, text, options);
+    },
+    repair(sessionId, blockId, input, { signal } = {}) {
+      let packet;
+      try { packet = repairPayload(sessionId, blockId, input); }
+      catch (error) { return Promise.reject(error); }
+      const source = packet.sourceChunks.join('');
+      return submit(sessionId, blockId, repairText(blockId), { signal, identityExtra: packet,
+        prepare: async signal => {
+          const verified = await verifyRepairSource(sessionId, blockId, source, signal);
+          packet.sourceRevision = verified.sourceRevision;
+          packet.componentsVersion = verified.componentsVersion;
+          packet.persistedStateJsonChunks = repairSavedState(verified.state);
+          const uploaded = refusal(await ctx.fileUpload.upload(sessionId,
+            new Blob([JSON.stringify(packet, null, 2)], { type: 'application/json' }),
+            `intelligent-ui-repair-${blockId.replaceAll(':', '-')}.json`, signal), '作品修复附件上传失败');
+          signal.throwIfAborted();
+          if (typeof uploaded?.receiptId !== 'string' || !uploaded.file) throw new Error('宿主未提供有效的作品附件');
+          const current = await verifyRepairSource(sessionId, blockId, source, signal);
+          if (current.componentsVersion !== packet.componentsVersion) throw new Error('作品版本已变化，请重新打开后重试');
+          if (current.revision !== verified.revision || JSON.stringify(current.state) !== JSON.stringify(verified.state)) throw new Error('作品已保存设置发生变化，请重试修复');
+          return { attachments: [{ type: 'file', value: uploaded.file }], content: [{ type: 'file', receiptId: uploaded.receiptId }] };
+        } });
+    },
+    dispose() { lifetime.abort(new Error('智能界面插件已停用')); listeners.clear(); },
+  };
+
+  function submit(sessionId, blockId, text, { signal: callerSignal, prepare, identityExtra } = {}) {
       assertLive();
       if (typeof sessionId !== 'string' || !/^\d+:\d+:\d+:\d+$/.test(blockId)) return Promise.reject(new Error('交互回答身份无效'));
       if (typeof text !== 'string' || text.trim() === '' || text.length > 64000) return Promise.reject(new Error('提交内容为空或过长'));
       if (!isVisible(sessionId)) return Promise.reject(new Error('请先打开这条回答所在的会话再提交'));
-      if (submissions.has(sessionId)) return submissions.get(sessionId);
+      if (callerSignal?.aborted) return Promise.reject(callerSignal.reason ?? new Error('提交已取消'));
+      const expectedBinding = ctx.sessions.binding(sessionId);
+      // Only the same answer's identical live intent is a double click. Native
+      // queue admission owns ordering and receipts for every distinct intent.
+      const identity = JSON.stringify([sessionId, blockId, text, identityExtra]);
+      const previous = submissions.get(identity);
+      if (previous && !previous.signal.aborted && previous.binding === expectedBinding) return previous.promise;
       const cancelled = new AbortController();
       const signal = AbortSignal.any([lifetime.signal, cancelled.signal, ...(callerSignal ? [callerSignal] : [])]);
-      const off = ctx.uiSession.adapter.current.subscribe(() => {
+      const checkVisible = () => {
         if (!isVisible(sessionId)) cancelled.abort(new Error('会话已切换，提交已取消'));
-      });
-      const expectedBinding = ctx.sessions.binding(sessionId);
+      };
+      const offSelection = ctx.uiSession.adapter.current.subscribe(checkVisible);
+      const offPanel = ctx.layout?.panelInfo?.subscribe(checkVisible) ?? (() => {});
       const operation = ctx.sessions.using(sessionId, { source: 'intelligentUI', signal }, async reference => {
         await reference.ready;
         signal.throwIfAborted();
-        if (!isVisible(sessionId) || (expectedBinding && reference.binding !== expectedBinding)) throw new Error('回答所属会话已变更');
+        if (!isVisible(sessionId) || (expectedBinding && reference.binding !== expectedBinding)
+          || ctx.sessions.binding(sessionId) !== reference.binding) throw new Error('回答所属会话已变更');
         const session = reference.binding.session;
         if (session.getSnapshot().removed) throw new Error('会话已关闭');
-        const submission = session.beginSubmission({ mode: 'queue', text, attachments: [] });
+        const prepared = prepare ? await prepare(signal) : { attachments: [], content: [] };
+        signal.throwIfAborted();
+        if (!isVisible(sessionId) || ctx.sessions.binding(sessionId) !== reference.binding || session.getSnapshot().removed) throw new Error('回答所属会话已变更');
+        const submission = session.beginSubmission({ mode: 'queue', text, attachments: prepared.attachments });
         try {
-          refusal(await session.prompt([{ type: 'text', text }], 'queue', signal, submission.requestId), '提交失败');
+          refusal(await session.prompt([{ type: 'text', text }, ...prepared.content], 'queue', signal, submission.requestId), '提交失败');
         } catch (error) { submission.abandon(); throw error; }
       });
-      const managed = operation.finally(() => { off(); if (submissions.get(sessionId) === managed) submissions.delete(sessionId); });
-      submissions.set(sessionId, managed);
+      const managed = operation.finally(() => {
+        offSelection(); offPanel();
+        if (submissions.get(identity)?.promise === managed) submissions.delete(identity);
+      });
+      submissions.set(identity, { promise: managed, binding: expectedBinding, signal });
       return managed;
-    },
-    dispose() { lifetime.abort(new Error('智能界面插件已停用')); listeners.clear(); },
-  };
+  }
   return bridge;
 }

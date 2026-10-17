@@ -22,12 +22,12 @@ function Tree({node,api}) {
 function download(name,content,type='application/json'){
   const url=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-export function IntelligentSurface({source='',streaming=false,sessionId,blockId,onSubmit,onExpand,expanded=false}) {
+export function IntelligentSurface({source='',streaming=false,sessionId,blockId,onSubmit,onRepair,onExpand,expanded=false}) {
   const lease=useMemo(()=>acquireDocument(sessionId,blockId),[sessionId,blockId]);const {store}=lease;
   useEffect(()=>()=>lease.release(),[lease]);
   useEffect(()=>store.update(source,streaming),[store,source,streaming]);
   const snapshot=useSyncExternalStore(store.subscribe,store.getSnapshot),[showSource,setShowSource]=useState(false),[notice,setNotice]=useState(''),[repairing,setRepairing]=useState(false),[actionsOpen,setActionsOpen]=useState(false);
-  const repairPending=useRef(false),actionEpoch=useRef(0),actions=useRef(null);
+  const repairPending=useRef(false),repairController=useRef(null),actionEpoch=useRef(0),actions=useRef(null);
   const closeActions=(focus=false)=>{const element=actions.current;if(!element?.open)return;element.open=false;if(focus&&element.contains(document.activeElement))element.querySelector('summary')?.focus({preventScroll:true});};
   const placeActions=()=>{
     const element=actions.current;if(!element?.open)return;
@@ -40,7 +40,7 @@ export function IntelligentSurface({source='',streaming=false,sessionId,blockId,
     const upward=above>=panel.scrollHeight||above>=below;
     element.dataset.side=upward?'top':'bottom';panel.style.maxHeight=`${upward?above:below}px`;
   };
-  useEffect(()=>{actionEpoch.current++;repairPending.current=false;setRepairing(false);setNotice('');closeActions();return()=>{actionEpoch.current++;repairPending.current=false;};},[source,sessionId,blockId]);
+  useEffect(()=>{actionEpoch.current++;repairPending.current=false;setRepairing(false);setNotice('');closeActions();return()=>{actionEpoch.current++;repairPending.current=false;repairController.current?.abort(new Error('作品已切换，修复请求已取消'));};},[source,sessionId,blockId]);
   useEffect(()=>{
     if(!actionsOpen)return;const outside=event=>{if(!actions.current?.contains(event.target))closeActions();};const reposition=()=>placeActions();
     document.addEventListener('pointerdown',outside);document.addEventListener('scroll',reposition,true);window.addEventListener('resize',reposition);window.visualViewport?.addEventListener('resize',reposition);window.visualViewport?.addEventListener('scroll',reposition);reposition();
@@ -51,14 +51,15 @@ export function IntelligentSurface({source='',streaming=false,sessionId,blockId,
   const copy=async()=>{closeActions(true);const epoch=actionEpoch.current;try{await navigator.clipboard.writeText(source);if(epoch===actionEpoch.current)setNotice('已复制');}catch{if(epoch===actionEpoch.current)setNotice('复制失败，可展开源文复制');}};
   const repair=()=>{
     if(repairPending.current)return;repairPending.current=true;setRepairing(true);const epoch=actionEpoch.current;
-    void Promise.resolve().then(()=>onSubmit(`这段交互内容无法显示：${snapshot.error.slice(0,1200)}。请读取所需组件与表达式说明，修复这段交互内容并保持原来的功能。`)).then(()=>{if(epoch===actionEpoch.current)setNotice('修复请求已发送');},error=>{if(epoch===actionEpoch.current)setNotice(error?.message||'修复请求未发送，请重试');}).finally(()=>{if(epoch===actionEpoch.current){repairPending.current=false;setRepairing(false);}});
+    const controller=new AbortController();repairController.current=controller;
+    void Promise.resolve().then(()=>onRepair({source,state:snapshot.state,diagnostic:snapshot.error,componentsVersion:snapshot.componentsVersion},{signal:controller.signal})).then(()=>{if(epoch===actionEpoch.current)setNotice('修复请求已发送');},error=>{if(epoch===actionEpoch.current)setNotice(error?.message||'修复请求未发送，请重试');}).finally(()=>{if(epoch===actionEpoch.current){repairPending.current=false;repairController.current=null;setRepairing(false);}});
   };
   return <div className="iui-surface" data-iui-block={blockId} aria-busy={streaming||snapshot.status==='loading'}>
     {/* A held native Space/pointer press belongs to the original document.
         Retire its DOM along with its API so release cannot activate new content. */}
     <Boundary key={JSON.stringify([sessionId,blockId,api.playbackVersion])} source={source}><Tree node={snapshot.tree} api={api}/></Boundary>
     {!snapshot.tree&&!snapshot.error&&<div className="iui-skeleton" aria-label="正在生成交互内容"/>}
-    {snapshot.error&&<p role="alert" className="iui-error">{snapshot.error}{snapshot.status==='invalid'&&onSubmit&&<button type="button" disabled={repairing} aria-busy={repairing} onClick={repair}>{repairing?'正在请求修复…':'修复'}</button>}{snapshot.status==='conflict'&&<button type="button" onClick={()=>void store.save({resolveConflict:true})}>保留当前设置并保存</button>}{snapshot.status==='save-error'&&<button type="button" onClick={()=>void store.save()}>重试保存</button>}{snapshot.status==='load-error'&&<button type="button" onClick={()=>store.update(source,streaming,{reload:true})}>重试读取</button>}</p>}
+    {snapshot.error&&<p role="alert" className="iui-error">{snapshot.error}{snapshot.status==='invalid'&&snapshot.source===source&&!streaming&&!snapshot.streaming&&onRepair&&<button type="button" disabled={repairing} aria-busy={repairing} onClick={repair}>{repairing?'正在请求修复…':'修复'}</button>}{snapshot.status==='conflict'&&<button type="button" onClick={()=>void store.save({resolveConflict:true})}>保留当前设置并保存</button>}{snapshot.status==='save-error'&&<button type="button" onClick={()=>void store.save()}>重试保存</button>}{snapshot.status==='load-error'&&<button type="button" onClick={()=>store.update(source,streaming,{reload:true})}>重试读取</button>}</p>}
     <div className="iui-surface-toolbar"><span className="iui-surface-feedback"><span role="status">{states[snapshot.status]}</span>{notice&&<span role="status">{notice}</span>}</span>
       {snapshot.previousDraft&&<button type="button" onClick={()=>{try{download('intelligent-ui-previous-draft.json',JSON.stringify({protocolVersion,componentsVersion:snapshot.previousDraft.componentsVersion,source:snapshot.previousDraft.source,state:snapshot.previousDraft.state},null,2));setNotice('已导出上一版源文与设置');}catch{setNotice('草稿导出失败，请重试');}}}>导出旧草稿</button>}
       <div className="iui-surface-actions">

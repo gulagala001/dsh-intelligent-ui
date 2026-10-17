@@ -2,7 +2,7 @@
 
 [中文](usage.md) · [English](usage.en.md)
 
-适用于 IUI 1.0.0。安装包与完整宿主版本的对应关系见 [首页](../README.md#installation)。
+适用于 IUI 1.0.9。安装包与完整宿主版本的对应关系见 [首页](../README.md#installation)。
 
 ## 智能聊天
 
@@ -54,8 +54,4 @@
 
 ## 构建与更新
 
-0.2.0-rc.2、0.2.1-alpha.1 和 0.2.1-alpha.2 的 SDK、peer 和包版本分别锁定。换宿主时安装相应构建，继续使用原 DSH 数据目录即可保留作品。未验收的宿主版本不能通过仅修改版本声明视为支持。
-
-IUI 1.0.0 是首个正式版本，包含此前内部迭代至 1.7 的完整功能。完整插件版本由宿主前缀与 `.iui.1.0.0` 组成，例如 `0.2.1-alpha.2.iui.1.0.0`。三个构建分别提供于本仓库的 [Releases](https://github.com/gulagala001/dsh-intelligent-ui/releases)。
-
-本插件运行于 DSH Web。三个宿主分别构建并运行原生流程检查，跨平台 CI 覆盖 macOS、Linux 和 Windows。模型实拍与 OMD 精确共存组合、安装方式见 [发行说明](release-1.0.0.md)。
+IUI 1.0.9 分别提供 DSH `0.2.1-rc.1` 与 `0.2.1-rc.2` 安装包。选择对应构建，并保留原 DSH 数据目录以继续使用作品。见 [安装说明](../README.md#installation)。

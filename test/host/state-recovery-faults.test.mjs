@@ -40,7 +40,9 @@ test('packaged native state EIO preserves table/chart draft, retries atomically 
   const failure=await failedResponse;assert.equal(failure.status(),500,'the real StateService reports injected disk failure');
   await surface.getByRole('button',{name:'重试保存',exact:true}).waitFor();
   const hits=await f.stateWriteFaults();assert.equal(hits.length,1);assert.equal(hits[0].code,'EIO');
-  const draft=await f.page.evaluate(key=>JSON.parse(sessionStorage.getItem(key)),`dsh-iui.draft.v1:${sessionId}:${block}`);
+  const backups=await f.page.evaluate(prefix=>Object.keys(sessionStorage).filter(key=>key===prefix||key.startsWith(prefix+':')).map(key=>({key,draft:JSON.parse(sessionStorage.getItem(key))})),`dsh-iui.draft.v1:${sessionId}:${block}`);
+  const backup=backups.find(item=>createHash('sha256').update(item.draft.source).digest('hex')===before.body.sourceRevision);
+  const draft=backup?.draft;
   assert.ok(draft);assert.ok(draft.dirty.includes('budgetTable'));assert.ok(draft.dirty.includes('budgetChart'));
   assert.equal(draft.state.budgetTable.sort,'amount');assert.equal(draft.state.budgetTable.direction,'asc');assert.equal(draft.state.budgetChart.hiddenCategories.length,1);
   assert.equal(await surface.getByRole('region',{name:'支出明细',exact:true}).locator('tbody tr').first().innerText().then(text=>text.includes('交通')),true);
@@ -54,7 +56,7 @@ test('packaged native state EIO preserves table/chart draft, retries atomically 
   await until(async()=>(await surface.innerText()).includes('已保存'));
   const saved=await f.api(stateURL(sessionId,block));assert.equal(saved.status,200);assert.deepEqual(saved.body.state,draft.state);
   assert.deepEqual(JSON.parse(await readFile(hits[0].target,'utf8')),saved.body,'disk, native API and Web draft agree');
-  assert.equal(await f.page.evaluate(key=>sessionStorage.getItem(key),`dsh-iui.draft.v1:${sessionId}:${block}`),null,'successful save clears the dirty journal');
+  assert.equal(await f.page.evaluate(key=>sessionStorage.getItem(key),backup.key),null,'successful save clears the dirty journal');
   assert.equal((await f.stateWriteFaults()).length,1,'the armed fault is consumed exactly once');
   assert.equal(f.requests.length,requestCount,'sorting, filtering, failure and retry never request a model');
   await surface.getByRole('button',{name:'展开交互内容',exact:true}).click();

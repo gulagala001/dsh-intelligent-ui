@@ -2,7 +2,7 @@
 
 <div align="center">
   <a href="https://github.com/deepseek-ai/deepseek-harness"><img alt="DSH Web 插件" src="https://img.shields.io/badge/DSH-Web-4d6bfe" /></a>
-  <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases"><img alt="IUI 1.0.0" src="https://img.shields.io/badge/IUI-1.0.0-4d6bfe" /></a>
+  <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases"><img alt="IUI 1.0.9" src="https://img.shields.io/badge/IUI-1.0.9-4d6bfe" /></a>
   <a href="https://nodejs.org/"><img alt="Node.js ≥ 22.19" src="https://img.shields.io/badge/Node.js-%E2%89%A522.19-43853d" /></a>
   <a href="./LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-yellow.svg" /></a>
   <br /><br />
@@ -16,9 +16,11 @@
 
 ![聚餐计划：调整人数、联动采购量并勾选准备事项](docs/images/iui-1.0-plan.png)
 
-<p align="center"><sub>使用 IUI 1.0.0 实际组件与固定示例数据；餐食配图由 AI 生成。</sub></p>
+<p align="center"><sub>使用 IUI 1.0.9 实际组件与固定示例数据；餐食配图由 AI 生成。</sub></p>
 
 **DSH Intelligent UI 是 [DeepSeek Harness（DSH）](https://github.com/deepseek-ai/deepseek-harness) 的独立 Web 插件。** 安装后可以创建智能聊天，也可以在普通 agent 中按需调用技能。模型、会话和工具循环沿用 DSH 原生能力；原版 DSH 可直接使用，Oh My DSH（OMD）是可选共存插件。
+
+**IUI 1.0.9** 分别提供 DSH **0.2.1-rc.1 / rc.2** 构建；宿主 SDK、Cordis 4.0.5、Schemastery 3.18.5 与依赖锁逐版本固定。生成内容取决于所选模型。
 
 ## 📑 目录
 
@@ -53,21 +55,20 @@
 
 **前置条件**：DSH Web 已能正常运行，Node.js **≥ 22.19**，已配置可用模型。
 
-IUI **1.0.0** 提供三个分别对齐宿主 SDK 与依赖的构建。核对你的 **完整 DSH 版本**后选择对应安装包：
+核对你的 **完整 DSH 版本**后选择对应安装包：
 
-| DSH 宿主 | 下载 | 完整插件版本 |
+| DSH 宿主 | IUI 安装包 | SHA-256 |
 | --- | --- | --- |
-| `0.2.0-rc.2` | [rc.2 安装包](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.0-rc.2.iui.1.0.0/dsh-intelligent-ui-0.2.0-rc.2.iui.1.0.0.tgz) | `0.2.0-rc.2.iui.1.0.0` |
-| `0.2.1-alpha.1` | [alpha.1 安装包](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-alpha.1.iui.1.0.0/dsh-intelligent-ui-0.2.1-alpha.1.iui.1.0.0.tgz) | `0.2.1-alpha.1.iui.1.0.0` |
-| `0.2.1-alpha.2` | [alpha.2 安装包](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-alpha.2.iui.1.0.0/dsh-intelligent-ui-0.2.1-alpha.2.iui.1.0.0.tgz) | `0.2.1-alpha.2.iui.1.0.0` |
+| `0.2.1-rc.1` | [0.2.1-rc.1.iui.1.0.9](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.9.tgz) | [SHA-256](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.9.tgz.sha256) |
+| `0.2.1-rc.2` | [0.2.1-rc.2.iui.1.0.9](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.9.tgz) | [SHA-256](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.9.tgz.sha256) |
 
-安装到你使用的 DSH profile，例如 alpha.2：
+例如 DSH 0.2.1-rc.2：
 
 ```sh
-dsh plugin --profile web add https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-alpha.2.iui.1.0.0/dsh-intelligent-ui-0.2.1-alpha.2.iui.1.0.0.tgz
+dsh plugin --profile web add https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.9.tgz
 ```
 
-将 `web` 换成实际 profile 名，另两个宿主使用表中相应 URL。也可以下载后使用 `file:/absolute/path/安装包.tgz` 安装。完成后重启该 profile 并刷新浏览器。
+将 `web` 换成实际 profile 名；安装后重启该 profile 并刷新浏览器。也可先下载再使用 `file:/absolute/path/安装包.tgz` 安装。OMD 为可选插件，旧构建保留于 [Releases](https://github.com/gulagala001/dsh-intelligent-ui/releases)。
 
 <details>
 <summary><strong>从源码构建</strong></summary>
@@ -75,11 +76,12 @@ dsh plugin --profile web add https://github.com/gulagala001/dsh-intelligent-ui/r
 ```sh
 git clone https://github.com/gulagala001/dsh-intelligent-ui.git
 cd dsh-intelligent-ui
-npm ci --ignore-scripts
+corepack pnpm install --frozen-lockfile --ignore-scripts
 
 # 选择自己的完整宿主版本
-node scripts/package-host.mjs 0.2.1-alpha.2
-# 其他已验收构建：0.2.0-rc.2、0.2.1-alpha.1
+pnpm run package:host 0.2.1-rc.2
+# 或
+pnpm run package:host 0.2.1-rc.1
 ```
 
 安装包生成于 `work/packages/`。构建脚本为所选宿主锁定 SDK、依赖与完整包版本。
@@ -157,7 +159,7 @@ node scripts/package-host.mjs 0.2.1-alpha.2
 
 </details>
 
-<sub>点灯、图表、分账与清单四题原始生成后直接完成交互；模拟使用同一真实生成原文回放验证，未重新请求模型。以上是给定模型与问题的实例，生成内容可能不同。图表部分配图为同输出视觉回放；来源见[配图说明](docs/images/showcase-notes.md)。</sub>
+
 
 还可以组合聚餐计划、旅行表单、预算比较和交互示意图。表单明确提交后把所选字段交给原会话模型，继续生成方案。
 
@@ -180,11 +182,13 @@ node scripts/package-host.mjs 0.2.1-alpha.2
 
 ## 🆕 最近更新
 
-**IUI 1.0.0 · 首个正式版本**
+**IUI 1.0.9 · DSH 0.2.1-rc.1 / rc.2**
 
-包含此前内部迭代至 1.7 的完整功能：Chat 入口、渐进交互回答、28 个组件、图表单位分组与筛选、语义操作卡、拖拽与键盘操作、共享播放、保留参数重新开始、原尺寸查看、作品展开、保存恢复及导出。新作品使用组件版本 4，继续读取、编辑并按原版本导出版本 1、2、3 的作品。
+- 两个宿主分别锁定 SDK、依赖与安装包。
+- 改进并发提交、作品恢复、表格选择和数字控件。
+- 限制渲染与场景求值开销，保留已有组件格式与作品数据。
 
-提供 DSH `0.2.0-rc.2`、`0.2.1-alpha.1`、`0.2.1-alpha.2` 三个独立构建。详见 [发行说明](docs/release-1.0.0.md)、[CHANGELOG](CHANGELOG.md) 与 [Releases](https://github.com/gulagala001/dsh-intelligent-ui/releases)。
+详见 [发行说明](docs/release-1.0.9.md) 和 [CHANGELOG](CHANGELOG.md)。
 
 <a id="data"></a>
 
@@ -206,7 +210,7 @@ dsh plugin --profile web remove dsh-intelligent-ui
 
 本插件复用 DSH 原生会话、模型、工具循环、技能与作品页签。普通 agent 仅增加简短技能索引，完整组件资料按需读取。
 
-本仓库独立维护安装包、版本与生命周期。OMD 的推荐与共存接线是可选集成，当前已验证组合见下方兼容性表。
+本仓库独立维护安装包、版本与生命周期。OMD 的推荐与共存接线为可选集成，按宿主选择对应 OMD 构建。
 
 插件市场的投稿回执、审核状态与目录覆盖见[市场投稿记录](docs/marketplace-submissions.md)。
 
@@ -215,13 +219,13 @@ dsh plugin --profile web remove dsh-intelligent-ui
 ## 🛠️ 开发与构建
 
 ```sh
-npm ci --ignore-scripts
-npm run build
-npm test
-npm run test:host
+corepack pnpm install --frozen-lockfile --ignore-scripts
+pnpm run build
+pnpm test
+pnpm run test:host
 ```
 
-客户端使用 React 18，复用 OpenUI 的低层语言解析与 Apps SDK UI 设计 token；组件、交互执行、状态保存与宿主接入由本插件维护。开发资料见 [资源与选型](docs/resource-research.md) 和 [模块契约](docs/contracts.md)。
+客户端使用 React 18，复用 OpenUI 的低层语言解析与 Apps SDK UI 设计 token；组件、交互执行、状态保存与宿主接入由本插件维护。开发资料见 [资源与选型](docs/architecture.md) 和 [模块契约](docs/contracts.md)。
 
 <a id="boundaries"></a>
 
@@ -239,19 +243,18 @@ npm run test:host
 - 完整交互依赖本插件与对应宿主；导出文件保存源文和状态。
 - 外部图片可用性取决于来源，图片 URL 受到协议限制。
 - 完全重复的数据行或无法确认稳定身份的超长行，点选仅在当前视图保留。
-- 不同宿主须使用对应构建；未验收版本与设备的支持状态需另行确认。
+- 不同宿主须使用对应构建；按完整宿主版本安装，其他设备和宿主版本可能存在差异。
 
 <a id="compatibility"></a>
 
 ## 🖥️ 平台与兼容性
 
-| 范围 | 当前验收边界 |
+| 运行环境 | 要求 |
 | --- | --- |
-| macOS arm64 · 原版 DSH `0.2.0-rc.2` / `0.2.1-alpha.1` / `0.2.1-alpha.2` | 对应构建的安装、原生 CLI/Web、交互、恢复及生命周期 |
-| OMD 共存 | 仅 DSH `0.2.1-alpha.2` + OMD `0.2.1-alpha.2.omd.0.15.1` 本地候选；两种安装顺序、启停、冷重启与两种卸载顺序 |
-| 真实模型场景 | GPT-6.1-Sol，alpha.2；四题原始直接通过、一题真实生成同输出回放 |
-
-跨平台 CI 使用 Node 24，覆盖 macOS、Linux、Windows 与上面三个宿主的九种组合，运行安装包及原生 Web 生命周期检查。结果见 [GitHub Actions](https://github.com/gulagala001/dsh-intelligent-ui/actions/workflows/ci.yml)；安装、运行方式与精确共存组合见 [发行说明](docs/release-1.0.0.md)。
+| DSH Web | `0.2.1-rc.1` 或 `0.2.1-rc.2`，使用对应安装包 |
+| Node.js | ≥ 22.19 |
+| 平台 | 通过 DSH 宿主运行 Web 客户端；IUI 不含原生助手 |
+| 可选插件 | OMD、OpenCU 另行选择匹配宿主的版本 |
 
 <a id="contributing"></a>
 

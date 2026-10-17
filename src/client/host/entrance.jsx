@@ -106,7 +106,24 @@ export function installEntranceSeats(document, notify, { MutationObserver = glob
     if (changed) notify([...seats.values()].map(record => record.seat));
   };
   const schedule = () => { if (!scheduled && !stopped) { scheduled = true; queueMicrotask(scan); } };
-  const observer = new MutationObserver(schedule);
+  const observer = new MutationObserver(records => {
+    for (const [button, record] of seats) {
+      if (!button.isConnected || record.seat.parentElement !== button.parentElement) { schedule(); return; }
+    }
+    for (const mutation of records) {
+      const target = mutation.target;
+      // Only relevant mutations need to rediscover native entrance buttons.
+      if ([...seats.keys()].some(button => target === button || target.contains?.(button))) { schedule(); return; }
+      if (mutation.type === 'attributes') {
+        if (target.matches?.(selector) && isNew(target)) { schedule(); return; }
+      } else for (const node of mutation.addedNodes) {
+        if (node.nodeType !== 1) continue;
+        if (node.matches(selector) && isNew(node) || [...node.querySelectorAll(selector)].some(isNew)) { schedule(); return; }
+      }
+    }
+    // Unrelated content can still shift the row without resizing it.
+    place();
+  });
   const resize = ResizeObserver ? new ResizeObserver(place) : undefined;
   observer.observe(document.body, { subtree: true, childList: true, attributes: true,
     attributeFilter: ['class', 'aria-label', 'aria-keyshortcuts', 'data-sidebar-collapsed'] });

@@ -174,10 +174,10 @@ test('navigation failures never infer a current Session or perform first submiss
   }
 });
 
-test('inline and artifact submissions share exact-session native echo, queue mode and duplicate guard', async () => {
+test('same-block double clicks share exact-session native echo, queue mode and duplicate guard', async () => {
   const pending = gate(), f = fixture({ prompt: pending }), bridge = createSessionBridge(f.ctx);
   const first = bridge.submit('origin', '1:0:2:0', 'continue');
-  const second = bridge.submit('origin', '1:0:2:1', 'continue');
+  const second = bridge.submit('origin', '1:0:2:0', 'continue');
   assert.equal(first, second);
   await new Promise(resolve => setImmediate(resolve));
   const sent = f.calls.filter(row => row[0] === 'prompt');
@@ -185,6 +185,91 @@ test('inline and artifact submissions share exact-session native echo, queue mod
   assert.equal(sent[0][5], 'request');
   pending.resolve({ ok: true, value: { accepted: true } }); await first;
   assert.equal(f.current.listeners.size, 0); bridge.dispose();
+});
+
+test('different text or block creates a separate native queue submission before the first receipt', async () => {
+  for (const [blockId, text] of [['1:0:2:0', 'MESSAGE-B'], ['1:0:2:1', 'MESSAGE-A'], ['1:0:2:1', 'MESSAGE-B']]) {
+    const pending = gate(), f = fixture({ prompt: pending }), bridge = createSessionBridge(f.ctx);
+    const first = bridge.submit('origin', '1:0:2:0', 'MESSAGE-A');
+    const second = bridge.submit('origin', blockId, text);
+    await new Promise(resolve => setImmediate(resolve));
+    try {
+      assert.notEqual(first, second);
+      assert.deepEqual(f.calls.filter(row => row[0] === 'prompt').map(row => [row[1], row[2], row[3]]),
+        [['origin', [{ type: 'text', text: 'MESSAGE-A' }], 'queue'], ['origin', [{ type: 'text', text }], 'queue']]);
+      assert.equal(f.calls.filter(row => row[0] === 'echo').length, 2);
+    } finally { pending.resolve({ ok: true, value: { accepted: true } }); await Promise.all([first, second]); bridge.dispose(); }
+  }
+});
+
+test('one failed native receipt cannot fail or consume a concurrent independent intent', async () => {
+  const firstReceipt = gate(), secondReceipt = gate(), f = fixture(), bridge = createSessionBridge(f.ctx);
+  let count = 0;
+  f.bindings.get('origin').session.prompt = async (...args) => {
+    f.calls.push(['prompt', 'origin', ...args]); return await (++count === 1 ? firstReceipt : secondReceipt).promise;
+  };
+  const first = bridge.submit('origin', '1:0:2:0', 'MESSAGE-A');
+  const second = bridge.submit('origin', '1:0:2:1', 'MESSAGE-B');
+  const rejected = assert.rejects(first, /FIRST_REFUSED/);
+  await new Promise(resolve => setImmediate(resolve));
+  firstReceipt.resolve({ ok: false, error: { message: 'FIRST_REFUSED' } });
+  secondReceipt.resolve({ ok: true, value: { accepted: true } });
+  await rejected; await second;
+  assert.deepEqual(f.calls.filter(row => row[0] === 'prompt').map(row => row[2][0].text), ['MESSAGE-A', 'MESSAGE-B']);
+  assert.equal(f.calls.filter(row => row[0] === 'abandon').length, 1); bridge.dispose();
+});
+
+test('navigation, main-panel changes and disposal cancel every unready independent intent', async () => {
+  for (const change of ['session', 'panel', 'dispose']) {
+    const ready = gate(), f = fixture({ ready }), bridge = createSessionBridge(f.ctx);
+    const first = bridge.submit('origin', '1:0:2:0', 'MESSAGE-A');
+    const second = bridge.submit('origin', '1:0:2:1', 'MESSAGE-B');
+    const settled = Promise.allSettled([first, second]);
+    await new Promise(resolve => setImmediate(resolve));
+    if (change === 'session') { f.current.set({ key: 'elsewhere' }); f.current.set({ key: 'origin' }); }
+    else if (change === 'panel') { f.panelInfo.set({ activePanelId: 'settings' }); f.panelInfo.set({ activePanelId: null }); }
+    else bridge.dispose();
+    ready.resolve();
+    const results = await settled;
+    assert.equal(results.every(result => result.status === 'rejected'), true, change);
+    assert.equal(f.calls.some(row => row[0] === 'prompt'), false, change);
+    assert.equal(f.current.listeners.size, 0); assert.equal(f.panelInfo.listeners.size, 0); bridge.dispose();
+  }
+});
+
+test('an aborted caller cannot reuse a live duplicate receipt', async () => {
+  const pending = gate(), f = fixture({ prompt: pending }), bridge = createSessionBridge(f.ctx);
+  const first = bridge.submit('origin', '1:0:2:0', 'MESSAGE-A');
+  const caller = new AbortController(); caller.abort(new Error('CALLER_CANCELLED'));
+  const second = bridge.submit('origin', '1:0:2:0', 'MESSAGE-A', { signal: caller.signal });
+  const settled = Promise.allSettled([first, second]);
+  pending.resolve({ ok: true, value: { accepted: true } });
+  const results = await settled;
+  assert.equal(results[0].status, 'fulfilled'); assert.equal(results[1].status, 'rejected');
+  assert.match(results[1].reason.message, /CALLER_CANCELLED/); bridge.dispose();
+});
+
+test('returning after cancellation creates a fresh retry instead of borrowing the aborted receipt', async () => {
+  const ready = gate(), f = fixture({ ready }), bridge = createSessionBridge(f.ctx);
+  const first = bridge.submit('origin', '1:0:2:0', 'MESSAGE-A');
+  const rejected = assert.rejects(first, /会话已切换/);
+  f.current.set({ key: 'elsewhere' }); f.current.set({ key: 'origin' });
+  const retry = bridge.submit('origin', '1:0:2:0', 'MESSAGE-A');
+  assert.notEqual(first, retry); ready.resolve();
+  await rejected; await retry;
+  assert.deepEqual(f.calls.filter(row => row[0] === 'prompt').map(row => row[2][0].text), ['MESSAGE-A']);
+  assert.equal(f.current.listeners.size, 0); assert.equal(f.panelInfo.listeners.size, 0); bridge.dispose();
+});
+
+test('a replaced binding cannot lend its old receipt or submit an unready old intent', async () => {
+  const ready = gate(), f = fixture({ ready }), bridge = createSessionBridge(f.ctx);
+  const first = bridge.submit('origin', '1:0:2:0', 'MESSAGE-A');
+  const rejected = assert.rejects(first, /所属会话已变更/);
+  const old = f.bindings.get('origin'); f.bindings.set('origin', { ...old });
+  const retry = bridge.submit('origin', '1:0:2:0', 'MESSAGE-A');
+  assert.notEqual(first, retry); ready.resolve();
+  await rejected; await retry;
+  assert.equal(f.calls.filter(row => row[0] === 'prompt').length, 1); bridge.dispose();
 });
 
 test('stale actions and invalid block identities reject before prompt', async () => {

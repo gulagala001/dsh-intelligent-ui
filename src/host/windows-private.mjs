@@ -54,15 +54,64 @@ try {
     # Protected or explicitly shared records are not repaired recursively.
     if ($old.AreAccessRulesProtected) { Assert-PrivateAcl $child.FullName $false }
   }
-  $acl = [Security.AccessControl.DirectorySecurity]::new()
-  $acl.SetAccessRuleProtection($true, $false)
-  $acl.SetOwner($user)
-  foreach ($sid in @($user, $system, $administrators)) {
-    $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($sid, $full, $inherit, [Security.AccessControl.PropagationFlags]::None, [Security.AccessControl.AccessControlType]::Allow))
+  $rootAcl = Get-Acl -LiteralPath $target
+  $rootOwner = $rootAcl.GetOwner([Security.Principal.SecurityIdentifier]).Value
+  if ($rootOwner -notin $allowed) { throw 'Unsafe directory owner' }
+  $rootGroup = $rootAcl.GetGroup([Security.Principal.SecurityIdentifier]).Value
+  $rootRules = @($rootAcl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]))
+  foreach ($rule in $rootAcl.GetAccessRules($true, $false, [Security.Principal.SecurityIdentifier])) {
+    if ($rule.IdentityReference.Value -notin $allowed -or $rule.AccessControlType -ne [Security.AccessControl.AccessControlType]::Allow) { throw 'Unsafe explicit directory access' }
   }
-  Set-Acl -LiteralPath $target -AclObject $acl
+  $privateRoot = $rootAcl.AreAccessRulesProtected -and $rootOwner -eq $user.Value
+  foreach ($rule in $rootRules) {
+    if ($rule.IdentityReference.Value -notin $allowed -or $rule.AccessControlType -ne [Security.AccessControl.AccessControlType]::Allow) { $privateRoot = $false }
+  }
+  foreach ($sid in $allowed) {
+    if (!($rootRules | Where-Object { $_.IdentityReference.Value -eq $sid -and ($_.FileSystemRights -band $full) -eq $full -and $_.InheritanceFlags -eq $inherit -and $_.PropagationFlags -eq [Security.AccessControl.PropagationFlags]::None -and !$_.IsInherited })) { $privateRoot = $false }
+  }
+  if (!$privateRoot) {
+    # Set-Acl may persist sections that a fresh descriptor never loaded.
+    # Write exactly DACL (+ Owner only when it changes); never Group or SACL.
+    Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+public static class IuiPrivateAclWriter {
+  [DllImport("advapi32.dll", CharSet=CharSet.Unicode, ExactSpelling=true)]
+  private static extern uint SetNamedSecurityInfoW(string name, int type, uint info, IntPtr owner, IntPtr group, IntPtr dacl, IntPtr sacl);
+  [DllImport("advapi32.dll", SetLastError=true)]
+  private static extern bool GetSecurityDescriptorOwner(IntPtr descriptor, out IntPtr owner, out bool defaulted);
+  [DllImport("advapi32.dll", SetLastError=true)]
+  private static extern bool GetSecurityDescriptorDacl(IntPtr descriptor, out bool present, out IntPtr dacl, out bool defaulted);
+  public static void Write(string path, byte[] descriptor, bool ownerChanged) {
+    IntPtr memory=Marshal.AllocHGlobal(descriptor.Length);
+    try {
+      Marshal.Copy(descriptor, 0, memory, descriptor.Length);
+      IntPtr owner, dacl; bool ownerDefaulted, present, daclDefaulted;
+      if (!GetSecurityDescriptorOwner(memory, out owner, out ownerDefaulted) ||
+          !GetSecurityDescriptorDacl(memory, out present, out dacl, out daclDefaulted))
+        throw new Win32Exception(Marshal.GetLastWin32Error());
+      if (!present || dacl == IntPtr.Zero || owner == IntPtr.Zero)
+        throw new InvalidOperationException("Incomplete private descriptor");
+      uint information=0x80000004U; // PROTECTED_DACL_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION
+      if (ownerChanged) information |= 0x1U; // OWNER_SECURITY_INFORMATION
+      uint error=SetNamedSecurityInfoW(path, 1, information, ownerChanged ? owner : IntPtr.Zero, IntPtr.Zero, dacl, IntPtr.Zero);
+      if (error != 0) throw new Win32Exception((int)error);
+    } finally { Marshal.FreeHGlobal(memory); }
+  }
+}
+'@
+    $acl = [Security.AccessControl.DirectorySecurity]::new()
+    $acl.SetAccessRuleProtection($true, $false)
+    $acl.SetOwner($user)
+    foreach ($sid in @($user, $system, $administrators)) {
+      $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($sid, $full, $inherit, [Security.AccessControl.PropagationFlags]::None, [Security.AccessControl.AccessControlType]::Allow))
+    }
+    [IuiPrivateAclWriter]::Write($target, $acl.GetSecurityDescriptorBinaryForm(), $rootOwner -ne $user.Value)
+  }
   Assert-PrivateAcl $target $true
   foreach ($child in $children) { Assert-PrivateAcl $child.FullName $false }
+  if ((Get-Acl -LiteralPath $target).GetGroup([Security.Principal.SecurityIdentifier]).Value -ne $rootGroup) { throw 'Directory group changed' }
   exit 0
 } catch { exit 1 }
 `;

@@ -4,7 +4,8 @@ import { collectDefaults } from '../runtime/defaults.mjs';
 import { assertJSON, UIError, validName, LIMITS } from '../runtime/limits.mjs';
 import { ScenePlayback } from './scene-playback.mjs';
 import { identityDigest } from '../runtime/identity.mjs';
-import { componentsVersion } from '../protocol/version.mjs';
+import { reconcileTableSelections } from '../runtime/table-selection.mjs';
+import { protocolVersion, componentsVersion, readableComponentsVersions } from '../protocol/version.mjs';
 
 export async function sourceHash(source) { const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(source));return Array.from(new Uint8Array(bytes),n=>n.toString(16).padStart(2,'0')).join(''); }
 const base = 'intelligent-ui/api/state';
@@ -13,30 +14,92 @@ const widgetKeys=new Map();
 const widgetPath=path=>typeof path==='string'&&path.length<=LIMITS.source&&/^root(?:$|[.\[])/.test(path)&&!/[\u0000-\u001f\u007f]/.test(path);
 const widgetKey=path=>{if(!widgetPath(path))throw new UIError('PATH','无效组件路径');let key=widgetKeys.get(path);if(!key){key=widgetPrefix+identityDigest(path);if(widgetKeys.size>=1024)widgetKeys.delete(widgetKeys.keys().next().value);widgetKeys.set(path,key);}return key;};
 const journalName=name=>validName(name)||typeof name==='string'&&/^@iui-widget:[a-f0-9]{64}$/.test(name);
+function matchingJournal(draft,source){
+  if(draft?.source!==source)return false;
+  if(!draft.state||typeof draft.state!=='object'||Array.isArray(draft.state)||!Array.isArray(draft.dirty)||draft.dirty.some(name=>!journalName(name)||!Object.hasOwn(draft.state,name)))throw new UIError('JOURNAL','本地草稿格式无效');
+  assertJSON(draft.state);return true;
+}
+function sameJSONValue(left,right) {
+  if(left===right)return true;
+  if(!left||!right||typeof left!=='object'||typeof right!=='object'||Array.isArray(left)!==Array.isArray(right))return false;
+  const keys=Object.keys(left);
+  return keys.length===Object.keys(right).length&&keys.every(key=>Object.hasOwn(right,key)&&sameJSONValue(left[key],right[key]));
+}
+function validRecord(record,session,block,projected=false) {
+  if(!record||typeof record!=='object'||Array.isArray(record)||Object.hasOwn(record,'error')
+    ||record.protocolVersion!==protocolVersion||!readableComponentsVersions.includes(record.componentsVersion??1)
+    ||!Number.isSafeInteger(record.revision)||record.revision<(projected?0:1)
+    ||typeof record.source!=='string'||record.source.length>LIMITS.source||typeof record.sourceRevision!=='string'||!/^[a-f0-9]{64}$/.test(record.sourceRevision)
+    ||!record.state||typeof record.state!=='object'||Array.isArray(record.state)||projected&&Object.keys(record.state).length!==0
+    ||record.persisted!==undefined&&typeof record.persisted!=='boolean'
+    ||record.revision===0&&record.persisted===true||!projected&&record.persisted===false
+    ||(!projected||record.session!==undefined)&&record.session!==session
+    ||(!projected||record.block!==undefined)&&record.block!==block)return false;
+  try { assertJSON(record.state);return true; } catch { return false; }
+}
 async function request(session,block,input,signal) {
   const response=await fetch(`${base}?session=${encodeURIComponent(session)}&block=${encodeURIComponent(block)}`,input===undefined?{signal}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input),signal});
-  const record=await response.json();if(!response.ok)throw Object.assign(new Error(record.error??'保存失败'),{status:response.status,record:record.record});return record;
+  let record;
+  try { record=await response.json(); }
+  catch(error) {
+    if(error.name==='AbortError')throw error;
+    if(signal?.aborted)throw new DOMException('Aborted','AbortError');
+    if(response.ok)throw Object.assign(new Error('设置服务返回了无效 JSON，请重试并检查插件是否正常启动。'),{status:response.status,cause:error});
+  }
+  if(!response.ok) {
+    // A conflict is authoritative only for this persisted document. Invalid
+    // or partial records must use the existing reload-before-save recovery.
+    let conflict;
+    if(response.status===409&&validRecord(record?.record,session,block)
+      &&await sourceHash(record.record.source)===record.record.sourceRevision)conflict=record.record;
+    if(signal?.aborted)throw new DOMException('Aborted','AbortError');
+    const fallback=response.status===401?'登录已过期，请重新登录后重试。'
+      :response.status===403?'没有读取或保存设置的权限，请检查当前会话。'
+      :response.status===404?'设置服务尚未就绪，请稍后重试；若持续失败，请检查插件是否成功启动。'
+      :response.status===409?'设置已在另一处更改，请重新读取后确认保存。'
+      :'设置服务请求失败（HTTP '+response.status+'），请重试并检查插件日志。';
+    throw Object.assign(new Error(typeof record?.error==='string'&&record.error.trim()?record.error:fallback),{status:response.status,record:conflict});
+  }
+  const invalid=()=>Object.assign(new Error('设置服务返回了无效记录；你的草稿仍保留，请重新读取后重试。'),{status:response.status});
+  if(!record||typeof record!=='object'||Array.isArray(record))throw invalid();
+  // A current-source projection is not persisted and can carry the previous
+  // source's revision for CAS. The service deliberately omits its identity.
+  const projected=input===undefined&&(record.revision===0||record.persisted===false);
+  if(!validRecord(record,session,block,projected))throw invalid();
+  if(input===undefined) {
+    if(await sourceHash(record.source)!==record.sourceRevision)throw invalid();
+  } else if(record.persisted===false||record.source!==input.source||record.sourceRevision!==input.sourceRevision
+    ||record.revision<=input.expectedRevision||!sameJSONValue(record.state,JSON.parse(JSON.stringify(input.state))))throw invalid();
+  if(signal?.aborted)throw new DOMException('Aborted','AbortError');
+  return projected?{...record,persisted:false}:record;
 }
 export class DocumentStore {
   constructor(sessionId,blockId,{ read=request, hash=sourceHash }={}) {
     this.sessionId=sessionId;this.blockId=blockId;this.request=read;this.hash=hash;this.listeners=new Set();this.state={};this.defaults={};this.dirty=new Set();this.revision=0;this.conflictRecord=null;this.sourceRevision=null;this.generation=0;this.disposed=false;this.journalError='';this.lastError='';
     this.snapshot={source:'',streaming:true,tree:null,state:this.state,status:'loading',error:'',componentsVersion};
-    this.playback=new ScenePlayback();
+    this.playback=new ScenePlayback();this.unbackedDrafts=new Map();
   }
   subscribe=listener=>{this.listeners.add(listener);return()=>this.listeners.delete(listener);};
   getSnapshot=()=>this.snapshot;
   publish(extra={}) {if(Object.hasOwn(extra,'error'))this.lastError=extra.error;this.snapshot={...this.snapshot,state:this.state,...extra,previousDraft:this.previousDraft??null,error:[this.lastError,this.journalError,this.previousDraft?'上一版未保存的设置暂存在本页，可导出旧草稿。':''].filter(Boolean).join('\n')};for(const listener of this.listeners)listener(); }
-  update(source,streaming,{reload=false}={}) {
+  update(source,streaming,{reload=false,initialRecord}={}) {
     if(this.disposed||!reload&&this.snapshot.source===source&&this.snapshot.streaming===streaming)return;
+    // A fetched record can seed only a fresh store, never replace live edits
+    // or replay an old Pane response after this store changes generation.
+    if(this.generation!==0)initialRecord=undefined;
     const changedSource=this.snapshot.source!==source;
-    const incomingDraft=changedSource&&this.previousDraft?.source===source?this.previousDraft:null;
+    const incomingDraft=changedSource?(this.unbackedDrafts.get(source)??(this.previousDraft?.source===source?this.previousDraft:null)):null;
     const knownVersion=incomingDraft?.componentsVersion??(changedSource?componentsVersion:this.snapshot.componentsVersion??componentsVersion);
     this.playback.reset();const ticket=++this.generation;this.controller?.abort();clearTimeout(this.timer);this.sourceRevision=null;
     this.writing?.controller.abort();this.writing=null;this.reloadBeforeSave=false;
     if(changedSource){
       // A cancel may legally finish the old gesture before its API retires.
       // Keep that draft under its old source, never merge it into the new one.
-      if(this.dirty.size&&!this.writeJournal())this.previousDraft={source:this.snapshot.source,state:structuredClone(this.state),dirty:[...this.dirty],revision:this.revision,conflict:Boolean(this.conflictRecord),componentsVersion:this.snapshot.componentsVersion??1};
+      if(this.dirty.size){
+        const draft={source:this.snapshot.source,state:structuredClone(this.state),dirty:[...this.dirty],revision:this.revision,conflict:Boolean(this.conflictRecord),componentsVersion:this.snapshot.componentsVersion??1};
+        this.previousDraftPersisted=this.writeJournal();this.previousDraft=draft;
+        if(this.previousDraftPersisted)this.unbackedDrafts.delete(draft.source);else this.unbackedDrafts.set(draft.source,draft);
+      }
       this.journalError='';
       this.incomingDraft=incomingDraft;this.state=incomingDraft?structuredClone(incomingDraft.state):{};this.defaults={};this.dirty=new Set(incomingDraft?.dirty??[]);this.revision=incomingDraft?.revision??0;this.conflictRecord=null;
     }
@@ -44,18 +107,24 @@ export class DocumentStore {
       this.document=compile(source,{streaming});
       let tree=evaluateDocument(this.document,this.state);
       this.defaults={...this.document.defaults,...collectDefaults(tree)};
-      this.state={...this.defaults,...this.state};tree=evaluateDocument(this.document,this.state);
+      const previous={...this.document.defaults,...this.state};
+      this.state=assertJSON({...this.defaults,...this.state});
+      if(Object.keys(this.state).some(name=>!Object.hasOwn(previous,name)||!Object.is(this.state[name],previous[name])))tree=evaluateDocument(this.document,this.state);
       this.publish({source,streaming,tree,error:'',componentsVersion:knownVersion,status:streaming?'streaming':'loading'});
     } catch(error) { this.document=null;this.publish({source,streaming,tree:null,componentsVersion:knownVersion,status:streaming?'streaming':'invalid',error:streaming?'':error.message}); }
     if(!streaming&&this.document) {
       this.controller=new AbortController();
-      void this.hydrate(source,ticket,this.controller.signal);
+      void this.hydrate(source,ticket,this.controller.signal,initialRecord);
     }
   }
-  async hydrate(source,ticket,signal) {
+  async hydrate(source,ticket,signal,initialRecord) {
     try {
-      const hash=await this.hash(source);let record;
-      for(let attempt=0;attempt<8;attempt++){
+      let record=initialRecord===undefined?undefined:structuredClone(initialRecord);
+      const hash=await this.hash(source);
+      if(initialRecord!==undefined&&(record?.session!==this.sessionId||record.block!==this.blockId||record.source!==source||!readableComponentsVersions.includes(record.componentsVersion)
+        ||!validRecord(record,this.sessionId,this.blockId,record.revision===0||record.persisted===false)))throw new UIError('RECORD','作品初始设置无效，请重试读取');
+      if(initialRecord!==undefined&&record.revision===0)record.persisted=false;
+      if(initialRecord===undefined)for(let attempt=0;attempt<8;attempt++){
         try{record=await this.request(this.sessionId,this.blockId,undefined,signal);break;}
         catch(error){if(error.status!==404||attempt===7)throw error;await new Promise((resolve,reject)=>{const timer=setTimeout(resolve,150*(attempt+1));signal.addEventListener('abort',()=>{clearTimeout(timer);reject(new DOMException('Aborted','AbortError'));},{once:true});});}
       }
@@ -63,7 +132,7 @@ export class DocumentStore {
       if(record.sourceRevision!==hash)throw new UIError('SOURCE','作品内容已变化，请重新打开');
       assertJSON(record.state);const draft=this.restoreJournal(source);this.revision=record.revision;this.sourceRevision=hash;
       const next={...this.defaults,...record.state};for(const name of this.dirty)next[name]=this.state[name];this.state=next;
-      if(draft){for(const name of this.dirty)if(JSON.stringify(record.state[name]??this.defaults[name])===JSON.stringify(this.state[name]))this.dirty.delete(name);if(this.dirty.size&&(draft.revision!==record.revision||draft.conflict))this.conflictRecord=record;}
+      if(draft){for(const name of this.dirty)if(record.persisted!==false&&JSON.stringify(Object.hasOwn(record.state,name)?record.state[name]:this.defaults[name])===JSON.stringify(this.state[name]))this.dirty.delete(name);if(this.dirty.size&&(draft.revision!==record.revision||draft.conflict))this.conflictRecord=record;}
       this.publish({tree:evaluateDocument(this.document,this.state),componentsVersion:record.componentsVersion??1,status:this.conflictRecord?'conflict':this.dirty.size?'unsaved':record.persisted===false?'default':'saved',error:this.conflictRecord?'其他地方已修改设置。你的草稿已恢复，确认后可以合并保存。':''});
       if(this.dirty.size&&!this.conflictRecord)this.scheduleSave();
     }catch(error){if(error.name!=='AbortError'&&!this.disposed&&ticket===this.generation)this.publish({status:'load-error',error:'设置读取失败：'+error.message});}
@@ -77,18 +146,28 @@ export class DocumentStore {
   setValue(name,value) {
     if(this.snapshot.streaming||!this.document||this.disposed)throw new UIError('BUSY','等待内容完成后再操作');
     assertJSON(value);
-    const next=assertJSON({...this.state,[name]:value}),tree=evaluateDocument(this.document,next);
-    this.state=next;this.dirty.add(name);this.writeJournal();this.publish({tree,status:this.conflictRecord?'conflict':'unsaved',error:this.conflictRecord?this.snapshot.error:''});this.scheduleSave();
+    const changed=new Set([name]),checked=this.checkTableSelections({...this.state,[name]:value},changed,new Set([name]));
+    this.state=checked.state;changed.forEach(key=>this.dirty.add(key));this.writeJournal();this.publish({tree:checked.tree,status:this.conflictRecord?'conflict':'unsaved',error:this.conflictRecord?this.snapshot.error:''});this.scheduleSave();
+  }
+  checkTableSelections(state,changed,explicitBindings) {
+    for(let round=0;round<=LIMITS.stateKeys;round++){
+      const tree=evaluateDocument(this.document,state);
+      const result=reconcileTableSelections(tree,state,this.snapshot.tree,this.state,explicitBindings);
+      if(!result.cleared.size)return{state,tree};
+      state=result.state;result.cleared.forEach(name=>changed.add(name));
+    }
+    throw new UIError('ACTION','表格选择无法与当前数据保持一致');
   }
   reset(name){this.set(name,this.defaults[name]??null);}
   action(value,onSubmit) {
     if(this.snapshot.streaming||this.disposed)throw new UIError('BUSY','等待内容完成后再操作');
     const actions=Array.isArray(value)?value:[value];if(actions.length>30)throw new UIError('ACTION','动作过多');
-    let next={...this.state};const changed=new Set();let submission;
+    let next={...this.state};const changed=new Set(),explicitBindings=new Set();let submission;
     for(const action of actions){
       if(!action||typeof action!=='object')throw new UIError('ACTION','动作格式无效');
       if(action.type==='submit'){
-        if(submission||typeof action.text!=='string'||action.text.length>16000||action.fields&&!Array.isArray(action.fields))throw new UIError('ACTION','提交格式无效');
+        if(submission!==undefined||typeof action.text!=='string'||action.text.length>16000||action.fields&&!Array.isArray(action.fields))throw new UIError('ACTION','提交格式无效');
+        next=this.checkTableSelections(next,changed,explicitBindings).state;
         const selected=Object.fromEntries((action.fields??[]).map(name=>{if(!validName(name))throw new UIError('NAME','无效字段');return [name,next[name]??null];}));assertJSON(selected);
         submission=action.text+(Object.keys(selected).length?'\n\n所选设置：\n'+JSON.stringify(selected,null,2):'');continue;
       }
@@ -100,10 +179,11 @@ export class DocumentStore {
       else if(action.type==='sceneSet')next[name]=sceneSet(action.scene,next[name],action.field,action.value);
       else throw new UIError('ACTION','未知动作');
       changed.add(name);
+      explicitBindings.add(name);
     }
-    assertJSON(next);const tree=evaluateDocument(this.document,next);
+    const checked=this.checkTableSelections(next,changed,explicitBindings);next=checked.state;const tree=checked.tree;
     if(changed.size){this.state=next;changed.forEach(name=>this.dirty.add(name));this.writeJournal();this.publish({tree,status:this.conflictRecord?'conflict':'unsaved',error:this.conflictRecord?this.snapshot.error:''});this.scheduleSave();}
-    if(submission){if(!onSubmit)throw new UIError('SUBMIT','当前作品不能继续对话');return onSubmit(submission);}
+    if(submission!==undefined){if(!onSubmit)throw new UIError('SUBMIT','当前作品不能继续对话');return onSubmit(submission);}
   }
   scheduleSave(){clearTimeout(this.timer);if(this.sourceRevision&&!this.conflictRecord&&!['conflict','load-error'].includes(this.snapshot.status))this.timer=setTimeout(()=>void this.save(),350);}
   async save({resolveConflict=false}={}) {
@@ -145,14 +225,29 @@ export class DocumentStore {
     return {state:this.state,streaming:this.snapshot.streaming,disabled:this.snapshot.streaming||['loading','load-error'].includes(this.snapshot.status),blockId:this.blockId,playback:this.playback,playbackVersion:this.generation,set:(n,v)=>current(()=>this.set(n,v)),widget:(path,initial)=>this.widget(path,initial),setWidget:(path,value)=>current(()=>this.setWidget(path,value)),reset:n=>current(()=>this.reset(n)),action:a=>current(()=>this.action(a,onSubmit)),evaluate:(formula,locals={})=>safeEvaluate(formula,this.state,locals),sceneView:(scene,bind)=>sceneView(scene,this.state[bind])};
   }
   dispose(){if(this.disposed)return;this.writeJournal();this.playback.reset();clearTimeout(this.timer);this.controller?.abort();this.writing?.controller.abort();this.writing=null;this.disposed=true;this.listeners.clear();}
+  journalKey(source){
+    if(this.journalSource!==source){this.journalSource=source;this.sourceJournalKey='dsh-iui.draft.v1:'+this.sessionId+':'+this.blockId+':'+identityDigest(source);}
+    return this.sourceJournalKey;
+  }
   writeJournal(){
-    try{const storage=globalThis.sessionStorage;if(!storage)return false;const key='dsh-iui.draft.v1:'+this.sessionId+':'+this.blockId;
-      if(!this.dirty.size){storage.removeItem(key);this.journalError='';return true;}
-      const value=JSON.stringify({source:this.snapshot.source,state:this.state,dirty:[...this.dirty],revision:this.revision,conflict:Boolean(this.conflictRecord)});if(value.length>300000)throw new UIError('JOURNAL','本地草稿过大');storage.setItem(key,value);this.journalError='';return true;
+    try{const storage=globalThis.sessionStorage;if(!storage)return false;const source=this.snapshot.source,key=this.journalKey(source),legacyKey='dsh-iui.draft.v1:'+this.sessionId+':'+this.blockId;
+      if(!this.dirty.size){
+        // An unread backup is not acknowledged by a default-state view.
+        // Only successful hydration of this source can authorize cleanup.
+        if(!this.sourceRevision)return true;
+        // Either key may contain a foreign or unreadable backup. Cleanup
+        // retires only a recognizable draft owned by the current source.
+        for(const backupKey of [key,legacyKey]){
+          try{if(!matchingJournal(JSON.parse(storage.getItem(backupKey)),source))continue;}catch{continue;}
+          storage.removeItem(backupKey);
+        }
+        this.journalError='';return true;
+      }
+      const value=JSON.stringify({source,state:this.state,dirty:[...this.dirty],revision:this.revision,conflict:Boolean(this.conflictRecord),componentsVersion:this.snapshot.componentsVersion??1});if(value.length>300000)throw new UIError('JOURNAL','本地草稿过大');storage.setItem(key,value);this.unbackedDrafts.delete(source);this.journalError='';return true;
     }catch{this.journalError='本地草稿暂时无法备份，请保持页面打开并重试保存。';if(!this.disposed)this.publish();return false;}
   }
   restoreJournal(source){
-    try{const retained=this.incomingDraft?.source===source?this.incomingDraft:this.previousDraft?.source===source?this.previousDraft:null,raw=retained?null:globalThis.sessionStorage?.getItem('dsh-iui.draft.v1:'+this.sessionId+':'+this.blockId);if(!retained&&!raw)return;const draft=retained??JSON.parse(raw);if(draft.source!==source)return;assertJSON(draft.state);if(!Array.isArray(draft.dirty)||draft.dirty.some(name=>!journalName(name)))return;for(const name of draft.dirty){this.state[name]=draft.state[name];this.dirty.add(name);}if(retained===this.previousDraft)this.previousDraft=null;if(retained===this.incomingDraft)this.incomingDraft=null;return draft;}
+    try{const retained=this.incomingDraft?.source===source?this.incomingDraft:this.previousDraft?.source===source?this.previousDraft:null,storage=globalThis.sessionStorage,raw=retained?null:storage?.getItem(this.journalKey(source))??storage?.getItem('dsh-iui.draft.v1:'+this.sessionId+':'+this.blockId);if(!retained&&!raw)return;const draft=retained??JSON.parse(raw);if(!matchingJournal(draft,source))return;for(const name of draft.dirty){this.state[name]=draft.state[name];this.dirty.add(name);}this.unbackedDrafts.delete(source);if(retained===this.previousDraft){this.previousDraft=null;this.previousDraftPersisted=false;}if(retained===this.incomingDraft)this.incomingDraft=null;return draft;}
     catch{this.journalError='本地草稿无法读取，已保留原始备份。';this.publish();}
   }
 }
@@ -160,8 +255,20 @@ export class DocumentStore {
 const stores=new Map();
 export function acquireDocument(session,block) {
   const key=`${session}\0${block}`;let item=stores.get(key);
-  if(!item){item={store:new DocumentStore(session,block),refs:0};stores.set(key,item);}
+  if(!item){
+    item={store:new DocumentStore(session,block),refs:0};stores.set(key,item);
+    item.scheduleCleanup=()=>{
+      if(item.refs||stores.get(key)!==item)return;
+      clearTimeout(item.cleanup);
+      item.cleanup=setTimeout(()=>{
+        if(item.refs||stores.get(key)!==item||item.store.dirty.size||item.store.writing||item.store.conflictRecord||item.store.unbackedDrafts.size||item.store.previousDraft&&!item.store.previousDraftPersisted)return;
+        item.unsubscribe();item.store.dispose();stores.delete(key);
+      },30000);
+    };
+    item.unsubscribe=item.store.subscribe(item.scheduleCleanup);
+  }
   clearTimeout(item.cleanup);item.refs++;
-  return {store:item.store,release(){if(--item.refs===0){void item.store.save();item.store.writeJournal();item.cleanup=setTimeout(()=>{if(item.store.dirty.size||item.store.writing||item.store.conflictRecord||item.store.previousDraft)return;item.store.dispose();stores.delete(key);},30000);}}};
+  let released=false;
+  return {store:item.store,release(){if(released)return;released=true;if(--item.refs===0){void item.store.save();item.store.writeJournal();item.scheduleCleanup();}}};
 }
-export function disposeDocuments(){for(const item of stores.values()){clearTimeout(item.cleanup);item.store.dispose();}stores.clear();}
+export function disposeDocuments(){for(const item of stores.values()){clearTimeout(item.cleanup);item.unsubscribe();item.store.dispose();}stores.clear();}

@@ -20,7 +20,7 @@
 
 **DSH Intelligent UI is a standalone plugin installed directly in [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness).** This repository maintains its installation, usage, and updates; Oh My DSH (OMD) is optional. Models, sessions, tools, and skills use DSH's native capabilities.
 
-**IUI 1.0.0** provides builds for DSH `0.2.0-rc.2`, `0.2.1-alpha.1`, and `0.2.1-alpha.2`. Choose the package matching your full host version. Answer content and generation quality depend on the selected model.
+**IUI 1.0.9** provides separate builds for DSH **0.2.1-rc.1 / rc.2**. Each build pins its host SDK, Cordis 4.0.5, and Schemastery 3.18.5. Answer quality depends on the selected model.
 
 ## 📑 Contents
 
@@ -55,34 +55,20 @@
 
 **Prerequisites**: a working DSH Web interface, Node.js **≥ 22.19**, and a configured model.
 
-Use the package matching your **full DSH version**. Each build pins its own host SDK and dependencies; the builds are not interchangeable.
+Choose the package matching your **full DSH version**.
 
-| DSH host | IUI 1.0.0 package |
-| --- | --- |
-| `0.2.0-rc.2` | [Download](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.0-rc.2.iui.1.0.0/dsh-intelligent-ui-0.2.0-rc.2.iui.1.0.0.tgz) |
-| `0.2.1-alpha.1` | [Download](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-alpha.1.iui.1.0.0/dsh-intelligent-ui-0.2.1-alpha.1.iui.1.0.0.tgz) |
-| `0.2.1-alpha.2` | [Download](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-alpha.2.iui.1.0.0/dsh-intelligent-ui-0.2.1-alpha.2.iui.1.0.0.tgz) |
+| DSH host | IUI package | SHA-256 |
+| --- | --- | --- |
+| `0.2.1-rc.1` | [0.2.1-rc.1.iui.1.0.9](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.9.tgz) | [SHA-256](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.9.tgz.sha256) |
+| `0.2.1-rc.2` | [0.2.1-rc.2.iui.1.0.9](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.9.tgz) | [SHA-256](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.9.tgz.sha256) |
 
-Install the matching release URL in the DSH profile you use:
-
-```sh
-# DSH 0.2.0-rc.2
-dsh plugin --profile web add https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.0-rc.2.iui.1.0.0/dsh-intelligent-ui-0.2.0-rc.2.iui.1.0.0.tgz
-
-# DSH 0.2.1-alpha.1
-dsh plugin --profile web add https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-alpha.1.iui.1.0.0/dsh-intelligent-ui-0.2.1-alpha.1.iui.1.0.0.tgz
-
-# DSH 0.2.1-alpha.2
-dsh plugin --profile web add https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-alpha.2.iui.1.0.0/dsh-intelligent-ui-0.2.1-alpha.2.iui.1.0.0.tgz
-```
-
-Replace `web` with your profile name. Restart that profile and refresh the browser. **The plugin works directly with stock DSH; OMD is optional.**
-
-You can also download a package first and install its absolute path:
+For DSH 0.2.1-rc.2:
 
 ```sh
-dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.1-alpha.2.iui.1.0.0.tgz
+dsh plugin --profile web add https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.9.tgz
 ```
+
+Replace `web` with your profile name, then restart the profile and refresh the browser. You can also download the package and install it with `file:/absolute/path/package.tgz`. OMD is optional. Earlier builds remain in [Releases](https://github.com/gulagala001/dsh-intelligent-ui/releases).
 
 <details>
 <summary><strong>Build an installation package from source</strong></summary>
@@ -90,14 +76,12 @@ dsh plugin --profile web add file:/absolute/path/dsh-intelligent-ui-0.2.1-alpha.
 ```sh
 git clone https://github.com/gulagala001/dsh-intelligent-ui.git
 cd dsh-intelligent-ui
-npm ci --ignore-scripts
+corepack pnpm install --frozen-lockfile --ignore-scripts
 
 # Choose your full host version
-node scripts/package-host.mjs 0.2.0-rc.2
+pnpm run package:host 0.2.1-rc.2
 # Or
-node scripts/package-host.mjs 0.2.1-alpha.1
-# Or
-node scripts/package-host.mjs 0.2.1-alpha.2
+pnpm run package:host 0.2.1-rc.1
 ```
 
 Packages are generated in `work/packages/`; install one using the `file:` command above. The build script pins the SDK, dependencies, and package version for the selected host.
@@ -163,7 +147,7 @@ Check or uncheck tasks to update progress. Settings remain available when you re
 
 Change parameters, then choose Play. **Restart** keeps the current parameters and restarts progress; **Reset** returns all settings to their initial values. Editing parameters pauses playback, and reopening restores the state in a paused condition.
 
-The game, comparison, calculator, and checklist passed direct interaction checks after generation with **GPT-6.1-Sol**. The simulation was generated by the same model and checked by replaying its unchanged original output after correcting a test's label matching. Some chart images also use replay of the original output. The dinner plan at the top uses fixed sample data. See the [image notes](docs/images/showcase-notes.en.md) for image sources.
+The scenes show GPT-6.1-Sol answers rendered by IUI. See the [image credits](docs/images/showcase-notes.en.md).
 
 <details>
 <summary><strong>Expand the answer and use dark mode</strong></summary>
@@ -195,7 +179,7 @@ More scenarios you can build by combining components:
 
 ![Chat entry revealed on the right of the New Session row](docs/images/new-session-hover.png)
 
-Keyboard focus reveals Chat; use Tab and Enter to activate it. The entry is visible directly with coarse-pointer layouts and a collapsed sidebar. Physical touch devices have not been tested for this release.
+Keyboard focus reveals Chat; use Tab and Enter to activate it. The entry is visible directly with coarse-pointer layouts and a collapsed sidebar.
 
 Try prompts like these:
 
@@ -213,18 +197,13 @@ See the [usage guide](docs/usage.en.md) for controls, save conflicts, and export
 
 ## 🆕 Recent updates
 
-**IUI 1.0.0 · First official release**
+**IUI 1.0.9 · DSH 0.2.1-rc.1 / rc.2**
 
-Includes the complete feature set developed through the internal 1.7 iteration:
+- Separate pinned builds for both hosts.
+- Improved concurrent submissions, artifact recovery, table selection, and numeric controls.
+- Bounded rendering and scene evaluation, with existing artifact formats preserved.
 
-- Chat entry within New Session, plus an on-demand skill for regular agents.
-- Mixed text and interactive answers, calculators, checklists, forms, and diagrams.
-- Charts with explicit unit groups, filtering, selection, and sorting; graphics can be viewed at their original size.
-- Simulations and games with parameter controls, shared playback, native action cards, and keyboard operation.
-- Saving, conflict handling, restoration, expanded artifacts, and export; older component formats 1–3 remain usable alongside format 4.
-- Separate builds for DSH `0.2.0-rc.2`, `0.2.1-alpha.1`, and `0.2.1-alpha.2`.
-
-See the [1.0.0 release notes](docs/release-1.0.0.en.md), [CHANGELOG](CHANGELOG.md), and [Releases](https://github.com/gulagala001/dsh-intelligent-ui/releases).
+See [release notes](docs/release-1.0.9.en.md) and [CHANGELOG](CHANGELOG.md).
 
 <a id="data"></a>
 
@@ -248,7 +227,7 @@ Restart the profile after removal. Original conversation content and existing ar
 
 The plugin uses DSH's native sessions, models, tool loop, skills, and artifact tabs. Chat provides a dedicated entry point; regular agents receive a short skill index and load detailed documentation on demand.
 
-**OMD recommendations and coexistence wiring are optional integrations.** This plugin has its own repository, packages, versions, documentation, and lifecycle. Its core workflow runs with stock DSH. The current coexistence validation covers DSH `0.2.1-alpha.2` with the local OMD `0.2.1-alpha.2.omd.0.15.1` candidate, including both installation orders, enable/disable, restart, and both removal orders with OMD's default enhancements enabled.
+**OMD is an optional integration.** Install the matching OMD build for your host. IUI keeps its own package, version, and data lifecycle.
 
 See [marketplace submission records](docs/marketplace-submissions.md) for receipts, review status, and shared catalog coverage.
 
@@ -257,13 +236,13 @@ See [marketplace submission records](docs/marketplace-submissions.md) for receip
 ## 🛠️ Development and builds
 
 ```sh
-npm ci --ignore-scripts
-npm run build
-npm test
-npm run test:host
+corepack pnpm install --frozen-lockfile --ignore-scripts
+pnpm run build
+pnpm test
+pnpm run test:host
 ```
 
-The client uses React 18, OpenUI's low-level language parser, and Apps SDK UI design tokens. This plugin maintains its components, interaction execution, state persistence, and host integration. See [resources and technology choices](docs/resource-research.md) and [module contracts](docs/contracts.md) for development details.
+The client uses React 18, OpenUI's low-level language parser, and Apps SDK UI design tokens. This plugin maintains its components, interaction execution, state persistence, and host integration. See [resources and technology choices](docs/architecture.md) and [module contracts](docs/contracts.md) for development details.
 
 <a id="boundaries"></a>
 
@@ -282,19 +261,18 @@ Generated content does not execute arbitrary JavaScript. Host files, credentials
 - External image availability depends on the source; generated content uses restricted image URLs.
 - Persisted data selection requires distinguishable row identities. Completely identical rows or excessively long identities retain selection only within the current view.
 - Unit grouping requires explicit unit labels from the author. The plugin does not infer units, normalize values, or perform automatic conversions.
-- Each host version requires its matching build. Validation of one model or platform does not establish every model, version, or device as supported.
+- Each host version requires its matching build. Model output and device behavior can vary.
 
 <a id="compatibility"></a>
 
 ## 🖥️ Platforms and compatibility
 
-| Scope | Current validation |
+| Runtime | Requirement |
 | --- | --- |
-| Stock DSH `0.2.0-rc.2`, `0.2.1-alpha.1`, `0.2.1-alpha.2` on macOS arm64 | Native CLI/Web installation, tools, interactions, restoration, enable/disable, restart, and removal for the corresponding builds |
-| DSH `0.2.1-alpha.2` + the local OMD `0.2.1-alpha.2.omd.0.15.1` candidate on macOS arm64 | Both installation orders and full coexistence lifecycle with default OMD enhancements enabled |
-| GPT-6.1-Sol, high reasoning, on DSH `0.2.1-alpha.2` | Four natural questions checked directly after generation; one simulation checked through replay of its unchanged real output |
-
-Cross-platform CI uses Node 24 and covers nine combinations of macOS, Linux, Windows, and the three hosts above, including packaged installation and the native Web lifecycle. See [GitHub Actions](https://github.com/gulagala001/dsh-intelligent-ui/actions/workflows/ci.yml) for results and the [release notes](docs/release-1.0.0.en.md) for the distribution and exact coexistence configuration.
+| DSH Web | `0.2.1-rc.1` or `0.2.1-rc.2`, using its matching package |
+| Node.js | ≥ 22.19 |
+| Platform | Web client with the DSH host; the package contains no native helper |
+| Optional plugins | OMD and OpenCU use their own matching host builds |
 
 <a id="contributing"></a>
 

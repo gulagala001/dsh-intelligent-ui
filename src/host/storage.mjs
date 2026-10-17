@@ -32,7 +32,7 @@ export function validateState(value) {
     const entries = Object.entries(item);
     if (entries.length > (Array.isArray(item) ? RUNTIME_LIMITS.array : RUNTIME_LIMITS.stateKeys)) throw new StateError(413, 'State collection exceeds limit');
     for (const [key, child] of entries) {
-      if (badKey(key) || key.length > 256) throw new StateError(400, 'Invalid state key');
+      if (badKey(key) || key.length > RUNTIME_LIMITS.stateKeyChars) throw new StateError(400, 'Invalid state key');
       visit(child, depth + 1);
     }
   };
@@ -114,6 +114,7 @@ async function cleanupAbandonedFiles(directory) {
 
 export class StateStorage {
   #queue = Promise.resolve();
+  #closed = false;
   constructor(directory) {
     if (!isAbsolute(directory) || directory.split(/[\\/]/).includes('..')) throw new StateError(400, 'Storage directory must be an absolute canonical path');
     this.directory = resolve(directory);
@@ -151,6 +152,7 @@ export class StateStorage {
     throw new StateError(503, 'Storage is busy');
   }
   save(input, verify) {
+    if (this.#closed) throw new StateError(503, 'State storage is closed');
     // Snapshot before queuing so caller mutations cannot change an approved write.
     identity(input.session, input.block);
     const state = validateState(input.state);
@@ -159,7 +161,7 @@ export class StateStorage {
     if (typeof input.sourceRevision !== 'string' || sourceHash(input.source) !== input.sourceRevision) throw new StateError(400, 'Source revision does not match SHA-256');
     const snapshot = { ...input, state };
     const task = this.#queue.then(() => this.#save(snapshot, verify));
-    this.#queue = task.catch(() => {});
+    this.#queue = task.then(() => {}, () => {});
     return task;
   }
   async #save(input, verify) {
@@ -176,11 +178,16 @@ export class StateStorage {
       const bytes = Buffer.from(JSON.stringify(record));
       if (bytes.length > LIMITS.recordBytes) throw new StateError(413, 'Record exceeds limit');
       let total = 0, records = 0;
-      for (const name of await readdir(this.directory)) {
-        if (!name.endsWith('.json')) continue;
-        const stat = await lstat(join(this.directory, name));
-        if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1) throw new StateError(400, 'Storage contains an unsafe file');
-        total += stat.size; records++;
+      const names = (await readdir(this.directory)).filter(name => name.endsWith('.json'));
+      for (let offset = 0; offset < names.length; offset += 16) {
+        // Drain every issued read before releasing the exclusive writer lock.
+        const results = await Promise.allSettled(names.slice(offset, offset + 16).map(name => lstat(join(this.directory, name))));
+        for (const result of results) {
+          if (result.status === 'rejected') throw result.reason;
+          const stat = result.value;
+          if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1) throw new StateError(400, 'Storage contains an unsafe file');
+          total += stat.size; records++;
+        }
       }
       const target = this.path(input.session, input.block);
       let oldSize = 0;
@@ -199,5 +206,8 @@ export class StateStorage {
       lock.close();
     }
   }
-  async close() { await this.#queue; }
+  async close() {
+    this.#closed = true;
+    await this.#queue;
+  }
 }

@@ -1,10 +1,11 @@
-import React, { useId, useState } from 'react';
+import React, { useId, useLayoutEffect, useRef, useState } from 'react';
 import { disabled, display, ErrorMessage, Field, invoke, numeric, useBound } from './shared.jsx';
 
 const decimalPlaces = value => {
   const [coefficient, exponent = '0'] = String(value).split(/e/i);
   return Math.max(0, (coefficient.split('.')[1]?.length ?? 0) - Number(exponent));
 };
+const numberStepBase = field => Number.isFinite(field.min) ? field.min : numeric(field.value, 0);
 function rangeValue(value, min, max, step) {
   const clamped = Math.min(max, Math.max(min, numeric(value, min)));
   const index = (clamped - min) / step, last = (max - min) / step;
@@ -16,15 +17,32 @@ function rangeValue(value, min, max, step) {
 }
 
 export function InputControl({ props: p, api, kind = 'text', error }) {
-  const [value, set, updateError] = useBound(api, p.bind, p.value ?? (kind === 'checkbox' ? false : kind === 'number' || kind === 'slider' ? 0 : ''));
+  const [value, set, updateError] = useBound(api, p.bind, p.value ?? (kind === 'checkbox' ? false : kind === 'select' ? null : kind === 'number' || kind === 'slider' ? 0 : ''));
+  const numberInput = useRef(null);
+  const preserveStepBase = () => {
+    const input = numberInput.current;
+    if (kind === 'number' && input && Number.isFinite(p.step) && p.step > 0) {
+      // Native stepping uses min, then the value attribute. React normally
+      // synchronizes that attribute to the edited value, including on blur.
+      const initial = String(numeric(p.value, 0));
+      if (input.defaultValue !== initial) {
+        const displayed = input.value;
+        input.defaultValue = initial;
+        // Setting defaultValue also fills a pristine empty input on remount.
+        if (input.value !== displayed) input.value = displayed;
+      }
+    }
+  };
+  useLayoutEffect(preserveStepBase);
   const opts = (p.options || []).map(item => item && typeof item === 'object' ? item : { label: display(item), value: item });
   const inactive = disabled(api);
-  return <Field label={p.label} hint={p.hint} error={error || updateError} unit={p.unit} className={`iui-field-${kind}`}>{attributes => {
+  const selectionError = kind === 'select' && value != null ? fieldError({ type: 'select', options: p.options }, value) : '';
+  return <Field label={p.label} hint={p.hint} error={error || updateError || selectionError} unit={p.unit} className={`iui-field-${kind}`}>{attributes => {
     if (kind === 'checkbox') return <label className={`iui-checkbox-line${inactive ? ' iui-checkbox-inactive' : ''}`} htmlFor={attributes.id}><input {...attributes} aria-label={p.unit ? `${p.label} · ${p.unit}` : p.label} className="iui-checkbox" type="checkbox" checked={Boolean(value)} disabled={inactive} onChange={event => set(event.target.checked)} /><span aria-hidden="true">{value ? '已选择' : '未选择'}</span></label>;
     if (kind === 'select') {
       const selected = opts.findIndex(option => Object.is(option.value, value));
       const label = opts[selected]?.label;
-      return <><select {...attributes} className="iui-input iui-select" disabled={inactive} value={Math.max(-1, selected)} title={label} onChange={event => set(opts[Number(event.target.value)]?.value)}>
+      return <><select {...attributes} className="iui-input iui-select" disabled={inactive} value={Math.max(-1, selected)} title={label} onChange={event => { const option = opts[Number(event.target.value)]; if (option && !option.disabled) set(option.value); }}>
         <option value={-1} disabled>请选择</option>{opts.map((option, index) => <option key={index} value={index} disabled={option.disabled}>{option.label}</option>)}
       </select>{label?.length > 12 && <span className="iui-select-value" aria-hidden="true">{label}</span>}</>;
     }
@@ -37,7 +55,7 @@ export function InputControl({ props: p, api, kind = 'text', error }) {
       return <div className="iui-range-line"><input {...attributes} aria-describedby={described} className="iui-slider" type="range" disabled={inactive} min={min} max={max} step={step} value={amount} aria-valuetext={p.unit ? `${amount} ${p.unit}` : undefined} onChange={event => set(event.target.valueAsNumber)} /><span className="iui-range-output" id={readoutId}>{describesCurrent && <span className="iui-visually-hidden">当前值：</span>}<span className="iui-range-value">{currentValue}</span>{p.unit && <span className="iui-range-unit">{p.unit}</span>}</span></div>;
     }
     if (kind === 'textarea') return <textarea {...attributes} className="iui-input iui-textarea" disabled={inactive} value={display(value === null ? '' : value)} placeholder={p.placeholder} onChange={event => set(event.target.value)} rows={3} />;
-    return <><input {...attributes} className="iui-input" type={kind === 'number' ? 'number' : 'text'} inputMode={kind === 'number' ? 'decimal' : undefined} disabled={inactive} value={value ?? ''} min={p.min} max={p.max} step={p.step ?? (kind === 'number' ? 'any' : undefined)} placeholder={p.placeholder} onChange={event => set(kind === 'number' ? event.target.value === '' ? null : event.target.valueAsNumber : event.target.value)} />{kind === 'number' && typeof value === 'number' && String(value).length > 12 && <span className="iui-number-value" aria-hidden="true">{value}</span>}</>;
+    return <><input {...attributes} ref={numberInput} className="iui-input" type={kind === 'number' ? 'number' : 'text'} inputMode={kind === 'number' ? 'decimal' : undefined} disabled={inactive} value={value ?? ''} min={p.min} max={p.max} step={p.step ?? (kind === 'number' ? 'any' : undefined)} placeholder={p.placeholder} onBlur={preserveStepBase} onChange={event => set(kind === 'number' ? event.target.value === '' ? null : event.target.valueAsNumber : event.target.value)} />{kind === 'number' && typeof value === 'number' && String(value).length > 12 && <span className="iui-number-value" aria-hidden="true">{value}</span>}</>;
   }}</Field>;
 }
 
@@ -71,11 +89,20 @@ export function fieldValue(field, api) {
 }
 export function fieldError(field, value) {
   if (field.required && (value === '' || value == null || field.type === 'checkbox' && !value)) return '请填写此项';
-  if (field.type === 'select' && value != null && !field.options?.some(option => Object.is(option && typeof option === 'object' ? option.value : option, value))) return '请选择有效选项';
+  if (field.type === 'select' && value != null && !field.options?.some(option => option && typeof option === 'object' ? !option.disabled && Object.is(option.value, value) : Object.is(option, value))) return '请选择有效选项';
   if ((field.type === 'number' || field.type === 'slider') && value != null && value !== '') {
     if (!Number.isFinite(value)) return '请输入有效数字';
     if (field.min != null && value < field.min) return `不能小于 ${field.min}`;
     if (field.max != null && value > field.max) return `不能大于 ${field.max}`;
+    if (field.type === 'number' && Number.isFinite(field.step) && field.step > 0) {
+      const base = numberStepBase(field);
+      let steps = (value - base) / field.step;
+      if (!Number.isFinite(steps)) steps = value / field.step - base / field.step;
+      // Decimal steps can produce a quotient just either side of an integer.
+      const tolerance = Math.min(1e-7, Number.EPSILON * Math.max(1, Math.abs(steps)) * 8);
+      // An overflowing quotient has a step below the value's numeric precision.
+      if (Number.isFinite(steps) && Math.abs(steps - Math.round(steps)) > tolerance) return `请按 ${field.step} 的步长输入`;
+    }
   }
   return '';
 }

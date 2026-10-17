@@ -49,7 +49,12 @@ function gitPaths(cwd, ref) {
     if (error.status === 128 && String(error.stderr).includes('not a git repository') && !ref) return null;
     throw error;
   }
-  if (realpathSync(top) !== realpathSync(cwd)) {
+  // Git and Node may return different casing or 8.3 spellings for the same Windows directory.
+  const identity = path => {
+    const value = realpathSync.native(path);
+    return process.platform === 'win32' ? value.toLowerCase() : value;
+  };
+  if (identity(top) !== identity(cwd)) {
     if (ref) throw Error('Reference checks require the repository root');
     return null;
   }
@@ -110,7 +115,7 @@ function selfTest() {
     assert.match(check(fixture), /package files/); // No .git, and the failing prepack must never run.
     git(fixture, ['init', '--quiet']); git(fixture, ['add', 'package.json', 'src', 'docs']);
     writeFileSync(join(fixture, 'AGENTS.md'), '# Private\n'); git(fixture, ['add', 'AGENTS.md']);
-    assert.throws(() => check(fixture), /Git index contains forbidden.*\n  AGENTS.md/s);
+    assert.throws(() => check(fixture), /Git index contains forbidden.*\n  AGENTS.md/s, 'The staged private file must be rejected');
     const nestedBuild = join(fixture, 'work', 'host-build'); mkdirSync(nestedBuild, {recursive: true});
     writeFileSync(join(nestedBuild, 'package.json'), JSON.stringify({name: 'iui-nested-build-fixture', version: '1.0.0'}));
     assert.match(check(nestedBuild), /^\d+ package files$/); // A build nested in a repository must not inspect its parent.
@@ -118,14 +123,14 @@ function selfTest() {
     assert.match(check(fixture), /Git files/); // Ignored/untracked local notes are not public candidates.
     const cleanTree = git(fixture, ['write-tree']).trim();
     writeFileSync(join(fixture, 'docs', 'implementation-plan.md'), '# Private\n');
-    assert.throws(() => check(fixture), /npm package contains forbidden.*implementation-plan/s);
+    assert.throws(() => check(fixture), /npm package contains forbidden.*implementation-plan/s, 'The packed internal plan must be rejected');
     git(fixture, ['add', 'docs/implementation-plan.md']);
     const tree = git(fixture, ['write-tree']).trim();
-    assert.throws(() => check(fixture, tree), /Git .* contains forbidden.*implementation-plan/s);
+    assert.throws(() => check(fixture, tree), /Git .* contains forbidden.*implementation-plan/s, 'The referenced private tree must be rejected');
     const commitArgs = ['-c', 'user.name=Public Gate Test', '-c', 'user.email=public-gate@example.invalid', 'commit-tree'];
     const privateCommit = git(fixture, [...commitArgs, tree, '-m', 'Private fixture']).trim();
     const cleanCommit = git(fixture, [...commitArgs, cleanTree, '-p', privateCommit, '-m', 'Remove private fixture']).trim();
-    assert.throws(() => checkHistory(fixture, cleanCommit), /Git history .* contains forbidden.*implementation-plan/s);
+    assert.throws(() => checkHistory(fixture, cleanCommit), /Git history .* contains forbidden.*implementation-plan/s, 'A private ancestor must be rejected');
   } finally { rmSync(fixture, {recursive: true, force: true}); }
   console.log('Public file gate self-test passed (staged files, package files, historical tree and ancestry, no Git, no lifecycle scripts).');
 }
@@ -146,6 +151,6 @@ try {
   }
   else throw Error('Usage: node scripts/check-public-files.mjs [--self-test | --ref <tag-or-ref> | --history <tag-or-ref> | --archive <tgz>]');
 } catch (error) {
-  console.error(error.message);
+  console.error(error.stack ?? error.message);
   process.exitCode = 1;
 }

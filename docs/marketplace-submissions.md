@@ -8,7 +8,7 @@ Updated 2026-10-11. These receipts refer to **gulagala001/dsh-intelligent-ui, IU
 
 IUI **1.0.10**：DSH **0.2.1-rc.1 / rc.2** 精确构建，固定 GitHub Release 安装入口见 [安装指南](../README.md#installation) 与 [发行说明](release-1.0.10.md)。MIT；仓库归属及自动发现 topics 已核对。同名 npm 包不属于本项目，不用于发布或安装。
 
-Awesome 原 PR [#7127](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/7127) 已合并，属于旧版收录；coderPerseus 原 Issue [#47](https://github.com/coderPerseus/dsh-hub/issues/47) 仍待审；TYEclipse 原 Issue [#42](https://github.com/TYEclipse/dsh-plugins-hub/issues/42) 已关闭。新版索引同步尚未确认。其余历史回执保留原核对日期，不代表本轮重新核查或新版已上架。
+Awesome 原 PR [#7127](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/7127) 已合并，属于旧版收录；coderPerseus 原 Issue [#47](https://github.com/coderPerseus/dsh-hub/issues/47) 仍待审；TYEclipse 原 Issue [#42](https://github.com/TYEclipse/dsh-plugins-hub/issues/42) 已关闭。本轮已原位更新上述两个 Issue，并提交 [PR #8266](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/8266) 更新 Awesome 同一条目的固定包，待审核；没有重复创建市场条目。新版索引同步尚未确认。其余历史回执保留原核对日期，不代表本轮重新核查或新版已上架。
 
 IUI 1.0.10 provides two pinned host builds. The original Awesome PR is merged, coderPerseus #47 is open, and TYEclipse #42 is closed. These statuses do not establish synchronization of this release; other historical receipts retain their original check date.
 

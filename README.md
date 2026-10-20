@@ -1,276 +1,130 @@
-# DSH Intelligent UI
+<a name="readme-top"></a>
 
-<div align="center">
-  <a href="https://github.com/deepseek-ai/deepseek-harness"><img alt="DSH Web 插件" src="https://img.shields.io/badge/DSH-Web-4d6bfe" /></a>
-  <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases"><img alt="IUI 1.0.10" src="https://img.shields.io/badge/IUI-1.0.10-4d6bfe" /></a>
-  <a href="https://nodejs.org/"><img alt="Node.js ≥ 22.19" src="https://img.shields.io/badge/Node.js-%E2%89%A522.19-43853d" /></a>
-  <a href="./LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-yellow.svg" /></a>
-  <br /><br />
-  在 DSH 对话里调整参数、查看图表、勾选清单，或直接玩一个小游戏。<br />
-  使用已有模型与会话，让回答带上合适的交互。
-  <br /><br />
-  🌏 <a href="./README.md"><strong>中文</strong></a> · <a href="./README_EN.md">English</a>
-</div>
+<h1 align="center">DSH Intelligent UI</h1>
 
-<br />
+<p align="center"><strong>让回答变成可以调整、选择和操作的交互作品。</strong><br>DeepSeek Harness 插件</p>
 
-![聚餐计划：调整人数、联动采购量并勾选准备事项](docs/images/iui-1.0-plan.png)
+<p align="center"><strong>简体中文</strong> · <a href="README_EN.md">English</a></p>
 
-<p align="center"><sub>使用 IUI 1.0.10 实际组件与固定示例数据；餐食配图由 AI 生成。</sub></p>
+<p align="center">
+  <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases/tag/v0.2.1-rc.2.iui.1.0.10"><img alt="IUI 1.0.10" src="https://img.shields.io/badge/release-IUI%201.0.10-0969da?style=flat-square"></a>
+  <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases/tag/v0.2.1-rc.2.iui.1.0.10"><img alt="本版插件包下载次数，非用户数" src="https://img.shields.io/github/downloads/gulagala001/dsh-intelligent-ui/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz?style=flat-square&amp;label=package%20downloads&amp;displayAssetName=false&amp;color=0969da"></a>
+  <a href="#readme-install"><img alt="DSH 0.2.1-rc.2" src="https://img.shields.io/badge/DSH-0.2.1--rc.2-0969da?style=flat-square"></a>
+  <a href="https://github.com/gulagala001/dsh-intelligent-ui/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/gulagala001/dsh-intelligent-ui?style=flat-square&amp;color=0969da"></a>
+</p>
 
-**DSH Intelligent UI 是 [DeepSeek Harness（DSH）](https://github.com/deepseek-ai/deepseek-harness) 的独立 Web 插件。** 安装后可以创建智能聊天，也可以在普通 agent 中按需调用技能。模型、会话和工具循环沿用 DSH 原生能力；原版 DSH 可直接使用，Oh My DSH（OMD）是可选共存插件。
+<p align="center"><a href="#readme-install"><strong>开始使用</strong></a> · <a href="docs/usage.md">完整文档</a> · <a href="https://github.com/gulagala001/dsh-intelligent-ui/issues">反馈</a></p>
 
-**IUI 1.0.10** 分别提供 DSH **0.2.1-rc.1 / rc.2** 构建；宿主 SDK、Cordis 4.0.5、Schemastery 3.18.5 与依赖锁逐版本固定。生成内容取决于所选模型。
+<p align="center"><a href="docs/images/iui-1.0-plan.png"><img src="docs/images/iui-1.0-plan.png" alt="交互聚餐计划 / Interactive meal plan" width="880"></a></p>
 
-## 📑 目录
+*IUI 1.0.10 真实组件与固定示例数据；餐食配图由 AI 生成。*
 
-- [✨ 功能一览](#features)
-- [🚀 安装](#installation)
-- [🖼️ 真实场景](#showcase)
-- [💡 开始使用](#usage)
-- [🆕 最近更新](#updates)
-- [💾 数据、更新与卸载](#data)
-- [🔌 DSH 与插件生态](#ecosystem)
-- [🛠️ 开发与构建](#development)
-- [🔐 执行边界](#boundaries) · [⚠️ 已知限制](#limitations) · [🖥️ 平台与兼容性](#compatibility)
-- [💬 反馈与贡献](#contributing) · [🔗 致谢与相关项目](#credits)
-
-<a id="features"></a>
-
-## ✨ 功能一览
-
-- **💬 两个入口**：悬停“新会话”，点击右内侧的 **Chat** 气泡创建智能聊天；普通 agent 用 **`/intelligent-ui`** 按需生成交互回答。
-- **🧩 28 个回答组件**：文字、图片、卡片、指标、表格、图表、数字输入、选择、滑块、清单与表单，可组合成一条回答；普通文字仍然保留。
-- **🧮 本地联动**：调整金额、人数或其他参数，计算结果随之更新；勾选、排序、筛选和游戏操作不增加模型请求。明确提交后才继续对话。
-- **📊 图表与数据**：排序表格，点选图形或数据行，切换系列和分类；作者标注单位后，月费与容量等不同量纲分组展示。
-- **🎮 示意图、模拟与小游戏**：图形支持场景指定的点击、键盘和拖拽；非空间玩法可用语义操作卡。播放由用户开启，可保留参数重新开始或完整重置。
-- **🌊 渐进呈现**：文字与多个交互段可以混合输出，生成时逐步预览，当前步骤完成并恢复设置后启用操作。
-- **💾 保存与恢复**：作品设置按会话和消息保存，刷新、重开与宿主重启后恢复。内联与展开共享状态，保存失败或冲突有明确提示。
-- **↗️ 展开与交付**：在 DSH 原生作品页签继续操作；更多菜单提供源文查看、复制与数据导出。窄回答中的图形可放大到原尺寸查看。
-- **🌗 适应阅读环境**：明暗主题、窄屏排布和键盘操作；完整组件资料由 agent 按需读取。
+下载徽章只统计所链接发行版中的插件压缩包，不代表安装人数或活跃用户数。
 
 <a id="installation"></a>
-
-## 🚀 安装
-
-**前置条件**：DSH Web 已能正常运行，Node.js **≥ 22.19**，已配置可用模型。
-
-核对你的 **完整 DSH 版本**后选择对应安装包：
-
-| DSH 宿主 | IUI 安装包 | SHA-256 |
-| --- | --- | --- |
-| `0.2.1-rc.1` | [0.2.1-rc.1.iui.1.0.10](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.10.tgz) | [SHA-256](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.10.tgz.sha256) |
-| `0.2.1-rc.2` | [0.2.1-rc.2.iui.1.0.10](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz) | [SHA-256](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz.sha256) |
-
-例如 DSH 0.2.1-rc.2：
-
-```sh
-dsh plugin --profile web add https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz
-```
-
-将 `web` 换成实际 profile 名；安装后重启该 profile 并刷新浏览器。也可先下载再使用 `file:/absolute/path/安装包.tgz` 安装。OMD 为可选插件，旧构建保留于 [Releases](https://github.com/gulagala001/dsh-intelligent-ui/releases)。
-
-<details>
-<summary><strong>从源码构建</strong></summary>
-
-```sh
-git clone https://github.com/gulagala001/dsh-intelligent-ui.git
-cd dsh-intelligent-ui
-corepack pnpm install --frozen-lockfile --ignore-scripts
-
-# 选择自己的完整宿主版本
-pnpm run package:host 0.2.1-rc.2
-# 或
-pnpm run package:host 0.2.1-rc.1
-```
-
-安装包生成于 `work/packages/`。构建脚本为所选宿主锁定 SDK、依赖与完整包版本。
-
-</details>
-
-<details>
-<summary><strong>常见问题</strong></summary>
-
-| 现象 | 检查方式 |
-| --- | --- |
-| 看不到 Chat 入口 | 悬停整格“新会话”，确认插件装在当前 profile 且已启用；重启 profile 并刷新浏览器。 |
-| 安装提示版本不兼容 | 核对完整 DSH 版本，选择相应构建。 |
-| 模型只输出文字 | 使用 Chat 创建智能聊天，或调用 `/intelligent-ui`；描述希望调整、选择或操作的内容。生成质量取决于所选模型。 |
-| 作品显示解析错误 | 查看诊断或复制源文，明确点击修复或请求原会话模型修正。 |
-
-</details>
-
+<a id="features"></a>
 <a id="showcase"></a>
+<a id="usage"></a>
+<a id="updates"></a>
+<a id="data"></a>
+<a id="ecosystem"></a>
+<a id="development"></a>
+<a id="boundaries"></a>
+<a id="limitations"></a>
+<a id="compatibility"></a>
+<a id="contributing"></a>
+<a id="credits"></a>
+<a name="readme-install"></a>
 
-## 🖼️ 真实场景
+## 快速开始
 
-下面五个场景来自 DSH 原生会话中的 **GPT-6.1-Sol** 生成结果。用一个自然问题开始，再在回答里操作。
+**适用环境：** DSH **0.2.1-rc.2**, Node.js **22.19+**.
 
-### 按顺序点灯，直接玩一轮
+需要可用的 DSH 模型。生成质量取决于模型；作品内交互使用受控组件与有界表达式，提交后才继续模型对话。
 
-> 做一个可以直接玩的顺序点灯小游戏。按灯1→灯2→灯3才加一分，点错则进度归零；完成后继续下一轮。支持点击和键盘，布局简洁。
+### 1. 安装
 
-![真实生成的顺序点灯小游戏](docs/images/iui-1.0-game.png)
+打开实际使用的 DSH 实例，在 **插件 → ＋ 添加插件** 中粘贴：
 
-三个操作卡、下一步提示与得分组成小游戏。可以直接点击，也可以聚焦卡片后按 Enter 或空格；重置回到起点。
+```text
+https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz
+```
 
-### 看套餐表，也看不同单位的图
+等当前任务结束后，按宿主提示启用或完整重启该实例，沿用原 profile 与数据。其他宿主、升级和卸载见[安装指南](docs/install.md) · [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.10/SHA256SUMS).
 
-> 比较三款虚构套餐：轻量月费29、容量100GB，标准月费59、容量500GB，专业月费99、容量2000GB。给我“套餐表”和“月费图”两个页签，表格可排序，柱状图可选择数据并切换系列显示。
+### 2. 先试这一件事
 
-![套餐比较：表格、图表、指标选择与数据点选](docs/images/iui-1.0-chart.png)
+悬停 **新会话**，点击 **Chat**；也可在普通会话输入 `/intelligent-ui`，随后提出：
 
-切换页签查看可排序表格与柱图。月费“元”和容量“GB”按作者标注的单位分别展示，点选图形或数据行可以查看明细。
+```text
+做一个可调整的分账工具：账单387元，加8%服务费，5人均分。人数、金额和服务费都能修改。
+```
 
-### 改账单，立即算出每人应付
+**成功标志：** 初始每人应付 83.59；修改参数后结果在作品内更新，不额外调用模型。
 
-> 做一个可以直接调整的分账工具：账单387元，加8%服务费，5人均分。输入“账单金额”“服务费百分比”“人数”，每人应付显示两位小数。
+## 在回答里直接操作
 
-![可调整金额、服务费与人数的分账工具](docs/images/iui-1.0-calculator.png)
+- **28 个组件**：文字、图片、卡片、指标、表格、图表、数字输入、选择、滑块、清单与表单，可与普通文字混合呈现。
+- **参数本地联动**：调整金额、人数、筛选条件或游戏状态，不增加模型调用；明确提交才继续对话。
+- **保存与交付**：作品设置按会话和消息保存；内联与原生展开页签共享状态，可复制源文并导出数据。
 
-初始每人应付 **83.59 元**；改成 250 元、12% 服务费、4 人后得到 **70.00 元**。计算在当前作品内完成。
+### 调参数，立即看结果
 
-### 把待办变成能勾选的清单
+![分账工具](docs/images/iui-1.0-calculator.png)
 
-> 给我一个可以直接勾选的周末清单，只有晨间散步、整理书桌、采购晚餐、阅读半小时四项，显示完成数量，勾选可以取消。
+*DSH 原生会话中的真实生成结果，使用固定示例数据。模型生成质量仍取决于所选模型。*
 
-![周末清单与完成数量](docs/images/iui-1.0-checklist.png)
+还可以生成套餐比较、可勾选清单、聚餐计划、图形模拟和小游戏。图表按标注的单位分组；点击、键盘与拖拽按作品声明的场景工作。[完整示例](docs/examples.md)
 
-勾选两项显示完成 2 项，取消一项后回到 1 项。完成状态与作品一起保存，回来后继续使用。
+## 范围与数据
 
-### 调整参数，观察匀加速运动
+| 场景 | 行为 |
+| --- | --- |
+| 明暗、窄屏和键盘操作 | 跟随 DSH 原生配色、字体及控件；完整交互需要插件。 |
+| 刷新、重开和宿主重启 | 按会话／消息恢复已保存状态；保存失败或冲突会提示。 |
+| 导出 | 保留源文和 JSON 状态，继续交互仍需兼容插件与宿主。 |
+| 生成内容 | 受控组件、有界表达式与 Scene 协议，不执行任意 JavaScript，不取得宿主文件、凭据或网络权限。 |
 
-> 用一个可操作的模拟解释匀加速运动：小球初始位置20、速度30、加速度10。可以调整速度、加速度，播放、暂停、重置；位移与速度遵守匀加速公式。
+作品设置位于 `DSH_HOME/intelligent-ui/state`。卸载后会话原文与作品设置保留；重新安装匹配版本可继续读取。DSH rc.1／rc.2 分别提供独立构建，不混装 SDK 或包。
 
-![匀加速模拟：参数、播放与实时指标](docs/images/iui-1.0-motion.png)
-
-改参数后模拟暂停，再点击播放观察变化。“重新开始”保留所选参数，“重置”还原初始设置；内联与展开共用状态，刷新后恢复并保持暂停。
+## 常见问题
 
 <details>
-<summary><strong>展开作品与深色主题</strong></summary>
+<summary>看不到 Chat 入口？</summary>
 
-在宿主作品页签中获得更大的操作空间，关闭后焦点回到原展开入口。
-
-![原生作品页签中的模拟](docs/images/iui-1.0-expanded.png)
-
-跟随 DSH 的明暗主题。
-
-![深色主题中的模拟作品](docs/images/iui-1.0-dark.png)
+悬停或键盘聚焦整格“新会话”，点击右内侧 Chat 气泡；触屏和折叠侧栏直接显示。若仍未出现，核对当前 profile 的插件启用状态并重启。
 
 </details>
 
+<details>
+<summary>模型只输出文字，或者作品显示解析错误？</summary>
 
+用 Chat 入口或 `/intelligent-ui`，明确说出希望调整、选择或操作的内容。错误作品可查看诊断与源文，再明确请求原会话模型修正；不会自动循环消耗模型用量。
 
-还可以组合聚餐计划、旅行表单、预算比较和交互示意图。表单明确提交后把所选字段交给原会话模型，继续生成方案。
+</details>
 
-<a id="usage"></a>
+<details>
+<summary>修改参数会发送给模型吗？</summary>
 
-## 💡 开始使用
+普通本地交互不会。只有用户明确提交或继续对话时，相应字段才进入模型请求。外部图片仍取决于图片来源的可用性。
 
-1. **创建智能聊天**：悬停“新会话”，点击右内侧的 **Chat** 气泡。新会话继承当前模型。
-2. **或在普通 agent 中调用技能**：输入 **`/intelligent-ui`**，说明需要的交互回答。
-3. **在回答里操作**：调整数字、勾选、筛选或切换视图，结果本地更新；需要模型继续时明确提交。
-4. **展开和保留作品**：点击“展开”，或在“更多操作”（⋯）中复制源文、导出作品数据。
+</details>
 
-![悬停整格新会话后右内侧的 Chat 入口](docs/images/new-session-hover.png)
+## 开发与许可
 
-键盘聚焦“新会话”同样显示 Chat，可用 Tab 与 Enter 操作；触屏和折叠侧栏直接显示入口。点击格子的其他位置仍创建普通会话。
+[架构](docs/architecture.md) · [组件与协议](docs/contracts.md) · [使用指南](docs/usage.md)
 
-详细操作、图表选择、保存冲突和导出格式见 [使用说明](docs/usage.md)。
+采用 [MIT](LICENSE)。OpenUI 低层解析、Apps SDK UI token 等来源与许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
-<a id="updates"></a>
+## 文档与支持
 
-## 🆕 最近更新
-
-**IUI 1.0.10 · DSH 0.2.1-rc.1 / rc.2**
-
-- 交互作品跟随宿主原生配色、字体与正文字号。
-- Chat 入口与作品面板操作复用 DSH 原生按钮、图标。
-- 两个宿主分别锁定 SDK、依赖与安装包，继续读取已有作品。
-
-详见 [发行说明](docs/release-1.0.10.md) 和 [CHANGELOG](CHANGELOG.md)。
-
-<a id="data"></a>
-
-## 💾 数据、更新与卸载
-
-作品设置保存在 DSH 数据目录的 `intelligent-ui/state`，按会话与原始消息区分。保存失败或并发冲突会显示状态，并保留本地编辑供重试；关闭页面前确认已经保存。
-
-更新时安装对应宿主的新构建，重启 profile 并继续使用原 DSH 数据目录。导出包含版本、源文和当前 JSON 设置；重新运行交互仍需要本插件和兼容宿主。
-
-```sh
-dsh plugin --profile web remove dsh-intelligent-ui
-```
-
-卸载后重启 profile。会话原文与作品设置保留在宿主数据目录，重新安装可继续读取。
-
-<a id="ecosystem"></a>
-
-## 🔌 DSH 与插件生态
-
-本插件复用 DSH 原生会话、模型、工具循环、技能与作品页签。普通 agent 仅增加简短技能索引，完整组件资料按需读取。
-
-本仓库独立维护安装包、版本与生命周期。OMD 的推荐与共存接线为可选集成，按宿主选择对应 OMD 构建。
-
-插件市场的投稿回执、审核状态与目录覆盖见[市场投稿记录](docs/marketplace-submissions.md)。
-
-<a id="development"></a>
-
-## 🛠️ 开发与构建
-
-```sh
-corepack pnpm install --frozen-lockfile --ignore-scripts
-pnpm run build
-pnpm test
-pnpm run test:host
-```
-
-客户端使用 React 18，复用 OpenUI 的低层语言解析与 Apps SDK UI 设计 token；组件、交互执行、状态保存与宿主接入由本插件维护。开发资料见 [资源与选型](docs/architecture.md) 和 [模块契约](docs/contracts.md)。
-
-<a id="boundaries"></a>
-
-## 🔐 执行边界
-
-交互使用受控组件、有界纯表达式与 Scene 数据协议。界面内的参数修改和游戏操作默认只更新本地状态，提交或继续对话由用户明确触发。
-
-生成内容不执行任意 JavaScript，不获得宿主文件、凭据或网络权限。工具调用继续由 DSH 原生能力管理；无需 OpenUI Cloud、Thesys API 或额外 agent 服务。
-
-<a id="limitations"></a>
-
-## ⚠️ 已知限制
-
-- 生成质量取决于所选模型；未知组件、无效表达式或不合适的布局会显示诊断，修复需明确发起。
-- 完整交互依赖本插件与对应宿主；导出文件保存源文和状态。
-- 外部图片可用性取决于来源，图片 URL 受到协议限制。
-- 完全重复的数据行或无法确认稳定身份的超长行，点选仅在当前视图保留。
-- 不同宿主须使用对应构建；按完整宿主版本安装，其他设备和宿主版本可能存在差异。
-
-<a id="compatibility"></a>
-
-## 🖥️ 平台与兼容性
-
-| 运行环境 | 要求 |
+| 我想做什么 | 去哪里 |
 | --- | --- |
-| DSH Web | `0.2.1-rc.1` 或 `0.2.1-rc.2`，使用对应安装包 |
-| Node.js | ≥ 22.19 |
-| 平台 | 通过 DSH 宿主运行 Web 客户端；IUI 不含原生助手 |
-| 可选插件 | OMD、OpenCU 另行选择匹配宿主的版本 |
+| 安装、升级、卸载 | [安装指南](docs/install.md) |
+| 了解使用方法与边界 | [使用文档](docs/usage.md) |
+| 查看版本变化 | [Releases](https://github.com/gulagala001/dsh-intelligent-ui/releases) |
+| 反馈问题 | [Issues](https://github.com/gulagala001/dsh-intelligent-ui/issues) |
 
-<a id="contributing"></a>
+反馈时请提供完整 DSH／插件版本、实际入口、最小复现步骤，以及预期和实际表现；日志与截图先移除私人数据。
 
-## 💬 反馈与贡献
-
-通过 [Issues](https://github.com/gulagala001/dsh-intelligent-ui/issues) 提交问题或建议。复现时提供完整 DSH 与插件版本、使用入口、最小提示词或可分享源文，以及预期和实际行为；私人数据请先脱敏。
-
-欢迎通过 [Pull Requests](https://github.com/gulagala001/dsh-intelligent-ui/pulls) 改进组件、宿主适配、无障碍、文档与场景。实现应继续复用 DSH 原生能力，保持本地交互与明确提交的行为边界。
-
-<a id="credits"></a>
-
-## 🔗 致谢与相关项目
-
-- [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)：原生宿主与插件能力。
-- [OpenUI](https://github.com/thesysdev/openui)：低层语言解析。
-- [Apps SDK UI](https://github.com/openai/apps-sdk-ui)：设计 token 参考。
-- [Oh My DSH](https://github.com/gulagala001/oh-my-dsh)：可选共存与推荐集成。
-
-本项目采用 [MIT License](LICENSE)。依赖版本、许可与来源见 [第三方声明](THIRD_PARTY_NOTICES.md)。
+<p align="center"><a href="#readme-top">返回顶部</a> · <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases">版本与下载</a> · <a href="https://github.com/gulagala001/dsh-intelligent-ui/issues">反馈</a></p>

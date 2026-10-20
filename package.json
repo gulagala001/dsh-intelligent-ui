@@ -51,7 +51,11 @@
     "docs/release-1.0.9.en.md",
     "docs/marketplace-submissions.md",
     "docs/release-1.0.10.md",
-    "docs/release-1.0.10.en.md"
+    "docs/release-1.0.10.en.md",
+    "docs/install.md",
+    "docs/install_EN.md",
+    "docs/examples.md",
+    "docs/examples_EN.md"
   ],
   "dsh": {
     "bundle": {

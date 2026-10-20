@@ -8,7 +8,7 @@ import {execFileSync,spawnSync} from 'node:child_process';
 import {parse} from 'yaml';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
-const hosts=['0.2.0-rc.2','0.2.1-alpha.1','0.2.1-alpha.2','0.2.1-alpha.3'];
+const hosts=['0.2.1-rc.1','0.2.1-rc.2'];
 // The fixture runs the complete packager; only install is replaced so it cannot fetch dependencies.
 async function fixture(t){
   const base=await realpath(await mkdtemp(join(tmpdir(),'iui-host-package-')));
@@ -25,7 +25,7 @@ async function fixture(t){
   await writeFile(join(source,'scripts/build.mjs'),`import {mkdir,writeFile} from 'node:fs/promises';
 if(process.env.IUI_FIXTURE_FAIL==='build')throw Error('Synthetic build failure');
 await mkdir('lib',{recursive:true});await writeFile('lib/current.js','current');`);
-  await writeFile(join(source,'package.json'),JSON.stringify({name:'iui-package-host-fixture',version:'0.2.1-alpha.2.iui.1.0.0',files:['src','lib','presets'],devDependencies:{},peerDependencies:{}}));
+  await writeFile(join(source,'package.json'),JSON.stringify({name:'iui-package-host-fixture',version:'0.2.1-rc.2.iui.1.0.0',files:['src','lib','presets'],engines:{},devDependencies:{},peerDependencies:{}}));
   const pnpm=process.env.IUI_PNPM_ENTRY??process.env.npm_execpath;
   assert.ok(pnpm,'run this test with the declared pnpm script');
   const launcher=join(bin,'pnpm.cjs');
@@ -58,11 +58,11 @@ test('fresh host packaging removes deleted source and generated files while pres
     assert.equal(pkg.version,host+'.iui.1.0.0');
     for(const section of ['peerDependencies','devDependencies']){
       assert.equal(pkg[section]['@deepseek-ai/dsh'],host);
-      assert.equal(pkg[section]['@deepseek-ai/cordis'],host===hosts[0]?'4.0.4':host===hosts[3]?'4.0.5-alpha.2':'4.0.5-alpha.1');
-      assert.equal(pkg[section]['@deepseek-ai/schemastery'],host===hosts[0]?'3.18.4':host===hosts[3]?'3.18.5-alpha.2':'3.18.5-alpha.1');
+      assert.equal(pkg[section]['@deepseek-ai/cordis'],'4.0.5');
+      assert.equal(pkg[section]['@deepseek-ai/schemastery'],'3.18.5');
     }
     const preset=parse(execFileSync('tar',['-xOf',result.package,'package/presets/cordis.patch.yml'],{encoding:'utf8'}));
-    assert.equal(preset[0].insert[0].config.plugins[0].config.suffix,hosts.indexOf(host)>=2?undefined:'Your working directory is {{cwd}}.');
+    assert.equal(preset[0].insert[0].config.plugins[0].config.suffix,undefined);
     await writeFile(join(target,'src/stale.mjs'),'stale');await writeFile(join(target,'lib/stale.js'),'stale generated');
     const second=f.success(host);
     assert.equal(second.previousBuildDirectory,undefined);
@@ -73,7 +73,7 @@ test('fresh host packaging removes deleted source and generated files while pres
 });
 
 test('install, build and pack failures keep the last complete host output and package', {skip:process.platform==='win32'},async t=>{
-  const f=await fixture(t),host=hosts[2],initial=f.success(host);
+  const f=await fixture(t),host=hosts[1],initial=f.success(host);
   const bytes=await readFile(initial.package),pkg=await readFile(join(initial.buildDirectory,'package.json'));
   for(const phase of ['install','build','pack']){
     await writeFile(join(f.source,'src/current.mjs'),phase);
@@ -87,7 +87,7 @@ test('install, build and pack failures keep the last complete host output and pa
 });
 
 test('unsafe source, filesystem-root, overlapping and linked output paths are rejected', {skip:process.platform==='win32'},async t=>{
-  const f=await fixture(t),host=hosts[2];
+  const f=await fixture(t),host=hosts[1];
   const cases=[{IUI_BUILD_ROOT:f.source},{IUI_BUILD_ROOT:'/'},{IUI_PACKAGE_OUT:'/'},{IUI_BUILD_ROOT:join(f.source,'src')},{IUI_PACKAGE_OUT:join(f.source,'docs')},{IUI_PACKAGE_OUT:join(f.builds,host)}];
   for(const env of cases){const result=f.run(host,env);assert.notEqual(result.status,0);assert.match(result.stderr,/outputs must be separate/);}
   await rm(join(f.builds,host),{recursive:true,force:true});
@@ -97,7 +97,7 @@ test('unsafe source, filesystem-root, overlapping and linked output paths are re
 });
 
 test('failed package publication rolls back the completed host directory without touching unrelated output', {skip:process.platform==='win32'},async t=>{
-  const f=await fixture(t),host=hosts[2],initial=f.success(host);
+  const f=await fixture(t),host=hosts[1],initial=f.success(host);
   const original=await readFile(join(initial.buildDirectory,'src/current.mjs'));
   // A directory occupying the package filename makes rename fail after build publication.
   await rm(initial.package);await mkdir(initial.package);await writeFile(join(initial.package,'user-data'),'preserve');

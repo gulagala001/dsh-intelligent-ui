@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Button, IconNewChatOutlineRegular, MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives';
 import { IntelligentSurface } from './Surface.jsx';
 import { disposeDocuments } from './document-store.mjs';
 import surfaceStyles from './styles/surface.css';
@@ -15,7 +15,7 @@ export const inject = ['slots', 'sessions', 'workspaces', 'uiSession', 'uiWorksp
 export function apply(ctx) {
   const bridge = createSessionBridge(ctx);
   ctx.effect(() => () => { bridge.dispose(); disposeDocuments(); }, 'intelligent-ui: native Session bridge');
-  const pane = installArtifactPane(ctx, { Surface: IntelligentSurface, bridge });
+  const pane = installArtifactPane(ctx, { Surface: IntelligentSurface, bridge, Button });
   function InlineSurface(props) {
     const { source, streaming, sessionId, blockId } = props;
     useEffect(() => { pane.update({ source, streaming, sessionId, blockId }); }, [source, streaming, sessionId, blockId]);
@@ -28,7 +28,7 @@ export function apply(ctx) {
     document.head.append(style); return () => style.remove();
   }, 'intelligent-ui: local entrance styles');
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay',
-    id: 'dsh-intelligent-ui/entrance', order: 30 }, () => <IntelligentEntrance bridge={bridge} />));
+    id: 'dsh-intelligent-ui/entrance', order: 30 }, () => <IntelligentEntrance bridge={bridge} Button={Button} ChatIcon={IconNewChatOutlineRegular} />));
   ctx.slots.inject('conversation.chat.node', () => decorateAssistantSlot(ctx.slots, Native =>
     createAssistantAdapter(Native, { Surface: InlineSurface, bridge, MarkdownText,
       onUnsupported: info => console.warn('[intelligent-ui] Unsupported native presentation', info),

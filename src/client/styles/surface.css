@@ -1,22 +1,22 @@
 /* Scoped values from OpenAI Apps SDK UI 0.2.2 (MIT). No global SDK CSS is loaded. */
 .iui-surface {
-  --iui-surface: #fff;
-  --iui-secondary: #f9f9f9;
-  --iui-tertiary: #f3f3f3;
-  --iui-text: #0d0d0d;
-  --iui-muted: #5d5d5d;
-  --iui-border: #dfdfdf;
-  --iui-accent: #0285ff;
-  --iui-accent-soft: #e5f2ff;
-  --iui-danger: #ba2623;
-  --iui-success: #008635;
-  --iui-warning: #b9480d;
+  --iui-surface: var(--dsw-alias-bg-base, #fff);
+  --iui-secondary: var(--dsw-alias-bg-layer-1, #f9f9f9);
+  --iui-tertiary: var(--dsw-alias-interactive-bg-hover, #f3f3f3);
+  --iui-text: var(--dsw-alias-label-primary, #0d0d0d);
+  --iui-muted: var(--dsw-alias-label-secondary, #5d5d5d);
+  --iui-border: var(--dsw-alias-border-l3, #dfdfdf);
+  --iui-accent: var(--dsw-alias-state-business-primary, #0285ff);
+  --iui-accent-soft: var(--dsw-alias-interactive-bg-hover-accent, #e5f2ff);
+  --iui-danger: var(--dsw-alias-state-error-primary, #ba2623);
+  --iui-success: var(--dsw-alias-state-success-primary, #008635);
+  --iui-warning: var(--dsw-alias-state-warn-label, #b9480d);
   --iui-radius: 16px;
   color: var(--iui-text);
   box-sizing: border-box;
   background: var(--iui-surface);
-  font-family: ui-sans-serif, -apple-system, system-ui, "Segoe UI", "Noto Sans", "Helvetica", "Arial", sans-serif;
-  font-size: 16px;
+  font-family: var(--dsw-font-family, ui-sans-serif, -apple-system, system-ui, "Segoe UI", sans-serif);
+  font-size: var(--dsh-content-font-size, 16px);
   line-height: 1.5;
   min-width: 0;
   width: 100%;
@@ -29,16 +29,16 @@
   color-scheme: light;
 }
 .iui-surface[data-theme="dark"], [data-theme="dark"] .iui-surface, [data-appearance="dark"] .iui-surface, body[data-ds-dark-theme] .iui-surface, .dark .iui-surface {
-  --iui-surface: #212121;
-  --iui-secondary: #181818;
-  --iui-tertiary: #303030;
-  --iui-text: #fff;
-  --iui-muted: #afafaf;
-  --iui-border: #414141;
-  --iui-accent-soft: #13395c;
-  --iui-danger: #ff8583;
-  --iui-success: #66d492;
-  --iui-warning: #ff9e6c;
+  --iui-surface: var(--dsw-alias-bg-base, #212121);
+  --iui-secondary: var(--dsw-alias-bg-layer-1, #181818);
+  --iui-tertiary: var(--dsw-alias-interactive-bg-hover, #303030);
+  --iui-text: var(--dsw-alias-label-primary, #fff);
+  --iui-muted: var(--dsw-alias-label-secondary, #afafaf);
+  --iui-border: var(--dsw-alias-border-l3, #414141);
+  --iui-accent-soft: var(--dsw-alias-interactive-bg-hover-accent, #13395c);
+  --iui-danger: var(--dsw-alias-state-error-primary, #ff8583);
+  --iui-success: var(--dsw-alias-state-success-primary, #66d492);
+  --iui-warning: var(--dsw-alias-state-warn-label, #ff9e6c);
   color-scheme: dark;
 }
 .iui-surface *, .iui-surface *::before, .iui-surface *::after { box-sizing: border-box; }
@@ -74,7 +74,7 @@
 .iui-surface .iui-heading { padding-top: 2px; }
 .iui-surface .iui-text { white-space: pre-wrap; }
 .iui-surface .iui-text-sm { font-size: 12px; line-height: 1.5; }
-.iui-surface .iui-text-md { font-size: 16px; line-height: 1.6; }
+.iui-surface .iui-text-md { font-size: var(--dsh-content-font-size, 16px); line-height: 1.6; }
 .iui-surface .iui-text-lg { font-size: 18px; line-height: 1.6; }
 .iui-surface .iui-muted, .iui-surface .iui-hint { color: var(--iui-muted); }
 .iui-surface .iui-hint { font-size: 12px; display: block; line-height: 1.5; }
@@ -340,9 +340,7 @@
 }
 
 .iui-artifact-pane { outline: none; }
-.iui-artifact-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; font-size: 13px; color: var(--dsw-color-text-secondary, #737373); }
-.iui-artifact-header button { border: 0; background: transparent; border-radius: 6px; color: inherit; font: inherit; padding: 5px 8px; cursor: pointer; }
-.iui-artifact-header button:hover { color: var(--dsw-color-text-primary, #333); background: var(--dsw-color-fill-secondary, rgba(127,127,127,.12)); }
+.iui-artifact-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; font-size: 13px; color: var(--dsw-alias-label-secondary, #737373); }
 .iui-artifact-header button:focus-visible { outline: 2px solid var(--dsw-focus-ring-color, #1677ff); outline-offset: 2px; }
 
 @media (pointer: coarse) {

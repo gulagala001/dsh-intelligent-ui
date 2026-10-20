@@ -73,7 +73,7 @@ Unknown components and invalid expressions show diagnostics, and their source ca
 
 ## Install, update, and remove
 
-IUI **1.0.9** has separate builds for DSH `0.2.1-rc.1` and `0.2.1-rc.2`. Each build pins its host SDK, peer dependencies, and package version. See the [installation commands](../README_EN.md#installation).
+IUI **1.0.10** has separate builds for DSH `0.2.1-rc.1` and `0.2.1-rc.2`. Each build pins its host SDK, peer dependencies, and package version. See the [installation commands](../README_EN.md#installation).
 
 When changing hosts, install the matching build and keep the same DSH data directory to retain your artifacts. Merely changing a package's version declaration does not establish support for another host.
 
@@ -85,4 +85,4 @@ dsh plugin --profile web remove dsh-intelligent-ui
 
 Replace `web` with your profile name and restart it afterward. Original conversation content and saved settings remain available for a later reinstall.
 
-The plugin runs in DSH Web. See [requirements](../README_EN.md#compatibility) and [release notes](release-1.0.9.en.md).
+The plugin runs in DSH Web. See [requirements](../README_EN.md#compatibility) and [release notes](release-1.0.10.en.md).

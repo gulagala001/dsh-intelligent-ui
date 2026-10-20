@@ -4,6 +4,14 @@
 
 Updated 2026-10-11. These receipts refer to **gulagala001/dsh-intelligent-ui, IUI 1.0.0**. A submission or passing metadata check does not mean the plugin has been listed or independently runtime-verified by a marketplace.
 
+## 2026-10-20 版本更新 / Release update
+
+IUI **1.0.10**：DSH **0.2.1-rc.1 / rc.2** 精确构建，固定 GitHub Release 安装入口见 [安装指南](../README.md#installation) 与 [发行说明](release-1.0.10.md)。MIT；仓库归属及自动发现 topics 已核对。同名 npm 包不属于本项目，不用于发布或安装。
+
+Awesome 原 PR [#7127](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/7127) 已合并，属于旧版收录；coderPerseus 原 Issue [#47](https://github.com/coderPerseus/dsh-hub/issues/47) 仍待审；TYEclipse 原 Issue [#42](https://github.com/TYEclipse/dsh-plugins-hub/issues/42) 已关闭。新版索引同步尚未确认。其余历史回执保留原核对日期，不代表本轮重新核查或新版已上架。
+
+IUI 1.0.10 provides two pinned host builds. The original Awesome PR is merged, coderPerseus #47 is open, and TYEclipse #42 is closed. These statuses do not establish synchronization of this release; other historical receipts retain their original check date.
+
 ## 2026-10-17 版本更新 / Release update
 
 IUI **1.0.9** 分别提供 DSH **0.2.1-rc.1 / rc.2** 固定构建；[安装入口](../README.md#installation)及[发行说明](release-1.0.9.md)已同步。仓库归属仍为 `gulagala001/dsh-intelligent-ui`；同名 npm 包属于其他项目，不用于安装。许可为 MIT，运行于 DSH Web。

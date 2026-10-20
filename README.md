@@ -2,7 +2,7 @@
 
 <div align="center">
   <a href="https://github.com/deepseek-ai/deepseek-harness"><img alt="DSH Web 插件" src="https://img.shields.io/badge/DSH-Web-4d6bfe" /></a>
-  <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases"><img alt="IUI 1.0.9" src="https://img.shields.io/badge/IUI-1.0.9-4d6bfe" /></a>
+  <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases"><img alt="IUI 1.0.10" src="https://img.shields.io/badge/IUI-1.0.10-4d6bfe" /></a>
   <a href="https://nodejs.org/"><img alt="Node.js ≥ 22.19" src="https://img.shields.io/badge/Node.js-%E2%89%A522.19-43853d" /></a>
   <a href="./LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-yellow.svg" /></a>
   <br /><br />
@@ -16,11 +16,11 @@
 
 ![聚餐计划：调整人数、联动采购量并勾选准备事项](docs/images/iui-1.0-plan.png)
 
-<p align="center"><sub>使用 IUI 1.0.9 实际组件与固定示例数据；餐食配图由 AI 生成。</sub></p>
+<p align="center"><sub>使用 IUI 1.0.10 实际组件与固定示例数据；餐食配图由 AI 生成。</sub></p>
 
 **DSH Intelligent UI 是 [DeepSeek Harness（DSH）](https://github.com/deepseek-ai/deepseek-harness) 的独立 Web 插件。** 安装后可以创建智能聊天，也可以在普通 agent 中按需调用技能。模型、会话和工具循环沿用 DSH 原生能力；原版 DSH 可直接使用，Oh My DSH（OMD）是可选共存插件。
 
-**IUI 1.0.9** 分别提供 DSH **0.2.1-rc.1 / rc.2** 构建；宿主 SDK、Cordis 4.0.5、Schemastery 3.18.5 与依赖锁逐版本固定。生成内容取决于所选模型。
+**IUI 1.0.10** 分别提供 DSH **0.2.1-rc.1 / rc.2** 构建；宿主 SDK、Cordis 4.0.5、Schemastery 3.18.5 与依赖锁逐版本固定。生成内容取决于所选模型。
 
 ## 📑 目录
 
@@ -59,13 +59,13 @@
 
 | DSH 宿主 | IUI 安装包 | SHA-256 |
 | --- | --- | --- |
-| `0.2.1-rc.1` | [0.2.1-rc.1.iui.1.0.9](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.9.tgz) | [SHA-256](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.9.tgz.sha256) |
-| `0.2.1-rc.2` | [0.2.1-rc.2.iui.1.0.9](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.9.tgz) | [SHA-256](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.9.tgz.sha256) |
+| `0.2.1-rc.1` | [0.2.1-rc.1.iui.1.0.10](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.10.tgz) | [SHA-256](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.10.tgz.sha256) |
+| `0.2.1-rc.2` | [0.2.1-rc.2.iui.1.0.10](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz) | [SHA-256](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz.sha256) |
 
 例如 DSH 0.2.1-rc.2：
 
 ```sh
-dsh plugin --profile web add https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.9.tgz
+dsh plugin --profile web add https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz
 ```
 
 将 `web` 换成实际 profile 名；安装后重启该 profile 并刷新浏览器。也可先下载再使用 `file:/absolute/path/安装包.tgz` 安装。OMD 为可选插件，旧构建保留于 [Releases](https://github.com/gulagala001/dsh-intelligent-ui/releases)。
@@ -182,13 +182,13 @@ pnpm run package:host 0.2.1-rc.1
 
 ## 🆕 最近更新
 
-**IUI 1.0.9 · DSH 0.2.1-rc.1 / rc.2**
+**IUI 1.0.10 · DSH 0.2.1-rc.1 / rc.2**
 
-- 两个宿主分别锁定 SDK、依赖与安装包。
-- 改进并发提交、作品恢复、表格选择和数字控件。
-- 限制渲染与场景求值开销，保留已有组件格式与作品数据。
+- 交互作品跟随宿主原生配色、字体与正文字号。
+- Chat 入口与作品面板操作复用 DSH 原生按钮、图标。
+- 两个宿主分别锁定 SDK、依赖与安装包，继续读取已有作品。
 
-详见 [发行说明](docs/release-1.0.9.md) 和 [CHANGELOG](CHANGELOG.md)。
+详见 [发行说明](docs/release-1.0.10.md) 和 [CHANGELOG](CHANGELOG.md)。
 
 <a id="data"></a>
 

@@ -1,6 +1,6 @@
 - insert:
     - id: preset-intelligent-chat
-      name: '@deepseek-ai/dsh-agent-preset'
+      name: "@deepseek-ai/dsh-agent-preset"
       config:
         id: intelligent-chat
         name: Intelligent UI
@@ -8,35 +8,35 @@
         order: 20
         plugins:
           - id: persona
-            name: '@deepseek-ai/dsh-persona'
+            name: "@deepseek-ai/dsh-persona"
             config:
               prefix: You are a helpful assistant powered by the {{model}} model.
           - id: intelligent-ui-prompt
             name: dsh-intelligent-ui/prompt
           - id: agent-instructions
-            name: '@deepseek-ai/dsh-agent-instructions'
+            name: "@deepseek-ai/dsh-agent-instructions"
             config:
               maxBytes: 65536
           - id: time-context
-            name: '@deepseek-ai/dsh-time-context'
+            name: "@deepseek-ai/dsh-time-context"
           - id: tool-fs
-            name: '@deepseek-ai/dsh-tool-fs'
+            name: "@deepseek-ai/dsh-tool-fs"
           - id: tool-fs-search
-            name: '@deepseek-ai/dsh-tool-fs-search'
+            name: "@deepseek-ai/dsh-tool-fs-search"
             config:
               sampleOverCapGlobResults: false
           - id: skill-filesystem
-            name: '@deepseek-ai/dsh-skill-filesystem'
+            name: "@deepseek-ai/dsh-skill-filesystem"
           - id: tool-skill
-            name: '@deepseek-ai/dsh-tool-skill'
+            name: "@deepseek-ai/dsh-tool-skill"
           - id: tool-web
-            name: '@deepseek-ai/dsh-tool-web'
+            name: "@deepseek-ai/dsh-tool-web"
             config:
               fetch: true
               searchTimeoutMs: 60000
           - id: tool-ask-user
-            name: '@deepseek-ai/dsh-tool-ask-user'
+            name: "@deepseek-ai/dsh-tool-ask-user"
           - id: tool-todo
-            name: '@deepseek-ai/dsh-tool-todo'
+            name: "@deepseek-ai/dsh-tool-todo"
             config:
               allowParallelInProgress: false

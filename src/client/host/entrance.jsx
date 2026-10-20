@@ -5,9 +5,8 @@ export const entranceStyles = `
 .iui-new-session-seat{display:inline-flex;align-items:center;justify-content:center;flex:none;line-height:1;-webkit-app-region:no-drag}
 .iui-new-session-seat[hidden]{display:none}
 button[data-iui-entrance-wide] > [class*="_newSessionShortcut"]{visibility:hidden}
-.iui-new-session-chat{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:7px;background:transparent;color:var(--dsw-alias-state-business-primary,#1677ff);cursor:pointer;padding:0}
-.iui-new-session-chat svg{display:block;width:20px;height:20px;flex:none;pointer-events:none}
-.iui-new-session-chat:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(22,119,255,.10))}
+.iui-new-session-seat .iui-new-session-chat{width:32px;height:32px;padding:0}
+.iui-new-session-chat svg{display:block;flex:none;pointer-events:none}
 .iui-new-session-chat:focus-visible{outline:2px solid var(--dsw-focus-ring-color,#1677ff);outline-offset:2px}
 .iui-new-session-chat:disabled{opacity:.5;cursor:progress}
 .iui-new-session-seat[data-iui-entrance-layout="overlay"]{z-index:20;opacity:0;pointer-events:none;transition:opacity .12s}
@@ -15,7 +14,7 @@ button[data-iui-entrance-wide] > [class*="_newSessionShortcut"]{visibility:hidde
 .iui-new-session-seat[data-iui-entrance-layout="overlay"][data-iui-entrance-keyboard],
 .iui-new-session-seat[data-iui-entrance-layout="overlay"]:is(:hover,:focus-within){opacity:1;pointer-events:auto}
 .iui-new-session-notice{position:fixed;z-index:10000;left:12px;bottom:16px;max-width:min(360px,calc(100vw - 24px));padding:10px 12px;border:1px solid var(--dsw-alias-border-l3,#ddd);border-radius:12px;color:var(--dsw-alias-label-primary,#161616);background:var(--dsw-specific-sidebar-fill,#fff);box-shadow:0 8px 24px #0002;font-size:13px}
-@media(pointer:coarse),(any-pointer:coarse){.iui-new-session-chat{width:44px;height:44px}.iui-new-session-seat[data-iui-entrance-layout="overlay"]{opacity:1;pointer-events:auto}}
+@media(pointer:coarse),(any-pointer:coarse){.iui-new-session-seat .iui-new-session-chat{width:44px;height:44px}.iui-new-session-seat[data-iui-entrance-layout="overlay"]{opacity:1;pointer-events:auto}}
 @media(prefers-reduced-motion:reduce){.iui-new-session-seat[data-iui-entrance-layout="overlay"]{transition:none}}
 `;
 
@@ -138,14 +137,14 @@ export function installEntranceSeats(document, notify, { MutationObserver = glob
   };
 }
 
-export function IntelligentEntrance({ bridge }) {
+export function IntelligentEntrance({ bridge, Button = 'button', ChatIcon }) {
   const state = useSyncExternalStore(bridge.subscribe, bridge.getSnapshot);
   const [seats, setSeats] = useState([]);
   useLayoutEffect(() => installEntranceSeats(document, setSeats), []);
   return <>
-    {seats.map((seat, index) => createPortal(<button type="button" className="iui-new-session-chat iui-new-session-plus"
+    {seats.map((seat, index) => createPortal(<Button type="button" className="iui-new-session-chat iui-new-session-plus"
       aria-label="新建智能聊天" title="Chat · 新建智能聊天" disabled={state.busy}
-      onClick={() => { void bridge.create().catch(() => {}); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M6 4h12a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H9l-5 3V7a3 3 0 0 1 2-3Z"/><path d="M8 9h8M8 13h5"/></svg></button>, seat, `entrance:${index}`))}
+      onClick={() => { void bridge.create().catch(() => {}); }}>{ChatIcon ? <ChatIcon size={20} aria-hidden="true" /> : 'Chat'}</Button>, seat, `entrance:${index}`))}
     {state.error && <div className="iui-new-session-notice" role="alert">{state.error}</div>}
   </>;
 }

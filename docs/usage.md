@@ -2,7 +2,7 @@
 
 [中文](usage.md) · [English](usage.en.md)
 
-适用于 IUI 1.0.9。安装包与完整宿主版本的对应关系见 [首页](../README.md#installation)。
+适用于 IUI 1.0.10。安装包与完整宿主版本的对应关系见 [首页](../README.md#installation)。
 
 ## 智能聊天
 
@@ -54,4 +54,4 @@
 
 ## 构建与更新
 
-IUI 1.0.9 分别提供 DSH `0.2.1-rc.1` 与 `0.2.1-rc.2` 安装包。选择对应构建，并保留原 DSH 数据目录以继续使用作品。见 [安装说明](../README.md#installation)。
+IUI 1.0.10 分别提供 DSH `0.2.1-rc.1` 与 `0.2.1-rc.2` 安装包。选择对应构建，并保留原 DSH 数据目录以继续使用作品。见 [安装说明](../README.md#installation)。

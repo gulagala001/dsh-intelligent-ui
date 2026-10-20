@@ -20,7 +20,7 @@
 
 **DSH Intelligent UI is a standalone plugin installed directly in [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness).** This repository maintains its installation, usage, and updates; Oh My DSH (OMD) is optional. Models, sessions, tools, and skills use DSH's native capabilities.
 
-**IUI 1.0.9** provides separate builds for DSH **0.2.1-rc.1 / rc.2**. Each build pins its host SDK, Cordis 4.0.5, and Schemastery 3.18.5. Answer quality depends on the selected model.
+**IUI 1.0.10** provides separate builds for DSH **0.2.1-rc.1 / rc.2**. Each build pins its host SDK, Cordis 4.0.5, and Schemastery 3.18.5. Answer quality depends on the selected model.
 
 ## 📑 Contents
 
@@ -59,13 +59,13 @@ Choose the package matching your **full DSH version**.
 
 | DSH host | IUI package | SHA-256 |
 | --- | --- | --- |
-| `0.2.1-rc.1` | [0.2.1-rc.1.iui.1.0.9](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.9.tgz) | [SHA-256](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.9.tgz.sha256) |
-| `0.2.1-rc.2` | [0.2.1-rc.2.iui.1.0.9](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.9.tgz) | [SHA-256](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.9.tgz.sha256) |
+| `0.2.1-rc.1` | [0.2.1-rc.1.iui.1.0.10](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.10.tgz) | [SHA-256](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.10.tgz.sha256) |
+| `0.2.1-rc.2` | [0.2.1-rc.2.iui.1.0.10](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz) | [SHA-256](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz.sha256) |
 
 For DSH 0.2.1-rc.2:
 
 ```sh
-dsh plugin --profile web add https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.9/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.9.tgz
+dsh plugin --profile web add https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz
 ```
 
 Replace `web` with your profile name, then restart the profile and refresh the browser. You can also download the package and install it with `file:/absolute/path/package.tgz`. OMD is optional. Earlier builds remain in [Releases](https://github.com/gulagala001/dsh-intelligent-ui/releases).
@@ -197,13 +197,13 @@ See the [usage guide](docs/usage.en.md) for controls, save conflicts, and export
 
 ## 🆕 Recent updates
 
-**IUI 1.0.9 · DSH 0.2.1-rc.1 / rc.2**
+**IUI 1.0.10 · DSH 0.2.1-rc.1 / rc.2**
 
-- Separate pinned builds for both hosts.
-- Improved concurrent submissions, artifact recovery, table selection, and numeric controls.
-- Bounded rendering and scene evaluation, with existing artifact formats preserved.
+- Artifacts follow native host colors, fonts, and body text size.
+- Chat entry and artifact-pane actions use native DSH buttons and icons.
+- Separate pinned builds retain existing artifact formats and saved data.
 
-See [release notes](docs/release-1.0.9.en.md) and [CHANGELOG](CHANGELOG.md).
+See [release notes](docs/release-1.0.10.en.md) and [CHANGELOG](CHANGELOG.md).
 
 <a id="data"></a>
 

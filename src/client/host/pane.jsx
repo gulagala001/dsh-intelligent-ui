@@ -10,7 +10,7 @@ const readPointer = sessionId => {
   catch { return undefined; }
 };
 
-export function installArtifactPane(ctx, { Surface, bridge }) {
+export function installArtifactPane(ctx, { Surface, bridge, Button = 'button' }) {
   const records = new Map(), pendingReads = new Map(), selections = new Map();
   const listeners = new Set();
   const origins = new Map();
@@ -76,7 +76,7 @@ export function installArtifactPane(ctx, { Surface, bridge }) {
     }, [sessionId, blockId, item, info.tab.signal, attempt]);
     if (!item) return <div className="iui-artifact-placeholder" role={error ? 'alert' : 'status'}>
       {error ?? (blockId ? '正在恢复交互作品…' : '请从对话中的交互回答展开作品。')}
-      {error && <button type="button" onClick={() => retry(value => value + 1)}>重试</button>}
+      {error && <Button type="button" onClick={() => retry(value => value + 1)}>重试</Button>}
     </div>;
     const close=()=>{
       const focused=document.activeElement,ownsFocus=pane.current?.contains(focused),origin=origins.get(sessionId);
@@ -85,7 +85,7 @@ export function installArtifactPane(ctx, { Surface, bridge }) {
       if(ownsFocus&&origin?.blockId===blockId&&origin.element.isConnected&&ctx.sidebarRight.mounted.getSnapshot()===sessionId&&(current===focused||current===document.body))origin.element.focus({preventScroll:true});
       origins.delete(sessionId);
     };
-    return <div className="iui-artifact-pane" ref={pane} tabIndex={-1} aria-label="交互作品"><div className="iui-artifact-header"><span>交互作品</span><button type="button" aria-label="关闭交互作品" onClick={close}>关闭</button></div><Surface key={`${sessionId}/${blockId}`} {...item}
+    return <div className="iui-artifact-pane" ref={pane} tabIndex={-1} aria-label="交互作品"><div className="iui-artifact-header"><span>交互作品</span><Button type="button" aria-label="关闭交互作品" onClick={close}>关闭</Button></div><Surface key={`${sessionId}/${blockId}`} {...item}
       expanded onSubmit={text => bridge.submit(sessionId, blockId, text, { signal: info.tab.signal })}
       onRepair={(input, options) => bridge.repair(sessionId, blockId, input, { signal: AbortSignal.any([info.tab.signal, options.signal]) })} /></div>;
   }

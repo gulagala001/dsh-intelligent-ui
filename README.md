@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases/tag/v0.2.1-rc.2.iui.1.0.10"><img alt="IUI 1.0.10" src="https://img.shields.io/badge/release-IUI%201.0.10-0969da?style=flat-square"></a>
-  <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases/tag/v0.2.1-rc.2.iui.1.0.10"><img alt="本版插件包下载次数，非用户数" src="https://img.shields.io/github/downloads/gulagala001/dsh-intelligent-ui/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz?style=flat-square&amp;label=package%20downloads&amp;displayAssetName=false&amp;color=0969da"></a>
+  <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases/tag/v0.2.1-rc.2.iui.1.0.10"><img alt="本版插件包下载次数" src="https://img.shields.io/github/downloads/gulagala001/dsh-intelligent-ui/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz?style=flat-square&amp;label=package%20downloads&amp;displayAssetName=false&amp;color=0969da"></a>
   <a href="#readme-install"><img alt="DSH 0.2.1-rc.2" src="https://img.shields.io/badge/DSH-0.2.1--rc.2-0969da?style=flat-square"></a>
   <a href="https://github.com/gulagala001/dsh-intelligent-ui/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/gulagala001/dsh-intelligent-ui?style=flat-square&amp;color=0969da"></a>
 </p>
@@ -16,10 +16,6 @@
 <p align="center"><a href="#readme-install"><strong>开始使用</strong></a> · <a href="docs/usage.md">完整文档</a> · <a href="https://github.com/gulagala001/dsh-intelligent-ui/issues">反馈</a></p>
 
 <p align="center"><a href="docs/images/iui-1.0-plan.png"><img src="docs/images/iui-1.0-plan.png" alt="交互聚餐计划 / Interactive meal plan" width="880"></a></p>
-
-*IUI 1.0.10 真实组件与固定示例数据；餐食配图由 AI 生成。*
-
-下载徽章只统计所链接发行版中的插件压缩包，不代表安装人数或活跃用户数。
 
 <a id="installation"></a>
 <a id="features"></a>
@@ -71,8 +67,6 @@ https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.
 ### 调参数，立即看结果
 
 ![分账工具](docs/images/iui-1.0-calculator.png)
-
-*DSH 原生会话中的真实生成结果，使用固定示例数据。模型生成质量仍取决于所选模型。*
 
 还可以生成套餐比较、可勾选清单、聚餐计划、图形模拟和小游戏。图表按标注的单位分组；点击、键盘与拖拽按作品声明的场景工作。[完整示例](docs/examples.md)
 

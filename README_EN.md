@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases/tag/v0.2.1-rc.2.iui.1.0.10"><img alt="IUI 1.0.10" src="https://img.shields.io/badge/release-IUI%201.0.10-0969da?style=flat-square"></a>
-  <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases/tag/v0.2.1-rc.2.iui.1.0.10"><img alt="This package downloads, not users" src="https://img.shields.io/github/downloads/gulagala001/dsh-intelligent-ui/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz?style=flat-square&amp;label=package%20downloads&amp;displayAssetName=false&amp;color=0969da"></a>
+  <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases/tag/v0.2.1-rc.2.iui.1.0.10"><img alt="Package downloads" src="https://img.shields.io/github/downloads/gulagala001/dsh-intelligent-ui/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz?style=flat-square&amp;label=package%20downloads&amp;displayAssetName=false&amp;color=0969da"></a>
   <a href="#readme-install"><img alt="DSH 0.2.1-rc.2" src="https://img.shields.io/badge/DSH-0.2.1--rc.2-0969da?style=flat-square"></a>
   <a href="https://github.com/gulagala001/dsh-intelligent-ui/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/gulagala001/dsh-intelligent-ui?style=flat-square&amp;color=0969da"></a>
 </p>
@@ -16,10 +16,6 @@
 <p align="center"><a href="#readme-install"><strong>Get started</strong></a> · <a href="docs/usage.en.md">Docs</a> · <a href="https://github.com/gulagala001/dsh-intelligent-ui/issues">Report an issue</a></p>
 
 <p align="center"><a href="docs/images/iui-1.0-plan.png"><img src="docs/images/iui-1.0-plan.png" alt="交互聚餐计划 / Interactive meal plan" width="880"></a></p>
-
-*Actual IUI 1.0.10 components with fixed sample data; food illustrations are AI-generated.*
-
-The download badge counts only the linked release’s plugin archive; it is not a count of users or installations.
 
 <a id="installation"></a>
 <a id="features"></a>
@@ -71,8 +67,6 @@ Make an adjustable bill splitter: a bill of 387, an 8% service charge, split amo
 ### Change inputs and see the result
 
 ![Bill splitter](docs/images/iui-1.0-calculator.png)
-
-*An actual generated artifact in a native DSH conversation with fixed sample data. Generation quality still depends on the selected model.*
 
 Other examples include plan comparisons, checklists, meal planning, visual simulations and small games. Charts group values by their declared units; clicks, keys and dragging follow the artifact’s scene definition. [More examples](docs/examples_EN.md)
 

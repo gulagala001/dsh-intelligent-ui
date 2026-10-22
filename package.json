@@ -26,7 +26,10 @@
     "check:public": "node scripts/check-public-files.mjs",
     "check:public:test": "node scripts/check-public-files.mjs --self-test",
     "package:host": "node scripts/package-host.mjs",
-    "prepack": "node scripts/build.mjs && node scripts/check-public-files.mjs"
+    "prepack": "node scripts/check-docs.mjs && node scripts/build.mjs && node scripts/check-public-files.mjs",
+    "docs:check": "node scripts/check-docs.mjs",
+    "docs:write": "node scripts/check-docs.mjs --write",
+    "release:check": "node scripts/check-release-assets.mjs"
   },
   "files": [
     "src",
@@ -55,7 +58,9 @@
     "docs/install.md",
     "docs/install_EN.md",
     "docs/examples.md",
-    "docs/examples_EN.md"
+    "docs/examples_EN.md",
+    "scripts/check-docs.mjs",
+    "scripts/check-release-assets.mjs"
   ],
   "dsh": {
     "bundle": {

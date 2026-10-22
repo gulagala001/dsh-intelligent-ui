@@ -122,3 +122,5 @@ Licensed under [MIT](LICENSE). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.
 For a bug report, include the full DSH and plugin versions, the entry point, minimal reproduction steps, and expected versus actual behavior. Remove private data before sharing logs or screenshots.
 
 <p align="center"><a href="#readme-top">Back to top</a> · <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases">Versions and downloads</a> · <a href="https://github.com/gulagala001/dsh-intelligent-ui/issues">Feedback</a></p>
+
+[Documentation structure and contributing](docs/documentation.md)

@@ -1,0 +1,22 @@
+name: Release attachments
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published, edited]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  release-attachments:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: node scripts/check-release-assets.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

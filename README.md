@@ -122,3 +122,5 @@ https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.
 反馈时请提供完整 DSH／插件版本、实际入口、最小复现步骤，以及预期和实际表现；日志与截图先移除私人数据。
 
 <p align="center"><a href="#readme-top">返回顶部</a> · <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases">版本与下载</a> · <a href="https://github.com/gulagala001/dsh-intelligent-ui/issues">反馈</a></p>
+
+[文档结构与贡献](docs/documentation.md)

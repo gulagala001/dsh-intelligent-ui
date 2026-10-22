@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "documents": [
+    {
+      "path": "CHANGELOG.md",
+      "role": "release",
+      "language": "bilingual"
+    },
+    {
+      "path": "README.md",
+      "role": "home",
+      "language": "zh"
+    },
+    {
+      "path": "README_EN.md",
+      "role": "home",
+      "language": "zh"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "role": "sources",
+      "language": "zh"
+    },
+    {
+      "path": "docs/architecture.md",
+      "role": "development",
+      "language": "zh"
+    },
+    {
+      "path": "docs/contracts.md",
+      "role": "development",
+      "language": "zh"
+    },
+    {
+      "path": "docs/documentation.md",
+      "role": "development",
+      "language": "bilingual"
+    },
+    {
+      "path": "docs/examples.md",
+      "role": "guide",
+      "language": "zh",
+      "translation": "docs/examples_EN.md"
+    },
+    {
+      "path": "docs/examples_EN.md",
+      "role": "guide",
+      "language": "en",
+      "translation": "docs/examples.md"
+    },
+    {
+      "path": "docs/images/showcase-notes.en.md",
+      "role": "sources",
+      "language": "en",
+      "translation": "docs/images/showcase-notes.md"
+    },
+    {
+      "path": "docs/images/showcase-notes.md",
+      "role": "sources",
+      "language": "zh",
+      "translation": "docs/images/showcase-notes.en.md"
+    },
+    {
+      "path": "docs/install.md",
+      "role": "guide",
+      "language": "zh"
+    },
+    {
+      "path": "docs/install_EN.md",
+      "role": "guide",
+      "language": "zh"
+    },
+    {
+      "path": "docs/marketplace-submissions.md",
+      "role": "guide",
+      "language": "zh"
+    },
+    {
+      "path": "docs/release-1.0.0.en.md",
+      "role": "release",
+      "language": "zh"
+    },
+    {
+      "path": "docs/release-1.0.0.md",
+      "role": "release",
+      "language": "zh"
+    },
+    {
+      "path": "docs/release-1.0.10.en.md",
+      "role": "release",
+      "language": "zh"
+    },
+    {
+      "path": "docs/release-1.0.10.md",
+      "role": "release",
+      "language": "zh"
+    },
+    {
+      "path": "docs/release-1.0.9.en.md",
+      "role": "release",
+      "language": "zh"
+    },
+    {
+      "path": "docs/release-1.0.9.md",
+      "role": "release",
+      "language": "zh"
+    },
+    {
+      "path": "docs/releases.md",
+      "role": "release",
+      "language": "bilingual"
+    },
+    {
+      "path": "docs/usage.en.md",
+      "role": "guide",
+      "language": "zh"
+    },
+    {
+      "path": "docs/usage.md",
+      "role": "guide",
+      "language": "zh"
+    }
+  ]
+}

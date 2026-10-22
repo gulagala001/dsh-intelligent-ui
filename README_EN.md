@@ -7,7 +7,7 @@
 <p align="center"><a href="README.md">简体中文</a> · <strong>English</strong></p>
 
 <p align="center">
-  <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases/tag/v0.2.1-rc.2.iui.1.0.10"><img alt="IUI 1.0.10" src="https://img.shields.io/badge/release-IUI%201.0.10-0969da?style=flat-square"></a>
+  <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases/tag/v0.2.1-rc.2.iui.1.0.11"><img alt="IUI 1.0.11" src="https://img.shields.io/badge/release-IUI%201.0.11-0969da?style=flat-square"></a>
   <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases"><img alt="GitHub total downloads" src="https://img.shields.io/github/downloads/gulagala001/dsh-intelligent-ui/total?style=flat-square&amp;label=GitHub%20downloads&amp;color=0969da"></a>
   <a href="#readme-install"><img alt="DSH 0.2.1-rc.2" src="https://img.shields.io/badge/DSH-0.2.1--rc.2-0969da?style=flat-square"></a>
   <a href="https://github.com/gulagala001/dsh-intelligent-ui/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/gulagala001/dsh-intelligent-ui?style=flat-square&amp;color=0969da"></a>
@@ -43,10 +43,10 @@ Requires a configured DSH model. Generation quality depends on the model. Intera
 Open **Plugins → Add plugin** in the DSH instance you use, then paste:
 
 ```text
-https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz
+https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.11/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.11.tgz
 ```
 
-Wait for active tasks to finish, then follow the host’s activation/restart prompt. Keep your existing profile and data. See the [installation guide](docs/install_EN.md) · [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.10/SHA256SUMS).
+Wait for active tasks to finish, then follow the host’s activation/restart prompt. Keep your existing profile and data. See the [installation guide](docs/install_EN.md) · [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.11/SHA256SUMS).
 
 ### 2. Try this first
 

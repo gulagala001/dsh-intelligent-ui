@@ -2,7 +2,7 @@
 
 [English](install_EN.md) · [返回首页](../README.md#readme-install)
 
-**DSH 0.2.1-rc.2 · Node.js ≥22.19 · IUI 1.0.10**
+**DSH 0.2.1-rc.2 · Node.js ≥22.19 · IUI 1.0.11**
 
 需要可用的 DSH 模型。生成质量取决于模型；作品内交互使用受控组件与有界表达式，提交后才继续模型对话。
 
@@ -11,12 +11,12 @@
 在实际使用的实例打开 **插件 → ＋ 添加插件**，粘贴固定发行地址：
 
 ```text
-https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz
+https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.11/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.11.tgz
 ```
 
 等当前任务结束后按宿主提示启用或重启，沿用原 profile、DSH_HOME、模型配置和会话。
 
-下载后可核对同一发行版的 [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.10/SHA256SUMS).
+下载后可核对同一发行版的 [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.11/SHA256SUMS).
 
 ### 首次成功检查
 
@@ -34,7 +34,7 @@ https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.
 使用同一 DSH 实例对应的 CLI，将 `web` 换成实际 profile。
 
 ```bash
-dsh plugin --profile web add "https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz"
+dsh plugin --profile web add "https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.11/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.11.tgz"
 ```
 
 </details>
@@ -45,7 +45,7 @@ dsh plugin --profile web add "https://github.com/gulagala001/dsh-intelligent-ui/
 使用对应独立构建，不混装 rc.2 包。
 
 ```text
-https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.10.tgz
+https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.11/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.11.tgz
 ```
 
 </details>

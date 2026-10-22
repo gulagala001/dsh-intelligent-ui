@@ -2,7 +2,7 @@
 
 [简体中文](install.md) · [README](../README_EN.md#readme-install)
 
-**DSH 0.2.1-rc.2 · Node.js ≥22.19 · IUI 1.0.10**
+**DSH 0.2.1-rc.2 · Node.js ≥22.19 · IUI 1.0.11**
 
 Requires a configured DSH model. Generation quality depends on the model. Interactions use controlled components and bounded expressions; submitting explicitly continues the model conversation.
 
@@ -11,12 +11,12 @@ Requires a configured DSH model. Generation quality depends on the model. Intera
 Open **Plugins → Add plugin** in the instance you actually use and paste this fixed release address:
 
 ```text
-https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz
+https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.11/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.11.tgz
 ```
 
 Finish active tasks, follow the host’s activation/restart prompt, and keep your existing profile, DSH_HOME, model configuration and conversations.
 
-Verify the archive with the release’s [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.10/SHA256SUMS).
+Verify the archive with the release’s [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.11/SHA256SUMS).
 
 ### First success check
 
@@ -34,7 +34,7 @@ The initial per-person total is 83.59. Changing inputs updates it locally withou
 Use the CLI belonging to the same DSH instance; replace `web` with its actual profile.
 
 ```bash
-dsh plugin --profile web add "https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.10.tgz"
+dsh plugin --profile web add "https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.11/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.11.tgz"
 ```
 
 </details>
@@ -45,7 +45,7 @@ dsh plugin --profile web add "https://github.com/gulagala001/dsh-intelligent-ui/
 Use its dedicated build; do not install the rc.2 archive.
 
 ```text
-https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.10/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.10.tgz
+https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.11/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.11.tgz
 ```
 
 </details>

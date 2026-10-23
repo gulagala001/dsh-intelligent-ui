@@ -1,34 +1,34 @@
-# IUI 1.0.11 · DSH 0.2.1-rc.1 / 0.2.1-rc.2
+# IUI 1.0.12 · DSH 0.2.1-rc.1 / 0.2.1-rc.2
 
-[中文](#zh-1011) | [English](#en-1011)
+[中文](#zh-1012) | [English](#en-1012)
 
-<a id="zh-1011"></a>
+<a id="zh-1012"></a>
 
 ## 中文
 
-### 其他变更
+### 问题修复
 
-- 更新中英文产品、安装与使用文档，整理交互组件展示。
-- 源码主线保留构建输入，正式安装使用精确匹配宿主的固定工件；移除过期宿主的当前构建锁。
+- 保存与恢复按用户实际编辑意图合并，防止迟到回执、旧草稿和同值操作覆盖新编辑，避免对象键顺序导致误报冲突。
+- 合并结果先校验再保存，无效结果保留可编辑草稿；真正的冲突继续要求明确选择，保存失败可以继续修改。
 
-<a id="en-1011"></a>
+<a id="en-1012"></a>
 
 ## English
 
-### Other Changes
+### Bug Fixes
 
-- Updates Chinese and English product, installation and usage documentation and interactive component examples.
-- Keeps build inputs on the source branch and supplies fixed artifacts for the exact host version; removes obsolete host build locks from current targets.
+- Merges saves and recovery according to actual edit intent, preventing late receipts, stale drafts and same-value edits from overwriting newer changes and avoiding false conflicts caused by object key order.
+- Validates merged results before persistence and retains editable drafts for invalid results; real conflicts still require an explicit choice and failed saves remain editable.
 
 ## 安装 / Installation
 
-在 **插件 → 添加插件** 安装与当前 DSH 完整版本一致的固定包，保留原 profile、配置和数据，待当前任务结束后重启。
+在 **插件 → 添加插件** 使用与当前 DSH 完整版本一致的固定包，保留原 profile、配置和数据，待任务结束后重启。
 
 Install the fixed package matching the complete DSH version through **Plugins → Add plugin**. Preserve the profile, settings and data, and restart after active tasks finish.
 
 | DSH | 固定安装包 / Fixed package | SHA256SUMS |
 | --- | --- | --- |
-| 0.2.1-rc.1 | [IUI 1.0.11](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.11/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.11.tgz) | [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.11/SHA256SUMS) |
-| 0.2.1-rc.2 | [IUI 1.0.11](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.11/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.11.tgz) | [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.11/SHA256SUMS) |
+| 0.2.1-rc.2 | [IUI 1.0.12](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.12/dsh-intelligent-ui-0.2.1-rc.2.iui.1.0.12.tgz) | [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.2.iui.1.0.12/SHA256SUMS) |
+| 0.2.1-rc.1 | [IUI 1.0.12](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.12/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.12.tgz) | [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.12/SHA256SUMS) |
 
 [安装指南](https://github.com/gulagala001/dsh-intelligent-ui/blob/main/docs/install.md) · [Installation guide](https://github.com/gulagala001/dsh-intelligent-ui/blob/main/docs/install_EN.md)

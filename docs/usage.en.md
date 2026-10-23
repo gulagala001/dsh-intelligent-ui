@@ -22,6 +22,8 @@ Settings save automatically. Refreshing, reopening the conversation, or restarti
 
 The inline answer and expanded artifact share settings. If multiple browser tabs conflict, your current edits remain available. Choosing to keep and save your settings merges remote fields that you have not changed. A save or load error offers its corresponding retry action.
 
+Edits and resets made while a save is pending are also retained. If combining settings from two tabs makes the artifact invalid, the save stops and explains why. Your usable local draft remains editable and can be restored after a refresh. Adjust the relevant settings, then confirm the save again.
+
 ### Charts and tables
 
 Click chart graphics or the data rows below them to select data. With a graphic focused, use arrow keys to move, Enter or Space to select, and Escape to clear the selection. Pie charts can switch metrics and hide categories; their legend shows values and percentages.

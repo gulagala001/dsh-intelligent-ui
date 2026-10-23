@@ -131,9 +131,22 @@ export class DocumentStore {
       if(this.disposed||ticket!==this.generation||this.snapshot.source!==source||this.snapshot.streaming)return;
       if(record.sourceRevision!==hash)throw new UIError('SOURCE','作品内容已变化，请重新打开');
       assertJSON(record.state);const draft=this.restoreJournal(source);this.revision=record.revision;this.sourceRevision=hash;
-      const next={...this.defaults,...record.state};for(const name of this.dirty)next[name]=this.state[name];this.state=next;
-      if(draft){for(const name of this.dirty)if(record.persisted!==false&&JSON.stringify(Object.hasOwn(record.state,name)?record.state[name]:this.defaults[name])===JSON.stringify(this.state[name]))this.dirty.delete(name);if(this.dirty.size&&(draft.revision!==record.revision||draft.conflict))this.conflictRecord=record;}
-      this.publish({tree:evaluateDocument(this.document,this.state),componentsVersion:record.componentsVersion??1,status:this.conflictRecord?'conflict':this.dirty.size?'unsaved':record.persisted===false?'default':'saved',error:this.conflictRecord?'其他地方已修改设置。你的草稿已恢复，确认后可以合并保存。':''});
+      const next=this.mergeState(record.state);
+      let tree;
+      try { tree=evaluateDocument(this.document,next); }
+      catch(error) {
+        if(!this.dirty.size)throw error;
+        // An incompatible remote merge must not make a recoverable draft
+        // uneditable after reopening. Its full snapshot retains a usable view.
+        const local=draft?this.mergeState(draft.state):this.state;
+        const localTree=evaluateDocument(this.document,local);
+        this.state=local;this.conflictRecord=record;
+        this.publish({tree:localTree,componentsVersion:record.componentsVersion??1,status:'conflict',error:'设置未能合并，请调整后确认保存：'+error.message});
+        this.writeJournal();return;
+      }
+      this.state=next;
+      if(draft){for(const name of this.dirty)if(record.persisted!==false&&sameJSONValue(Object.hasOwn(record.state,name)?record.state[name]:this.defaults[name],this.state[name]))this.dirty.delete(name);if(this.dirty.size&&(draft.revision!==record.revision||draft.conflict))this.conflictRecord=record;}
+      this.publish({tree,componentsVersion:record.componentsVersion??1,status:this.conflictRecord?'conflict':this.dirty.size?'unsaved':record.persisted===false?'default':'saved',error:this.conflictRecord?'其他地方已修改设置。你的草稿已恢复，确认后可以合并保存。':''});
       if(this.dirty.size&&!this.conflictRecord)this.scheduleSave();
     }catch(error){if(error.name!=='AbortError'&&!this.disposed&&ticket===this.generation)this.publish({status:'load-error',error:'设置读取失败：'+error.message});}
   }
@@ -186,6 +199,11 @@ export class DocumentStore {
     if(submission!==undefined){if(!onSubmit)throw new UIError('SUBMIT','当前作品不能继续对话');return onSubmit(submission);}
   }
   scheduleSave(){clearTimeout(this.timer);if(this.sourceRevision&&!this.conflictRecord&&!['conflict','load-error'].includes(this.snapshot.status))this.timer=setTimeout(()=>void this.save(),350);}
+  mergeState(remote) {
+    const next={...this.defaults,...remote};
+    for(const name of this.dirty)next[name]=this.state[name];
+    return next;
+  }
   async save({resolveConflict=false}={}) {
     clearTimeout(this.timer);
     if(this.disposed||this.snapshot.streaming||!this.sourceRevision||!this.dirty.size||this.writing||this.conflictRecord&&!resolveConflict)return;
@@ -205,18 +223,38 @@ export class DocumentStore {
           this.conflictRecord=current;
           this.publish({status:'conflict',error:'另一处修改了设置。你的操作已保留，可确认后保存。'});return;
         }
-        const next={...this.defaults,...current.state};for(const name of this.dirty)next[name]=this.state[name];this.state=next;
-        this.publish({tree:evaluateDocument(this.document,this.state),componentsVersion:current.componentsVersion??this.snapshot.componentsVersion});
+        const next=this.mergeState(current.state);
+        this.conflictRecord=current;
+        const tree=evaluateDocument(this.document,next);
+        this.state=next;this.conflictRecord=null;
+        this.publish({tree,componentsVersion:current.componentsVersion??this.snapshot.componentsVersion});
       }
-      const beforeState=structuredClone(this.state),state=structuredClone(this.conflictRecord?{...this.defaults,...this.conflictRecord.state,...Object.fromEntries([...this.dirty].map(name=>[name,this.state[name]]))}:this.state),names=new Set(this.dirty);
+      const state=structuredClone(this.conflictRecord?this.mergeState(this.conflictRecord.state):this.state),names=new Set(this.dirty);
+      // Local and remote edits can be valid separately but incompatible together.
+      // Validate that combination before replacing the durable record.
+      if(this.conflictRecord)evaluateDocument(this.document,state);
       const record=await this.request(this.sessionId,this.blockId,{session:this.sessionId,block:this.blockId,expectedRevision:this.revision,sourceRevision:hash,source,state},writing.controller.signal);
       if(this.disposed||ticket!==this.generation)return;
-      this.revision=record.revision;this.conflictRecord=null;
+      this.revision=record.revision;this.conflictRecord=record;
       // A delayed receipt acknowledges only the exact values it wrote.
-      for(const name of names)if(JSON.stringify(this.state[name])===JSON.stringify(state[name]))this.dirty.delete(name);
-      const settled={...this.defaults,...(record.state??state)};for(const name of Object.keys(this.state))if(JSON.stringify(this.state[name])!==JSON.stringify(beforeState[name]))settled[name]=this.state[name];this.state=settled;this.writeJournal();
-      this.publish({tree:evaluateDocument(this.document,this.state),componentsVersion:record.componentsVersion??this.snapshot.componentsVersion,status:this.dirty.size?'unsaved':'saved',error:''});
-    }catch(error){if(!this.disposed&&ticket===this.generation){if(error.status===409&&error.record&&error.record.sourceRevision===this.sourceRevision&&(error.record.source===undefined||error.record.source===this.snapshot.source)){this.revision=error.record.revision;this.conflictRecord=error.record;this.publish({status:'conflict',error:'另一处修改了设置。你的操作已保留，可确认后保存。'});}else{if(error.status===409){this.conflictRecord=null;this.reloadBeforeSave=true;}this.publish({status:'save-error',error:'设置尚未保存：'+error.message});}}}
+      for(const name of names)if(sameJSONValue(this.state[name],state[name]))this.dirty.delete(name);
+      // The dirty set owns edit intent, including reselecting an unchanged value.
+      // Keep the usable local state if later edits cannot merge with this receipt.
+      const settled=this.mergeState(record.state??state),tree=evaluateDocument(this.document,settled);
+      this.state=settled;this.conflictRecord=null;this.writeJournal();
+      this.publish({tree,componentsVersion:record.componentsVersion??this.snapshot.componentsVersion,status:this.dirty.size?'unsaved':'saved',error:''});
+    }catch(error){
+      if(!this.disposed&&ticket===this.generation){
+        if(error.status===409&&error.record&&error.record.sourceRevision===this.sourceRevision&&(error.record.source===undefined||error.record.source===this.snapshot.source)){
+          this.revision=error.record.revision;this.conflictRecord=error.record;
+          this.publish({status:'conflict',error:'另一处修改了设置。你的操作已保留，可确认后保存。'});
+        }else{
+          if(error.status===409){this.conflictRecord=null;this.reloadBeforeSave=true;}
+          this.publish({status:this.conflictRecord?'conflict':'save-error',error:'设置尚未保存：'+error.message});
+        }
+        this.writeJournal();
+      }
+    }
     finally{if(this.writing===writing){this.writing=null;if(this.dirty.size&&this.snapshot.status==='unsaved')this.scheduleSave();}}
   }
   api(onSubmit) {
@@ -247,7 +285,20 @@ export class DocumentStore {
     }catch{this.journalError='本地草稿暂时无法备份，请保持页面打开并重试保存。';if(!this.disposed)this.publish();return false;}
   }
   restoreJournal(source){
-    try{const retained=this.incomingDraft?.source===source?this.incomingDraft:this.previousDraft?.source===source?this.previousDraft:null,storage=globalThis.sessionStorage,raw=retained?null:storage?.getItem(this.journalKey(source))??storage?.getItem('dsh-iui.draft.v1:'+this.sessionId+':'+this.blockId);if(!retained&&!raw)return;const draft=retained??JSON.parse(raw);if(!matchingJournal(draft,source))return;for(const name of draft.dirty){this.state[name]=draft.state[name];this.dirty.add(name);}this.unbackedDrafts.delete(source);if(retained===this.previousDraft){this.previousDraft=null;this.previousDraftPersisted=false;}if(retained===this.incomingDraft)this.incomingDraft=null;return draft;}
+    try{
+      const retained=this.incomingDraft?.source===source?this.incomingDraft:this.previousDraft?.source===source?this.previousDraft:null,storage=globalThis.sessionStorage;
+      const raw=retained?null:storage?.getItem(this.journalKey(source))??storage?.getItem('dsh-iui.draft.v1:'+this.sessionId+':'+this.blockId);
+      if(!retained&&!raw)return;
+      const draft=retained??JSON.parse(raw);
+      if(!matchingJournal(draft,source))return;
+      // The journal may predate edits made while hashing or loading, especially
+      // when quota failure prevented the latest in-memory draft being backed up.
+      for(const name of draft.dirty){if(!this.dirty.has(name))this.state[name]=draft.state[name];this.dirty.add(name);}
+      this.unbackedDrafts.delete(source);
+      if(retained===this.previousDraft){this.previousDraft=null;this.previousDraftPersisted=false;}
+      if(retained===this.incomingDraft)this.incomingDraft=null;
+      return draft;
+    }
     catch{this.journalError='本地草稿无法读取，已保留原始备份。';this.publish();}
   }
 }

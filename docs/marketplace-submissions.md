@@ -4,13 +4,13 @@
 
 Updated 2026-10-11. These receipts refer to **gulagala001/dsh-intelligent-ui, IUI 1.0.0**. A submission or passing metadata check does not mean the plugin has been listed or independently runtime-verified by a marketplace.
 
-## 2026-10-20 版本更新 / Release update
+## 2026-10-23 版本更新 / Release update
 
-IUI **1.0.10**：DSH **0.2.1-rc.1 / rc.2** 精确构建，固定 GitHub Release 安装入口见 [安装指南](../README.md#installation) 与 [发行说明](release-1.0.10.md)。MIT；仓库归属及自动发现 topics 已核对。同名 npm 包不属于本项目，不用于发布或安装。
+IUI **1.0.12** 提供 DSH **0.2.1-rc.1 / 0.2.1-rc.2** 精确构建，固定安装包、SHA256SUMS 和安装方式见[当前发行说明](releases.md)与[安装指南](install.md)。MIT；仓库归属及自动发现 topics 已核对。
 
-Awesome 原 PR [#7127](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/7127) 已合并，属于旧版收录；coderPerseus 原 Issue [#47](https://github.com/coderPerseus/dsh-hub/issues/47) 仍待审；TYEclipse 原 Issue [#42](https://github.com/TYEclipse/dsh-plugins-hub/issues/42) 已关闭。本轮已原位更新上述两个 Issue，并提交 [PR #8266](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/8266) 更新 Awesome 同一条目的固定包，待审核；没有重复创建市场条目。新版索引同步尚未确认。其余历史回执保留原核对日期，不代表本轮重新核查或新版已上架。
+Awesome 既有条目的更新 [PR #8989](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/8989) 待审核；原有 15 个 Issue 已更新当前版本、固定安装入口和来源提交，不重复创建产品条目。coderPerseus [#47](https://github.com/coderPerseus/dsh-hub/issues/47) 仍待审，TYEclipse [#42](https://github.com/TYEclipse/dsh-plugins-hub/issues/42) 保持关闭并等待维护者同步。chnjames 与 aust24lzy 的公开索引已找到本仓库，但尚未确认其安装入口已同步到 1.0.12；其余历史状态保留原核对日期。
 
-IUI 1.0.10 provides two pinned host builds. The original Awesome PR is merged, coderPerseus #47 is open, and TYEclipse #42 is closed. These statuses do not establish synchronization of this release; other historical receipts retain their original check date.
+IUI **1.0.12** has separate builds for the two exact host versions. [PR #8989](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/8989) updates the existing Awesome entry and awaits review. The 15 existing issue submissions now carry the current version, fixed package and source commit. The chnjames and aust24lzy indexes contain the repository, while synchronization of this release remains unconfirmed. Other historical receipts retain their original check dates.
 
 ## 2026-10-17 版本更新 / Release update
 
@@ -23,8 +23,8 @@ IUI 1.0.9 ships separate pinned packages for the two hosts. Existing receipts ar
 ## 发行材料 / Release material
 
 - [中文介绍与真实场景](../README.md) · [English documentation and screenshots](../README_EN.md)
-- [当前双宿主构建与安装方式](../README.md#installation)：DSH `0.2.1-rc.1`、`0.2.1-rc.2` 使用同前缀的 IUI `1.0.9` 包。旧申请的 alpha 构建保留于历史 Release。
-- [rc.1 源码](https://github.com/gulagala001/dsh-intelligent-ui/tree/v0.2.1-rc.1.iui.1.0.9) · [rc.2 源码](https://github.com/gulagala001/dsh-intelligent-ui/tree/v0.2.1-rc.2.iui.1.0.9) · [MIT](../LICENSE) · [数据与执行边界](contracts.md)
+- [当前双宿主构建与安装方式](../README.md#installation)：DSH `0.2.1-rc.1`、`0.2.1-rc.2` 使用同前缀的 IUI `1.0.12` 包。旧申请的 alpha 构建保留于历史 Release。
+- [rc.1 源码](https://github.com/gulagala001/dsh-intelligent-ui/tree/v0.2.1-rc.1.iui.1.0.12) · [rc.2 源码](https://github.com/gulagala001/dsh-intelligent-ui/tree/v0.2.1-rc.2.iui.1.0.12) · [MIT](../LICENSE) · [数据与执行边界](contracts.md)
 - 安装渠道为本仓库的固定 GitHub Release `.tgz`。**同名 npm 包及 `yunyv/dsh-intelligent-ui` 属于其他项目**，不作为本插件的安装目标。Each host requires its matching GitHub release; the similarly named npm package and `yunyv` repository are separate projects.
 
 ## 已提交 / Submitted

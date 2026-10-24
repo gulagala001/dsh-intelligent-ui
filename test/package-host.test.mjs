@@ -8,7 +8,7 @@ import {execFileSync,spawnSync} from 'node:child_process';
 import {parse} from 'yaml';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
-const hosts=['0.2.1-rc.1','0.2.1-rc.2'];
+const hosts=['0.2.1-rc.1','0.2.1-rc.2','0.2.1-rc.3'];
 // The fixture runs the complete packager; only install is replaced so it cannot fetch dependencies.
 async function fixture(t){
   const base=await realpath(await mkdtemp(join(tmpdir(),'iui-host-package-')));

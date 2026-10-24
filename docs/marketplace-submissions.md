@@ -24,7 +24,7 @@ IUI 1.0.9 ships separate pinned packages for the two hosts. Existing receipts ar
 
 - [中文介绍与真实场景](../README.md) · [English documentation and screenshots](../README_EN.md)
 - [当前双宿主构建与安装方式](../README.md#installation)：DSH `0.2.1-rc.1`、`0.2.1-rc.2` 使用同前缀的 IUI `1.0.12` 包。旧申请的 alpha 构建保留于历史 Release。
-- [rc.1 源码](https://github.com/gulagala001/dsh-intelligent-ui/tree/v0.2.1-rc.1.iui.1.0.12) · [rc.2 源码](https://github.com/gulagala001/dsh-intelligent-ui/tree/v0.2.1-rc.2.iui.1.0.12) · [MIT](../LICENSE) · [数据与执行边界](contracts.md)
+- [rc.1 源码](https://github.com/gulagala001/dsh-intelligent-ui/tree/v0.2.1-rc.1.iui.1.0.12) · [rc.2 源码](https://github.com/gulagala001/dsh-intelligent-ui/tree/v0.2.1-rc.3.iui.1.0.13) · [MIT](../LICENSE) · [数据与执行边界](contracts.md)
 - 安装渠道为本仓库的固定 GitHub Release `.tgz`。**同名 npm 包及 `yunyv/dsh-intelligent-ui` 属于其他项目**，不作为本插件的安装目标。Each host requires its matching GitHub release; the similarly named npm package and `yunyv` repository are separate projects.
 
 ## 已提交 / Submitted

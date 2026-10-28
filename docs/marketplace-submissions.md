@@ -84,10 +84,12 @@ Automatic discovery is configured, not guaranteed listing. Star thresholds, inac
 
 ## 后续发布流程 / Future releases
 
-1. 发布前复核市场维护状态、真实规则与现有条目，按独立目录去重；使用精确仓库身份查重，不能只匹配包名。
-2. 发布后提交符合条件的市场，附固定版本、完整宿主版本、对应安装地址、许可、真实展示和必要权限说明；不得借用同名 npm 包。
-3. 保存本页中的 Issue／PR／表单回执与日期。自动发现型市场核查 topics 和目录状态；待审不算已收录。
-4. 后续版本维护原条目或原申请，复核各宿主构建、失效地址和分类；以市场规则决定是否需要更新 PR，避免重复投稿。
-5. 收录后核对精确仓库与实际安装目标，再更新为已收录。人工准入、外部审核与权限限制保留真实状态。
+更新于 2026-10-28；上方历史回执保留各自核对日期，不将旧状态当作当前审核结论。
 
-For later releases, refresh existing listings and receipts, check host-specific install targets, and verify actual listing before marking a marketplace complete. Do not resubmit duplicates or replace a compatible fixed build with an unrelated npm package.
+1. 先判断是否需要外部动作：首次收录、市场明确要求版本提交、固定安装入口确需更新、已核实的信息错误／安装失效，或原审核阻塞已实质解决。不能把“维护原条目”理解为每版改动全部旧 Issue。
+2. 确需处理时读取该市场最新贡献指南、模板及原申请反馈，按独立数据源去重；逐项核对准入、必填字段、仓库／npm 归属、固定包、完整宿主版本、许可、展示和权限要求。按各自规则准备材料，不套统一模板。
+3. 正常必要的更新保留；已有待审 PR 使用原分支，原申请按市场要求更新。无实质变化不编辑、不评论、不催审；审核阻塞未解决时不靠改版本号申请复审。
+4. 自动发现／刷新型目录不逐版通知；只在首次接入、实际信息错误或持续发现失败时按规则处理。共享上游目录不重复投稿。
+5. 将规则链接、核对日期、动作理由或无需动作依据及实际回执记录在本页。核对精确仓库与实际安装目标后才能记为已收录／已同步；一般合并和发行不以市场同步为统一前置，不修改用户通知设置。
+
+Follow each marketplace’s current rules and actual need. First listings, required version submissions, necessary pinned-link corrections and substantive review fixes may justify updating the existing entry; a release alone does not justify editing all previous issues. Read the current guide, template and feedback before writing, verify every required field and host-specific artifact, and reuse pending PR branches. Automatic indexes need no per-release notification. Avoid duplicate submissions, no-op edits and reminders. Record dates, reasons and evidence; historical receipts are not current listing guarantees.

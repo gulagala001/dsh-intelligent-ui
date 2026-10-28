@@ -15,6 +15,7 @@
 - 运行 `node scripts/check-docs.mjs --write` 更新本页，再运行 `npm run docs:check`。CI 与 prepack 运行同一检查，未登记页面、失效路径／锚点、错误翻译对应或过期生成页均阻止通过。
 - 纯措辞修改不用修改结构清单。旧路径有外部引用时保留简短跳转，避免仅为统一命名造成断链。
 - 版本说明按完整版本与精确宿主命名，分中文／English 两区，按实际内容列新增功能、体验优化、问题修复和其他变更，省略空分类；末尾提供统一安装区、固定包、安装指南与 SHA256SUMS。
+- 市场投稿与更新按各市场当前规则和实际需要处理。首次按独立数据源去重；后续不因发版自动新建或编辑所有 PR／Issue。外部写入前核对最新指南、模板、原申请反馈、必填字段、固定包与完整宿主兼容范围；有必要的链接更新和实质整改复审沿原条目处理，自动刷新型不逐版通知，无实质变化不改帖或催审。规则、日期、原因与证据记入已有发行／投稿记录；市场同步不是一般合并或发行的统一前置。
 
 ## English
 
@@ -27,6 +28,7 @@
 - Run `node scripts/check-docs.mjs --write`, then `npm run docs:check`. CI and prepack use the same check for unregistered pages, missing paths or anchors, invalid translation pairs and stale generated documentation.
 - Wording-only edits do not require inventory changes. Preserve short redirects where old paths have external consumers.
 - Release notes name the full version and exact host, separate Chinese and English sections, omit empty categories, and finish with fixed packages, installation guides and SHA256SUMS.
+- Follow each marketplace’s current rules and actual need. Deduplicate first submissions by independent data source; a release does not automatically require creating or editing every PR or issue. Before any external write, read the current guide, template and review feedback, and verify required fields, package ownership, fixed artifacts and exact host compatibility. Update the existing entry when needed and request re-review only after substantive fixes; do not notify automatic indexes for every release or send no-op edits and reminders. Record the rule, date, reason and evidence in existing release/submission records. Marketplace synchronization is not a universal merge or release prerequisite.
 
 ## 页面清单 / Page inventory
 

@@ -1,4 +1,5 @@
 export const hostVersions = Object.freeze({
+  '0.2.1-rc.5': { cordis: '4.0.5', schema: '3.18.5', personaCwd: false },
   '0.2.1-rc.3': { cordis: '4.0.5', schema: '3.18.5', personaCwd: false },
   '0.2.1-rc.1': { cordis: '4.0.5', schema: '3.18.5', personaCwd: false },
   '0.2.1-rc.2': { cordis: '4.0.5', schema: '3.18.5', personaCwd: false },

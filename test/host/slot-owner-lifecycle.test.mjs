@@ -7,11 +7,21 @@ import vm from 'node:vm';
 import { createElement } from 'react';
 import { decorateAssistantSlot } from '../../src/client/host/slots.mjs';
 
-const requireSdk = createRequire(join(resolve(process.env.IUI_TEST_SDK_ROOT ?? '.'), 'package.json'));
+const requireRoot = createRequire(join(resolve(process.env.IUI_TEST_SDK_ROOT ?? '.'), 'package.json'));
+// pnpm keeps client packages under the pinned host; a flat SDK fixture may
+// instead expose them directly. Resolve the actual host rather than its layout.
+let requireSdk = requireRoot;
+try { requireSdk.resolve('@deepseek-ai/dsh-client-ui-renderer'); }
+catch (error) {
+  if (error.code !== 'MODULE_NOT_FOUND') throw error;
+  requireSdk = createRequire(requireRoot.resolve('@deepseek-ai/dsh/package.json'));
+}
 const { Context } = requireSdk('@deepseek-ai/cordis');
-const rendererSource = await readFile(join(dirname(requireSdk.resolve('@deepseek-ai/dsh-client-ui-renderer')), 'client.js'), 'utf8');
+const rendererPath = requireSdk.resolve('@deepseek-ai/dsh-client-ui-renderer');
+const requireRenderer = createRequire(rendererPath);
+const rendererSource = await readFile(join(dirname(rendererPath), 'client.js'), 'utf8');
 let renderer;
-vm.runInNewContext(rendererSource, { window: { __ModuleLoader__: { load: ({ factory }) => { renderer = factory(requireSdk); } } } });
+vm.runInNewContext(rendererSource, { window: { __ModuleLoader__: { load: ({ factory }) => { renderer = factory(requireRenderer); } } } });
 const settle = () => new Promise(resolve => setImmediate(resolve));
 const name = 'conversation.chat.node', body = 'conversation.chat.reasoning.body';
 

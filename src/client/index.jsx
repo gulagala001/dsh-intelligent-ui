@@ -1,3 +1,4 @@
+import { applySessionTimeZone } from './session-time-zone.mjs';
 import React, { useEffect } from 'react';
 import { Button, IconNewChatOutlineRegular, MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives';
 import { IntelligentSurface } from './Surface.jsx';
@@ -13,6 +14,7 @@ export const inject = ['slots', 'sessions', 'workspaces', 'uiSession', 'uiWorksp
   'sidebarRightTabs', 'sidebarRight', 'fileUpload', 'remote', 'remote.session', 'remote.agentPresets'];
 
 export function apply(ctx) {
+  ctx.inject(['remote.session', 'remote.subagents'], scope => applySessionTimeZone(scope));
   const bridge = createSessionBridge(ctx);
   ctx.effect(() => () => { bridge.dispose(); disposeDocuments(); }, 'intelligent-ui: native Session bridge');
   const pane = installArtifactPane(ctx, { Surface: IntelligentSurface, bridge, Button });

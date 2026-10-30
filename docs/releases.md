@@ -1,10 +1,12 @@
-# IUI 1.0.14 · DSH 0.2.1-rc.5
+# IUI 1.0.14 · DSH 0.2.1-rc.5 · 未发布 / Unreleased
 
 [中文](#zh-1014) | [English](#en-1014)
 
 <a id="zh-1014"></a>
 
 ## 中文
+
+本版适配与验收正在进行，尚未发布。
 
 ### 问题修复
 
@@ -18,6 +20,8 @@
 
 ## English
 
+This adaptation is under validation and has not been published.
+
 ### Bug Fixes
 
 - Normalize Chromium’s zero-offset time zone to the host-supported UTC value, restoring message submission in standalone and shared installations.
@@ -28,15 +32,11 @@
 
 ## 安装 / Installation
 
-精确宿主为 **DSH 0.2.1-rc.5**。在 **插件 → 添加插件** 中使用下方固定包。保留 profile、配置与会话，按宿主提示在任务结束后重新加载。
+待发布构建精确匹配 **DSH 0.2.1-rc.5**。当前公开安装包仍用于 **DSH 0.2.1-rc.3**，请勿混用。
 
-The exact host is **DSH 0.2.1-rc.5**. Use the fixed package below in **Plugins → Add plugin**. Preserve profiles, configuration and conversations; reload after active tasks finish if requested.
+The unpublished build targets **DSH 0.2.1-rc.5** exactly. The current public package remains for **DSH 0.2.1-rc.3**.
 
-| DSH | 固定安装包 / Fixed package | SHA256SUMS |
-| --- | --- | --- |
-| 0.2.1-rc.5 | [IUI 1.0.14](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.5.iui.1.0.14/dsh-intelligent-ui-0.2.1-rc.5.iui.1.0.14.tgz) | [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.5.iui.1.0.14/SHA256SUMS) |
-
-[安装指南 / Installation guide](https://github.com/gulagala001/dsh-intelligent-ui/blob/main/docs/install.md)
+[当前公开包 / Current published package](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.3.iui.1.0.13/dsh-intelligent-ui-0.2.1-rc.3.iui.1.0.13.tgz) · [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.3.iui.1.0.13/SHA256SUMS)
 
 ---
 

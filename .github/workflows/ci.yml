@@ -14,7 +14,7 @@ on:
         description: Exact DSH host (all keeps the full release matrix)
         type: choice
         default: all
-        options: [all, '0.2.1-rc.1', '0.2.1-rc.2']
+        options: [all, '0.2.1-rc.5']
 permissions:
   contents: read
 jobs:
@@ -26,7 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.platform != '' && inputs.platform != 'all' && format('["{0}"]', inputs.platform) || '["ubuntu-latest","macos-latest","windows-latest"]') }}
-        host: ${{ fromJSON(inputs.host != '' && inputs.host != 'all' && format('["{0}"]', inputs.host) || '["0.2.1-rc.1","0.2.1-rc.2"]') }}
+        host: ${{ fromJSON(inputs.host != '' && inputs.host != 'all' && format('["{0}"]', inputs.host) || '["0.2.1-rc.5"]') }}
     steps:
       - uses: actions/checkout@v7
         with:

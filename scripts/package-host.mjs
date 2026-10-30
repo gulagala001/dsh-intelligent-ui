@@ -5,6 +5,8 @@ import {hostPins} from './host-versions.mjs';
 import {packageManager} from './package-manager.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const host=process.argv[2],pins=hostPins(host),pnpm=packageManager();
+const sourcePackage=JSON.parse(await readFile(join(root,'package.json'),'utf8'));
+if(host!==sourcePackage.engines.dsh)throw Error(`This source targets DSH ${sourcePackage.engines.dsh}; use the matching release source for ${host}`);
 execFileSync(process.execPath,[join(root,'scripts/check-public-files.mjs')],{cwd:root,stdio:'inherit',timeout:120000});
 const buildRoot=resolve(process.env.IUI_BUILD_ROOT??resolve(root,'work','builds')),out=resolve(process.env.IUI_PACKAGE_OUT??resolve(root,'work','packages'));
 await mkdir(buildRoot,{recursive:true});await mkdir(out,{recursive:true});
@@ -35,11 +37,9 @@ const persona=preset[0]?.insert?.find(row=>row.id==='preset-intelligent-chat')?.
 if(!persona?.config)throw Error('The dedicated native persona must exist before host adaptation');
 if(pins.personaCwd)persona.config.suffix='Your working directory is {{cwd}}.';else delete persona.config.suffix;
 await writeFile(presetPath,stringify(preset,{lineWidth:0}));
-const lock=join(root,'scripts','locks',host+'.yaml');
-let frozen=false;
-try{await cp(lock,join(dir,'pnpm-lock.yaml'));frozen=true;}catch(error){if(error.code!=='ENOENT')throw error;await cp(join(root,'pnpm-lock.yaml'),join(dir,'pnpm-lock.yaml'));}
+await cp(join(root,'pnpm-lock.yaml'),join(dir,'pnpm-lock.yaml'));
 const run=args=>execFileSync(process.execPath,args,{cwd:dir,stdio:'inherit',timeout:300000});
-pnpm(['install','--ignore-scripts',frozen?'--frozen-lockfile':'--no-frozen-lockfile'],{cwd:dir,stdio:'inherit'});
+pnpm(['install','--ignore-scripts','--frozen-lockfile'],{cwd:dir,stdio:'inherit'});
 run(['scripts/build.mjs']);
 run(['scripts/check-public-files.mjs']);
 const packed=JSON.parse(pnpm(['--config.ignore-scripts=true','pack','--json','--pack-destination',packDir],{cwd:dir,encoding:'utf8'}));

@@ -2,7 +2,7 @@
 
 [English](install_EN.md) · [返回首页](../README.md#readme-install)
 
-**DSH 0.2.2-rc.1 · Node.js ≥24.9.0 · IUI 1.0.14**
+**DSH 0.2.2-rc.1 · Node.js ≥24.9.0 · IUI 1.0.15**
 
 需要可用的 DSH 模型。生成质量取决于模型；作品内交互使用受控组件与有界表达式，提交后才继续模型对话。
 

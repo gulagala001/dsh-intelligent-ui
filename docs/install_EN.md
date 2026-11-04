@@ -2,7 +2,7 @@
 
 [简体中文](install.md) · [README](../README_EN.md#readme-install)
 
-**DSH 0.2.2-rc.1 · Node.js ≥24.9.0 · IUI 1.0.14**
+**DSH 0.2.2-rc.1 · Node.js ≥24.9.0 · IUI 1.0.15**
 
 Requires a configured DSH model. Generation quality depends on the model. Interactions use controlled components and bounded expressions; submitting explicitly continues the model conversation.
 

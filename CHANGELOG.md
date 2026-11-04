@@ -1,8 +1,8 @@
 # Intelligent UI 1.0.15 · DSH 0.2.2-rc.1
 
-[中文](#zh) · [English](#en)
+[中文](#zh-0-2-2-rc-1-iui-1-0-15) · [English](#en-0-2-2-rc-1-iui-1-0-15)
 
-<a id="zh"></a>
+<a id="zh-0-2-2-rc-1-iui-1-0-15"></a>
 
 ## 中文
 
@@ -15,7 +15,7 @@
 - 精确适配 DSH **0.2.2-rc.1**、Cordis **4.1.0** 与 Schemastery **3.19.0**，使用对应 SDK 与冻结依赖；Node.js 最低版本为 **24.9.0**。
 - 保留已有配置、会话与插件数据；原宿主的历史固定发行继续保留。
 
-<a id="en"></a>
+<a id="en-0-2-2-rc-1-iui-1-0-15"></a>
 
 ## English
 

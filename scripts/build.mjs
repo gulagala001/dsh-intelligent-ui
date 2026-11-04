@@ -6,6 +6,8 @@ import {protocolVersion,componentsVersion} from '../src/protocol/version.mjs';
 import {hostPins} from './host-versions.mjs';
 import {createRequire} from 'node:module';
 import {parse} from 'yaml';
+import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
 const pkg=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8'));
 const hostVersion=pkg.devDependencies['@deepseek-ai/dsh'],pins=hostPins(hostVersion),require=createRequire(import.meta.url);
 const expected={'@deepseek-ai/dsh':hostVersion,'@deepseek-ai/cordis':pins.cordis,'@deepseek-ai/schemastery':pins.schema};
@@ -20,7 +22,15 @@ for(const [name,version] of Object.entries(pins.framework)){
   throw Error(`Host lock requires only ${name}@${version}, found ${versions.join(', ')}`);
 }
 const sdkVersions=Object.keys(lock.packages).filter(key=>key.startsWith('@deepseek-ai/dsh-')||key.startsWith('@deepseek-ai/dsh@'));
-if(sdkVersions.some(key=>!key.endsWith('@'+hostVersion)))throw Error('Host lock mixes DSH SDK versions');
+for(const key of sdkVersions){
+  if(key.endsWith('@'+hostVersion))continue;
+  const entry=lock.packages[key],tarball=entry.resolution?.tarball;
+  if(entry.version!==hostVersion||!tarball?.startsWith('file:')||!key.endsWith('@'+tarball))throw Error('Host lock mixes DSH SDK versions');
+  const path=fileURLToPath(new URL(tarball.slice(5),new URL('../',import.meta.url)));
+  const integrity='sha512-'+createHash('sha512').update(await readFile(path)).digest('base64');
+  const source=JSON.parse(execFileSync('tar',['-xOf',path,'package/package.json'],{encoding:'utf8',maxBuffer:1024*1024}));
+  if(entry.resolution.integrity!==integrity||source.version!==hostVersion||key!==source.name+'@'+tarball)throw Error('Local Host SDK archive identity or integrity differs from the lock');
+}
 await writeReferences();
 await mkdir(new URL('../lib/',import.meta.url),{recursive:true});
 await build({

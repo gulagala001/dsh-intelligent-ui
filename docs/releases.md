@@ -1,5 +1,10 @@
 # IUI 1.0.14 · DSH 0.2.1-rc.5
 
+## Intelligent UI 1.0.15 · DSH 0.2.2-rc.1
+
+[发行说明与固定安装包 / Release and fixed packages](https://github.com/gulagala001/dsh-intelligent-ui/releases/tag/v0.2.2-rc.1.iui.1.0.15)
+
+
 [中文](#zh-1014) | [English](#en-1014)
 
 <a id="zh-1014"></a>

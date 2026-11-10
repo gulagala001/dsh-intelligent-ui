@@ -115,6 +115,14 @@ const incoming = new Set();
 let checked = 0;
 for (const file of files) {
   for (const target of links(visible(text(file)))) {
+    // Packaged guides link package-excluded repository files through GitHub.
+    const own = target.match(new RegExp(`^https://github\\.com/${(slug || '').replace(/[.]/g, '\\.')}/blob/main/([^?#]+)`));
+    if (own) {
+      const dest = decodeURIComponent(own[1]);
+      assert(existsSync(resolve(root, dest)), `${file}: missing link target ${target}`);
+      if (dest !== file) incoming.add(dest);
+      continue;
+    }
     if (/^(?:[a-z][\w+.-]*:|\/\/)/i.test(target)) continue;
     let url, dest, anchor;
     try { url = new URL(target, `https://docs.invalid/${file}`); dest = decodeURIComponent(url.pathname).slice(1); anchor = decodeURIComponent(url.hash.slice(1)); }

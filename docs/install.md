@@ -1,65 +1,51 @@
-# DSH Intelligent UI — 安装与维护
+# 安装 DSH Intelligent UI
 
-[English](install_EN.md) · [返回首页](../README.md#readme-install)
+[English](install_EN.md) · [返回首页](../README.md)
 
-**DSH 0.2.2-rc.1 · Node.js ≥24.9.0 · IUI 1.0.15**
+需要 DSH **0.2.2-rc.1** 和 Node.js **24.9.0+**。
 
-需要可用的 DSH 模型。生成质量取决于模型；作品内交互使用受控组件与有界表达式，提交后才继续模型对话。
+## 在 DSH 里安装
 
-## 安装到当前实例
-
-在实际使用的实例打开 **插件 → ＋ 添加插件**，粘贴固定发行地址：
+打开 **插件 → ＋ 添加插件**，粘贴：
 
 ```text
 https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.1.iui.1.0.15/dsh-intelligent-ui-0.2.2-rc.1.iui.1.0.15.tgz
 ```
 
-等当前任务结束后按宿主提示启用或重启，沿用原 profile、DSH_HOME、模型配置和会话。
+等手头的任务跑完，按提示启用或重启 DSH。校验文件：[SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.1.iui.1.0.15/SHA256SUMS)。
 
-下载后可核对同一发行版的 [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.1.iui.1.0.15/SHA256SUMS).
+## 用命令行安装
 
-### 首次成功检查
-
-悬停 **新会话**，点击 **Chat**；也可在普通会话输入 `/intelligent-ui`，随后提出：
-
-```text
-做一个可调整的分账工具：账单387元，加8%服务费，5人均分。人数、金额和服务费都能修改。
-```
-
-初始每人应付 83.59；修改参数后结果在作品内更新，不额外调用模型。
-
-<details>
-<summary>命令行安装</summary>
-
-使用同一 DSH 实例对应的 CLI，将 `web` 换成实际 profile。
+用同一个 DSH 自带的命令行，把 `web` 换成你的 profile（桌面版是 `desktop`）：
 
 ```bash
 dsh plugin --profile web add "https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.1.iui.1.0.15/dsh-intelligent-ui-0.2.2-rc.1.iui.1.0.15.tgz"
 ```
 
-</details>
+需要一个在 DSH 里配好的模型，效果好不好主要看模型。其他 DSH 版本请到 [Releases](https://github.com/gulagala001/dsh-intelligent-ui/releases) 找对应的包，版本不一致的包不要混装。
 
-<details>
-<summary>DSH 0.2.1-rc.1</summary>
+## 装好后试一下
 
-使用对应独立构建，不混装 rc.2 包。
+鼠标移到侧栏的 **新会话** 上，点右边出现的 **Chat**，然后问：
 
 ```text
-https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.12/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.12.tgz
+做一个可调整的分账工具：账单387元，加8%服务费，5人均分。人数、金额和服务费都能修改。
 ```
 
-</details>
+一开始每人 83.59 元，改人数或金额后结果当场更新。
 
-## 升级、回退与卸载
+## 升级和回退
 
-先备份现有 profile 与相关数据，再安装匹配宿主的固定版本；不为安装插件自动替换或降级 DSH。更新失败保留原数据和第一处错误。回退时选择此前匹配包并核对对应数据说明；只恢复代码不等于撤销数据变更。
+先备份 profile 和 `DSH_HOME/intelligent-ui/state`，再用新版安装包覆盖安装，DSH 本身不用动。升级失败时原有数据不受影响，把第一条报错发到 [Issues](https://github.com/gulagala001/dsh-intelligent-ui/issues)。
 
-在当前实例插件页移除，或使用：
+想回到旧版，就装回之前的安装包。回退只换代码，新版写入的数据不会自动撤销。
+
+## 卸载
+
+在插件页移除，或运行：
 
 ```bash
 dsh plugin --profile web remove dsh-intelligent-ui
 ```
 
-会话原文及 `DSH_HOME/intelligent-ui/state` 中的作品状态保留，重新安装匹配版本可继续读取。
-
-移除后重启同一实例。反馈提供完整版本、profile 类型和脱敏后的第一处错误。
+然后重启 DSH。会话原文和 `DSH_HOME/intelligent-ui/state` 里的作品设置都会留着，重新安装就能接着用。

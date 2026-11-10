@@ -1,5 +1,26 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "published": "0.2.2-rc.1.iui.1.0.15",
+  "repository": {
+    "slug": "gulagala001/dsh-intelligent-ui",
+    "description": "让 DSH 回答变成可操作的界面：计算、图表、表单、模拟与小游戏。独立 DSH 插件 ｜ Interactive answers for DeepSeek Harness: calculators, charts, forms, simulations and games.",
+    "homepage": "",
+    "topics": [
+      "deepseek-harness",
+      "dsh",
+      "dsh-plugin",
+      "generative-ui",
+      "interactive-ui",
+      "openui",
+      "deepseek-harness-plugin",
+      "dsh-bundle"
+    ]
+  },
+  "names": [
+    "Intelligent UI",
+    "IUI"
+  ],
+  "maxPages": 14,
   "documents": [
     {
       "path": "CHANGELOG.md",
@@ -9,12 +30,14 @@
     {
       "path": "README.md",
       "role": "home",
-      "language": "zh"
+      "language": "zh",
+      "translation": "README_EN.md"
     },
     {
       "path": "README_EN.md",
       "role": "home",
-      "language": "zh"
+      "language": "en",
+      "translation": "README.md"
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
@@ -32,11 +55,6 @@
       "language": "zh"
     },
     {
-      "path": "docs/documentation.md",
-      "role": "development",
-      "language": "bilingual"
-    },
-    {
       "path": "docs/examples.md",
       "role": "guide",
       "language": "zh",
@@ -49,18 +67,6 @@
       "translation": "docs/examples.md"
     },
     {
-      "path": "docs/images/showcase-notes.en.md",
-      "role": "sources",
-      "language": "en",
-      "translation": "docs/images/showcase-notes.md"
-    },
-    {
-      "path": "docs/images/showcase-notes.md",
-      "role": "sources",
-      "language": "zh",
-      "translation": "docs/images/showcase-notes.en.md"
-    },
-    {
       "path": "docs/install.md",
       "role": "guide",
       "language": "zh"
@@ -69,46 +75,6 @@
       "path": "docs/install_EN.md",
       "role": "guide",
       "language": "zh"
-    },
-    {
-      "path": "docs/marketplace-submissions.md",
-      "role": "guide",
-      "language": "zh"
-    },
-    {
-      "path": "docs/release-1.0.0.en.md",
-      "role": "release",
-      "language": "zh"
-    },
-    {
-      "path": "docs/release-1.0.0.md",
-      "role": "release",
-      "language": "zh"
-    },
-    {
-      "path": "docs/release-1.0.10.en.md",
-      "role": "release",
-      "language": "zh"
-    },
-    {
-      "path": "docs/release-1.0.10.md",
-      "role": "release",
-      "language": "zh"
-    },
-    {
-      "path": "docs/release-1.0.9.en.md",
-      "role": "release",
-      "language": "zh"
-    },
-    {
-      "path": "docs/release-1.0.9.md",
-      "role": "release",
-      "language": "zh"
-    },
-    {
-      "path": "docs/releases.md",
-      "role": "release",
-      "language": "bilingual"
     },
     {
       "path": "docs/usage.en.md",

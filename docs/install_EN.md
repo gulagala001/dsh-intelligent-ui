@@ -1,65 +1,51 @@
-# DSH Intelligent UI — Installation and maintenance
+# Install DSH Intelligent UI
 
-[简体中文](install.md) · [README](../README_EN.md#readme-install)
+[简体中文](install.md) · [Back to README](../README_EN.md)
 
-**DSH 0.2.2-rc.1 · Node.js ≥24.9.0 · IUI 1.0.15**
+Requires DSH **0.2.2-rc.1** and Node.js **24.9.0+**.
 
-Requires a configured DSH model. Generation quality depends on the model. Interactions use controlled components and bounded expressions; submitting explicitly continues the model conversation.
+## Install in DSH
 
-## Install in the current instance
-
-Open **Plugins → Add plugin** in the instance you actually use and paste this fixed release address:
+Open **Plugins → Add plugin** and paste:
 
 ```text
 https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.1.iui.1.0.15/dsh-intelligent-ui-0.2.2-rc.1.iui.1.0.15.tgz
 ```
 
-Finish active tasks, follow the host’s activation/restart prompt, and keep your existing profile, DSH_HOME, model configuration and conversations.
+When your current task finishes, enable the plugin or restart DSH when prompted. Checksums: [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.1.iui.1.0.15/SHA256SUMS).
 
-Verify the archive with the release’s [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.1.iui.1.0.15/SHA256SUMS).
+## Install from the command line
 
-### First success check
-
-Hover over **New conversation** and choose **Chat**, or use `/intelligent-ui` in a regular conversation. Ask:
-
-```text
-Make an adjustable bill splitter: a bill of 387, an 8% service charge, split among 5 people. Make all three inputs editable.
-```
-
-The initial per-person total is 83.59. Changing inputs updates it locally without another model request.
-
-<details>
-<summary>Command-line installation</summary>
-
-Use the CLI belonging to the same DSH instance; replace `web` with its actual profile.
+Use the CLI that belongs to the same DSH, replacing `web` with your profile (`desktop` for the desktop app):
 
 ```bash
 dsh plugin --profile web add "https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.1.iui.1.0.15/dsh-intelligent-ui-0.2.2-rc.1.iui.1.0.15.tgz"
 ```
 
-</details>
+You need a model configured in DSH; result quality depends mostly on the model. For other DSH versions, find the matching package on [Releases](https://github.com/gulagala001/dsh-intelligent-ui/releases); do not mix packages built for different versions.
 
-<details>
-<summary>DSH 0.2.1-rc.1</summary>
+## Try it
 
-Use its dedicated build; do not install the rc.2 archive.
+Hover over **New Session** in the sidebar, click the **Chat** button that appears, and ask:
 
 ```text
-https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.1-rc.1.iui.1.0.12/dsh-intelligent-ui-0.2.1-rc.1.iui.1.0.12.tgz
+Make an adjustable bill-splitting tool: a 387 bill plus an 8% service charge, split between 5 people. Let me change the headcount, amount and service charge.
 ```
 
-</details>
+It starts at 83.59 per person and updates on the spot when you change the headcount or amount.
 
-## Update, rollback and removal
+## Upgrade and roll back
 
-Back up the existing profile and relevant data first. Update using a fixed release matching the host; do not replace or downgrade DSH to make a package install. If an update fails, keep the original data and preserve the first error. Use the previous matching archive only with its release-specific data guidance; restoring code alone does not undo data changes.
+Back up your profile and `DSH_HOME/intelligent-ui/state`, then install the new package over the old one. DSH itself does not need to change. If the upgrade fails, your data is untouched; send the first error to [Issues](https://github.com/gulagala001/dsh-intelligent-ui/issues).
 
-Remove from the current instance’s plugin page, or use:
+To go back, install the previous package. Rolling back only replaces the code; data written by the newer version stays.
+
+## Uninstall
+
+Remove it on the Plugins page, or run:
 
 ```bash
 dsh plugin --profile web remove dsh-intelligent-ui
 ```
 
-Conversation source and artifact state under `DSH_HOME/intelligent-ui/state` remain and can be read by a matching reinstall.
-
-Restart the same instance after removing the plugin. Report problems with the complete versions, profile type and a redacted first error.
+Then restart DSH. Conversation text and the artifact settings in `DSH_HOME/intelligent-ui/state` stay, and reinstalling picks them up again.

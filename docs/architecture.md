@@ -1,19 +1,22 @@
 # 架构与来源
 
-宿主构建以 `package.json` 的完整版本为准，当前源码默认 `0.2.2-rc.1`。每份构建对齐同版本 SDK、组件与依赖锁，安装入口按正式发行包的宿主版本选择。
+[中文首页](../README.md) · [组件与协议](contracts.md)
 
-IUI 使用 DSH 原生会话、模型、工具循环、技能和作品页签。Web 客户端使用 React 18；OpenUI lang-core 负责低层语法解析，插件的有界解释器执行表达式，受控组件渲染界面。Apps SDK UI 提供设计 token 参考。
+IUI 用 DSH 自带的会话、模型、工具循环、技能和作品页签，不另起一套。Web 客户端基于 React 18：OpenUI lang-core 负责解析语法，插件自己的受限解释器计算表达式，再由插件提供的组件渲染界面。设计变量参考 Apps SDK UI。
 
-客户端、宿主服务和数据接口见 [模块契约](contracts.md)，依赖版本、许可与来源见 [第三方声明](../THIRD_PARTY_NOTICES.md)。
+技能的详细资料按需加载，本地调参数不会发起模型请求。作品设置按会话和消息分开保存，读写都经过 DSH 的登录和资源权限检查，有版本冲突检测，写入是原子的。
 
-DSH `0.2.1-rc.1` 与 `0.2.1-rc.2` 分别使用对应 SDK、冻结锁和完整版本安装包，不混用客户端构建。
+客户端、服务端和数据接口见[组件与协议](contracts.md)，依赖的版本、许可和来源见[第三方声明](../THIRD_PARTY_NOTICES.md)。
+
+## 构建
+
+源码默认针对 DSH `0.2.2-rc.1`。`package.json` 里的完整版本决定目标 DSH，每个 DSH 版本使用各自的 SDK 和依赖锁，安装包不能混用。
 
 ```sh
 corepack pnpm install --frozen-lockfile --ignore-scripts
 pnpm run build
 pnpm run check:public
-pnpm run package:host 0.2.1-rc.1
-pnpm run package:host 0.2.1-rc.2
+pnpm run package:host 0.2.2-rc.1
 ```
 
-技能详细资料按需加载；本地参数操作不发起模型请求。保存按会话和消息隔离，通过 DSH 认证与资源权限核验，并采用版本冲突检测与原子写入。
+`package:host` 后面换成 [host-versions.mjs](../scripts/host-versions.mjs) 里登记的其他版本，可以构建对应的安装包。

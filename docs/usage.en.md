@@ -1,90 +1,58 @@
-# Usage guide
+# Intelligent UI usage
 
-[中文](usage.md) · **English** · [Back to README](../README_EN.md)
+[中文](usage.md) · [Back to home](../README_EN.md)
 
-## Start an intelligent chat
+The plugin interface is in Chinese. Button names below give the English meaning followed by the label you will see.
 
-Hover over the whole **New Session** row to reveal the **Chat** bubble inside its right edge. Clicking Chat creates a new session, selects intelligent chat, and inherits your current model. Clicking elsewhere in the row creates a regular session. Keyboard focus also reveals Chat; use Tab to reach it and Enter to activate it. The entry appears directly in coarse-pointer layouts and a collapsed sidebar; physical touch devices have not been tested for this release.
+## Intelligent chat
 
-Ask naturally—for example, “Make a dinner plan with adjustable headcount,” “Explain photosynthesis with an interactive diagram,” or “Give me a bill-splitting tool.” The model chooses suitable text and controls. Questions best answered in prose can still receive ordinary text.
+Hover over the whole **New Session** row in the sidebar and a **Chat** bubble appears on its right. Clicking it creates a new session in intelligent chat mode, using your current model; clicking anywhere else in the row creates a regular session. With a keyboard, Tab to Chat and press Enter. On touch screens and with a collapsed sidebar, the button is always shown.
 
-Completed portions appear progressively during generation. Controls become available after the current generation step settles and saved settings have loaded.
+Just ask, for example "Make a dinner plan with adjustable headcount", "Explain photosynthesis with an interactive diagram" or "Give me a bill-splitting tool." The model picks suitable text and controls. Questions that only need text still get a text answer.
 
-## Use a regular agent
+While the answer is generated, finished parts appear first. Controls become usable once that step is done and saved settings are loaded, so you never click buttons on a half-built artifact.
 
-Enter `/intelligent-ui`, or use DSH's native `skill({name:"intelligent-ui"})`. The skill provides the basics and loads chart, form, interaction, and scene documentation as needed. Installing the plugin keeps the regular agent's model, main prompt, and tool loop under DSH's control.
+## In a regular conversation
 
-## Interact and restore
+Type `/intelligent-ui`, or have the model call `skill({name:"intelligent-ui"})`. The basic instructions load with the skill; material on charts, forms, interaction and scenes is read when needed. Installing the plugin does not change the prompts, model or tools of regular conversations.
 
-Numbers, selections, checkboxes, chart filters, and game controls run locally. An explicit submission sends the selected fields and action description to the original session, using DSH's native queue, cancellation, and recovery.
+## Interacting and saving
 
-Settings save automatically. Refreshing, reopening the conversation, or restarting the host restores them. Check the save status below the answer before closing. After restoration, simulation playback is paused until you choose Play.
+Numbers, selections, checkboxes, chart filters and mini games all run locally. Only the submit button inside an artifact sends your choices back to the conversation, after which DSH queues, cancels and resumes as usual.
 
-The inline answer and expanded artifact share settings. If multiple browser tabs conflict, your current edits remain available. Choosing to keep and save your settings merges remote fields that you have not changed. A save or load error offers its corresponding retry action.
+- **Autosave**: your settings save automatically and come back after reloading, reopening or restarting DSH. Simulations come back paused; press play to continue. They also stop when you switch away, go to the background or close the view.
+- **Synced views**: an artifact shares its settings between the answer and its expanded tab. If several tabs edit it at once and conflict, your current edits are kept, and non-conflicting fields from elsewhere are merged when you confirm the save. When something fails, check the save status at the bottom of the answer before retrying.
+- **Merge failures**: if the combined settings cannot run, saving stops and explains why. Your current draft stays editable and survives a reload; adjust it, then confirm the save.
+- **Replaced answers**: when the answer content changes, old settings never leak into the new artifact. If backing up the previous draft fails, the page keeps a copy and offers **Export previous draft** (`导出旧草稿`). Keep the page open until you export it.
 
-Edits and resets made while a save is pending are also retained. If combining settings from two tabs makes the artifact invalid, the save stops and explains why. Your usable local draft remains editable and can be restored after a refresh. Adjust the relevant settings, then confirm the save again.
+## Charts
 
-### Charts and tables
+- Click a shape or a data row below the chart. After focusing the chart, move with the arrow keys, select with Enter or Space, and cancel with Escape.
+- Pie charts can switch metrics and hide categories, and the legend shows values and percentages.
+- Table sorting and chart filters persist through expanding, collapsing and reloading.
+- Bar, line, area and scatter charts whose series declare a `unit` are grouped by unit, for example currency and GB, switched with **Show metric** (`显示指标`). Series without units are never guessed from their names or converted.
+- In a narrow answer, charts, diagrams and scenes offer **Enlarge** (`放大图形`) to view labels at full size in a separately scrolling area. **Fit to width** (`适应宽度`) returns to the overview. Enlarging only affects the current view.
 
-Click chart graphics or the data rows below them to select data. With a graphic focused, use arrow keys to move, Enter or Space to select, and Escape to clear the selection. Pie charts can switch metrics and hide categories; their legend shows values and percentages.
+## Simulations and mini games
 
-Table sorting and chart filters remain available after expansion, closing the expanded view, and refreshing. Completely identical rows, or rows whose identity is too long, retain selection only within the current view.
-
-When an author explicitly labels series with `unit`, bar, line, area, and scatter charts group series with the same unit. For example, choose monthly fee in yuan or capacity in GB through the metric selector, then filter individual series within that group. Pie charts continue to show one metric at a time. Older charts without unit labels keep their existing behavior. Units are not inferred from names, and values are not automatically converted or normalized.
-
-### View graphics at their original size
-
-Charts, diagrams, and scenes offer an enlarge control when shown in a narrow answer. It displays graphics at their original size, with an independently scrollable region that can receive keyboard focus. Choose Fit to width to return to the overview.
-
-Enlargement affects the current view only. Data, selection, and playback remain intact; a reopened view starts fitted to its width.
-
-### Simulations and games
-
-The inline answer and expanded view share a simulation's Play/Pause state. Closing one view leaves the other able to continue. Playback pauses when every view is offscreen or the browser goes into the background; reopened artifacts start paused.
-
-Simulations and games with parameters provide two ways to start over:
-
-- **Restart** (`重新开始`) keeps your current parameters and restarts the running progress.
-- **Reset** (`重置`) restores all initial settings.
-
-Editing parameters pauses playback and ends any active drag. Games group their title, instructions, score, and progress above the graphics and controls.
-
-Selection, matching, and sequence games can use native **action cards**. Click a card, or focus it with Tab and press Enter/Space to trigger the same local action. Cards can indicate selection and disable unavailable choices. If a card displays a letter or digit shortcut, focus the artifact and use that key; shortcuts apply only inside that artifact. Cards can appear alongside a drawing or on their own. Spatial selection and dragging continue to use the graphics.
-
-Scenes with drag rules accept pointer input from a mouse, pen, or touch handler. Dragging pauses playback; releasing saves the final position. Going offscreen, losing focus, or closing the view cancels the drag. Follow the scene's instructions for keyboard controls. Physical pen and touch devices remain untested for this release.
-
-Expand the operation help when you need general scene controls; scenario-specific instructions stay beside the scene. Sliders display the actual numeric state. Their thumb reflects the editable range and step, while the displayed number remains accurate if a running value exceeds that range.
-
-### Changed content and older artifacts
-
-Replacing the answer's source starts a separate artifact state; settings from the previous content are not applied to the new content. Retrying a load for the same artifact preserves your edits.
-
-New artifacts use component format **4**. Component formats **1, 2, and 3** remain readable and editable and keep their format when exported. Unknown formats are rejected while the original file is preserved.
-
-If backing up the previous draft fails, the page temporarily keeps the most recent previous settings and offers **Export previous draft** (`导出旧草稿`). Keep the page open until you export them.
+- The same simulation shares playback between the answer and the expanded tab; closing one leaves the other running. It pauses when no view is visible and reopens paused.
+- **Restart** (`重新开始`) keeps the current parameters and resets progress. **Reset** (`重置`) restores every initial setting. Changing a parameter pauses playback and ends any drag in progress.
+- Selection, matching and ordering games can use action cards: click a card, or Tab to it and press Enter or Space. Cards labeled with a letter or digit shortcut respond to that key once the artifact is focused, and only inside that artifact.
+- Scenes that support dragging work with a mouse, stylus or finger. Dragging pauses playback, releasing saves the position, and switching away or losing focus cancels it.
+- The instructions panel lists the general controls. The number beside a slider shows the real current value, even when it runs outside the editable range.
 
 ## Expand and export
 
-**Expand** (`展开`, ↗) opens DSH's native artifact tab. **More actions (⋯)** offers Copy source, Export, and View source. The menu supports mouse and keyboard input, chooses its direction according to available space, and closes with Escape while returning focus to the entry.
+**Expand** (`展开`, ↗) opens the artifact in its own DSH tab and moves focus into it; its close button returns you to where you were. **More actions (⋯)** offers copying the source, exporting the version, source or current JSON settings, and viewing the source. Escape closes the menu.
 
-An export contains the protocol version, component format version, source, and current JSON settings. It preserves data for reproduction; running the interactions still requires this plugin and a compatible DSH host. An external image may become unavailable if its source stops serving it.
+An export lets you reproduce the artifact's data, but further interaction still needs DSH with a matching version of this plugin. External images may stop displaying if their source goes offline.
 
-Explicit expansion moves focus into the artifact. Closing it returns focus to the expand entry. Switching sessions or tabs, or restoring an artifact, preserves your current interaction position.
+## When something goes wrong
 
-Unknown components and invalid expressions show diagnostics, and their source can still be copied. The plugin does not start a repair turn automatically. Explicitly choose **Repair** (`修复`) or send a request for the original session's model to correct the content.
+Unknown components or invalid expressions show diagnostics, and the source can still be copied. The plugin never asks the model to redo the answer on its own; click **Repair** (`修复`) or send a request yourself so the original conversation's model fixes it.
 
-## Install, update, and remove
+New artifacts use component format 4. Artifacts in formats 1, 2 and 3 can still be opened, edited and exported in their original format. Unknown formats keep the original file and show diagnostics.
 
-IUI **1.0.10** has separate builds for DSH `0.2.1-rc.1` and `0.2.1-rc.2`. Each build pins its host SDK, peer dependencies, and package version. See the [installation commands](../README_EN.md#installation).
+## Updating
 
-When changing hosts, install the matching build and keep the same DSH data directory to retain your artifacts. Merely changing a package's version declaration does not establish support for another host.
-
-Settings live under `intelligent-ui/state` in the DSH data directory. To remove the plugin:
-
-```sh
-dsh plugin --profile web remove dsh-intelligent-ui
-```
-
-Replace `web` with your profile name and restart it afterward. Original conversation content and saved settings remain available for a later reinstall.
-
-The plugin runs in DSH Web. See [requirements](../README_EN.md#compatibility) and [release notes](release-1.0.10.en.md).
+Install the new package over the old one and keep your DSH data directory, and your artifacts carry on working. See the [installation guide](install_EN.md).

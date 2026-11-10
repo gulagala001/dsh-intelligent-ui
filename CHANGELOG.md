@@ -229,4 +229,4 @@ Install the fixed package matching the complete DSH version through **Plugins �
 
 首个公开版本，提供智能聊天、按需技能、28 个交互组件、图表、表单、模拟与游戏，以及作品展开、保存恢复和导出。
 
-旧构建及下载见 [1.0.0 发行说明](docs/release-1.0.0.md)。
+旧构建及下载见 [1.0.0 发行说明](https://github.com/gulagala001/dsh-intelligent-ui/releases)。

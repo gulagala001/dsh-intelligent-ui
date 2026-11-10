@@ -104,7 +104,7 @@ function selfTest() {
     assert.ok(reasonFor(path), `Must reject ${path}`);
   }
   for (const path of ['test/secret-parser.test.mjs', 'test/fixtures/synthetic-auth.mjs', '.env.example',
-    'skills/intelligent-ui/SKILL.md', 'docs/release-1.0.0.md', 'docs/marketplace-submissions.md', 'src/logger.mjs']) {
+    'skills/intelligent-ui/SKILL.md', 'docs/usage.md', 'src/logger.mjs']) {
     assert.equal(reasonFor(path), null, `Must allow ${path}`);
   }
   const fixture = mkdtempSync(join(tmpdir(), 'iui-public-gate-'));

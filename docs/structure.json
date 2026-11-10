@@ -3,7 +3,7 @@
   "published": "0.2.2-rc.1.iui.1.0.15",
   "repository": {
     "slug": "gulagala001/dsh-intelligent-ui",
-    "description": "让 DSH 回答变成可操作的界面：计算、图表、表单、模拟与小游戏。独立 DSH 插件 ｜ Interactive answers for DeepSeek Harness: calculators, charts, forms, simulations and games.",
+    "description": "让 DSH 的回答变成能直接操作的界面：计算器、图表、表单、模拟和小游戏。 Turn DeepSeek Harness answers into interactive UI: calculators, charts, forms, simulations and games.",
     "homepage": "",
     "topics": [
       "deepseek-harness",

@@ -2,7 +2,7 @@
   "name": "dsh-intelligent-ui",
   "version": "0.2.2-rc.1.iui.1.0.15",
   "type": "module",
-  "description": "让 AI 的回答变成能直接调参数、点选和操作的小工具",
+  "description": "让 DSH 的回答变成能直接操作的界面：计算器、图表、表单、模拟和小游戏。",
   "license": "MIT",
   "engines": {
     "node": ">=24.9.0",

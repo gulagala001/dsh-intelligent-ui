@@ -10,13 +10,14 @@ IUI 用 DSH 自带的会话、模型、工具循环、技能和作品页签，�
 
 ## 构建
 
-源码默认针对 DSH `0.2.2-rc.1`。`package.json` 里的完整版本决定目标 DSH，每个 DSH 版本使用各自的 SDK 和依赖锁，安装包不能混用。
+源码默认针对 DSH `0.2.2-rc.2`。`package.json` 里的完整版本决定目标 DSH，每个 DSH 版本使用各自的 SDK 和依赖锁，安装包不能混用。
 
 ```sh
+node scripts/prepare-host-sdk.mjs
 corepack pnpm install --frozen-lockfile --ignore-scripts
 pnpm run build
 pnpm run check:public
-pnpm run package:host 0.2.2-rc.1
+pnpm run package:host 0.2.2-rc.2
 ```
 
-`package:host` 后面换成 [host-versions.mjs](../scripts/host-versions.mjs) 里登记的其他版本，可以构建对应的安装包。
+其他宿主版本请使用对应发行的源码和依赖锁。

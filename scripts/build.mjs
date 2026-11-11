@@ -1,5 +1,5 @@
 import {build} from 'esbuild';
-import {mkdir,readFile,writeFile} from 'node:fs/promises';
+import {mkdir,readFile,realpath,writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {writeReferences} from '../src/host/skill.mjs';
 import {protocolVersion,componentsVersion} from '../src/protocol/version.mjs';
@@ -16,9 +16,17 @@ for(const [name,version] of Object.entries(expected)){
   if(installed!==version||pkg.devDependencies[name]!==version||pkg.peerDependencies[name]!==version)throw Error(`Host build requires ${name}@${version}, installed ${installed}`);
 }
 const lock=parse(await readFile(new URL('../pnpm-lock.yaml',import.meta.url),'utf8'));
+const importer = {...lock.importers['.'].dependencies, ...lock.importers['.'].devDependencies};
+for (const [name, entry] of Object.entries(importer)) {
+  if (!entry.version.startsWith('link:')) continue;
+  if (!entry.version.startsWith('link:../.local/dsh-sdk-ddac9676/') || entry.specifier !== entry.version) throw Error('Unexpected source SDK link for ' + name);
+  const file = new URL('../' + entry.version.slice(5) + '/package.json', import.meta.url);
+  const metadata = JSON.parse(await readFile(file));
+  if (metadata.name !== name || metadata.version !== pkg.devDependencies[name] || await realpath(file) !== await realpath(require.resolve(name + '/package.json'))) throw Error('Source SDK identity differs for ' + name);
+}
 for(const [name,version] of Object.entries(pins.framework)){
   const versions=Object.keys(lock.packages).filter(key=>key.startsWith(name+'@')).map(key=>key.slice(name.length+1));
-  if((versions.length===0&&!Object.hasOwn(expected,name))||(versions.length===1&&versions[0]===version))continue;
+  if((versions.length===0&&(!Object.hasOwn(expected,name)||importer[name]?.version.startsWith('link:')))||(versions.length===1&&versions[0]===version))continue;
   throw Error(`Host lock requires only ${name}@${version}, found ${versions.join(', ')}`);
 }
 const sdkVersions=Object.keys(lock.packages).filter(key=>key.startsWith('@deepseek-ai/dsh-')||key.startsWith('@deepseek-ai/dsh@'));

@@ -1,6 +1,7 @@
 import {mkdir,mkdtemp,cp,readFile,writeFile,rm,rename,lstat,realpath} from 'node:fs/promises';
 import {resolve,join,sep,basename} from 'node:path';import {fileURLToPath} from 'node:url';import {execFileSync} from 'node:child_process';
 import {parse,stringify} from 'yaml';
+import {prepareSdk} from './prepare-host-sdk.mjs';
 import {hostPins} from './host-versions.mjs';
 import {packageManager} from './package-manager.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url));
@@ -29,7 +30,8 @@ const revision=pkg.version.match(/\.iui\.(\d+\.\d+\.\d+)$/)?.[1];if(!revision)th
 pkg.version=host+'.iui.'+revision;pkg.engines.dsh=host;pkg.devDependencies['@deepseek-ai/dsh']=host;pkg.peerDependencies['@deepseek-ai/dsh']=host;
 for(const section of ['devDependencies','peerDependencies']){pkg[section]['@deepseek-ai/cordis']=pins.cordis;pkg[section]['@deepseek-ai/schemastery']=pins.schema;}
 const workspace=parse(await readFile(join(root,'pnpm-workspace.yaml'),'utf8'));
-workspace.overrides={...workspace.overrides,...pins.framework};
+prepareSdk(dir);
+workspace.overrides={...pins.framework,...workspace.overrides};
 await writeFile(join(dir,'pnpm-workspace.yaml'),stringify(workspace,{lineWidth:0}));
 await writeFile(join(dir,'package.json'),JSON.stringify(pkg,null,2)+'\n');
 const presetPath=join(dir,'presets','cordis.patch.yml'),preset=parse(await readFile(presetPath,'utf8'));

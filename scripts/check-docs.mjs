@@ -61,7 +61,8 @@ if (args[0] === '--repo') {
 
 const errors = [], warnings = [];
 const assert = (condition, message) => { if (!condition) errors.push(message); };
-const gitFiles = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean);
+const inventoryRoot = pkg.name === 'opencu' && process.env.OPENCU_SOURCE_ROOT || root;
+const gitFiles = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: inventoryRoot, encoding: 'utf8' }).split('\0').filter(Boolean);
 const publicDoc = file => /\.md$/i.test(file) && !/^(?:vendor|src|test|tests|skills|plugins|\.github)\//.test(file);
 const files = [...new Set(gitFiles.filter(publicDoc))].filter(file => existsSync(resolve(root, file))).sort();
 const roles = new Set(['home', 'index', 'guide', 'development', 'sources', 'release', 'redirect']);

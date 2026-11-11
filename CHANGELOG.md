@@ -1,3 +1,35 @@
+# Intelligent UI 1.0.16 · DSH 0.2.2-rc.2
+
+[中文](#zh-1016) · [English](#en-1016)
+
+<a id="zh-1016"></a>
+
+## 中文
+
+### 使用变化
+
+- 在 DSH 0.2.2-rc.2 中提交交互组件、保存表单状态并重新打开作品。
+
+<a id="en-1016"></a>
+
+## English
+
+### Compatibility
+
+- Submit interactive components, save form state and reopen artifacts on DSH 0.2.2-rc.2.
+
+## 安装 / Installation
+
+适用于 DSH **0.2.2-rc.2**、Node.js **24.9.0+**。在插件页添加下列安装包，等当前任务结束后按提示重启。
+
+Requires DSH **0.2.2-rc.2** and Node.js **24.9.0+**. Add the package from the Plugins page, finish active tasks and restart when prompted.
+
+| DSH | 固定安装包 / Fixed package | SHA256SUMS |
+| --- | --- | --- |
+| 0.2.2-rc.2 | [Intelligent UI 1.0.16](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.2.iui.1.0.16/dsh-intelligent-ui-0.2.2-rc.2.iui.1.0.16.tgz) | [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.2.iui.1.0.16/SHA256SUMS) |
+
+---
+
 # Intelligent UI 1.0.15 · DSH 0.2.2-rc.1
 
 [中文](#zh-0-2-2-rc-1-iui-1-0-15) · [English](#en-0-2-2-rc-1-iui-1-0-15)

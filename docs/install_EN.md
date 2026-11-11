@@ -2,24 +2,24 @@
 
 [简体中文](install.md) · [Back to README](../README_EN.md)
 
-Requires DSH **0.2.2-rc.1** and Node.js **24.9.0+**.
+Requires DSH **0.2.2-rc.2** and Node.js **24.9.0+**.
 
 ## Install in DSH
 
 Open **Plugins → Add plugin** and paste:
 
 ```text
-https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.1.iui.1.0.15/dsh-intelligent-ui-0.2.2-rc.1.iui.1.0.15.tgz
+https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.2.iui.1.0.16/dsh-intelligent-ui-0.2.2-rc.2.iui.1.0.16.tgz
 ```
 
-When your current task finishes, enable the plugin or restart DSH when prompted. Checksums: [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.1.iui.1.0.15/SHA256SUMS).
+When your current task finishes, enable the plugin or restart DSH when prompted. Checksums: [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.2.iui.1.0.16/SHA256SUMS).
 
 ## Install from the command line
 
 Use the CLI that belongs to the same DSH, replacing `web` with your profile (`desktop` for the desktop app):
 
 ```bash
-dsh plugin --profile web add "https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.1.iui.1.0.15/dsh-intelligent-ui-0.2.2-rc.1.iui.1.0.15.tgz"
+dsh plugin --profile web add "https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.2.iui.1.0.16/dsh-intelligent-ui-0.2.2-rc.2.iui.1.0.16.tgz"
 ```
 
 You need a model configured in DSH; result quality depends mostly on the model. For other DSH versions, find the matching package on [Releases](https://github.com/gulagala001/dsh-intelligent-ui/releases); do not mix packages built for different versions.

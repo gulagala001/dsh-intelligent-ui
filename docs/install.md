@@ -9,17 +9,17 @@
 打开 **插件 → ＋ 添加插件**，粘贴：
 
 ```text
-https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.2.iui.1.0.16/dsh-intelligent-ui-0.2.2-rc.2.iui.1.0.16.tgz
+https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.2.iui.1.0.17/dsh-intelligent-ui-0.2.2-rc.2.iui.1.0.17.tgz
 ```
 
-等手头的任务跑完，按提示启用或重启 DSH。校验文件：[SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.2.iui.1.0.16/SHA256SUMS)。
+等手头的任务跑完，按提示启用或重启 DSH。校验文件：[SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.2.iui.1.0.17/SHA256SUMS)。
 
 ## 用命令行安装
 
 用同一个 DSH 自带的命令行，把 `web` 换成你的 profile（桌面版是 `desktop`）：
 
 ```bash
-dsh plugin --profile web add "https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.2.iui.1.0.16/dsh-intelligent-ui-0.2.2-rc.2.iui.1.0.16.tgz"
+dsh plugin --profile web add "https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.2.iui.1.0.17/dsh-intelligent-ui-0.2.2-rc.2.iui.1.0.17.tgz"
 ```
 
 需要一个在 DSH 里配好的模型，效果好不好主要看模型。其他 DSH 版本请到 [Releases](https://github.com/gulagala001/dsh-intelligent-ui/releases) 找对应的包，版本不一致的包不要混装。

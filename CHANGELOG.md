@@ -1,3 +1,31 @@
+# Intelligent UI 1.0.17 · DSH 0.2.2-rc.2
+
+[中文](#zh-1017) · [English](#en-1017)
+
+<a id="zh-1017"></a>
+
+## 中文
+
+### 问题修复
+
+- 新建智能聊天跟随侧栏的新会话按钮。旁边的网页聊天等按钮保留各自的点击操作。
+
+<a id="en-1017"></a>
+
+## English
+
+### Bug fixes
+
+- Start an intelligent chat beside New Session. Nearby actions such as Web Chat keep their own controls.
+
+## 安装 / Installation
+
+DSH **0.2.2-rc.2** · Node.js **24.9.0+**
+
+[固定安装包 / Install package](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.2.iui.1.0.17/dsh-intelligent-ui-0.2.2-rc.2.iui.1.0.17.tgz) · [安装指南 / Installation guide](https://github.com/gulagala001/dsh-intelligent-ui/blob/main/docs/install.md) · [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.2.iui.1.0.17/SHA256SUMS)
+
+---
+
 # Intelligent UI 1.0.16 · DSH 0.2.2-rc.2
 
 [中文](#zh-1016) · [English](#en-1016)
@@ -18,15 +46,7 @@
 
 - Submit interactive components, save form state and reopen artifacts on DSH 0.2.2-rc.2.
 
-## 安装 / Installation
-
-适用于 DSH **0.2.2-rc.2**、Node.js **24.9.0+**。在插件页添加下列安装包，等当前任务结束后按提示重启。
-
-Requires DSH **0.2.2-rc.2** and Node.js **24.9.0+**. Add the package from the Plugins page, finish active tasks and restart when prompted.
-
-| DSH | 固定安装包 / Fixed package | SHA256SUMS |
-| --- | --- | --- |
-| 0.2.2-rc.2 | [Intelligent UI 1.0.16](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.2.iui.1.0.16/dsh-intelligent-ui-0.2.2-rc.2.iui.1.0.16.tgz) | [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.2.iui.1.0.16/SHA256SUMS) |
+已撤回。 / Withdrawn.
 
 ---
 

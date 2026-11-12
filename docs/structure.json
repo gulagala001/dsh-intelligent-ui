@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "published": "0.2.2-rc.2.iui.1.0.16",
+  "published": "0.2.2-rc.2.iui.1.0.17",
   "repository": {
     "slug": "gulagala001/dsh-intelligent-ui",
     "description": "让 DSH 的回答变成能直接操作的界面：计算器、图表、表单、模拟和小游戏。 Turn DeepSeek Harness answers into interactive UI: calculators, charts, forms, simulations and games.",

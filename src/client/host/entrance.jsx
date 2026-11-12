@@ -24,8 +24,12 @@ export function installEntranceSeats(document, notify, { MutationObserver = glob
   const seats = new Map();
   let scheduled = false, stopped = false;
   const selector = 'button[class*="_newSession"],button[class*="_iconButton"][aria-label]';
-  const isNew = button => /_newSession(?:\s|$)/.test(button.className)
-    || /^(?:新会话|新建会话|开始新会话|New Session|New session)$/i.test(button.getAttribute('aria-label') ?? '');
+  const isNew = button => {
+    if (!button.matches(selector)) return false;
+    const token = [...button.classList].find(name => name.endsWith('_newSession'));
+    if (token && button.parentElement?.classList.contains(token.slice(0, -'newSession'.length) + 'root')) return true;
+    return /^(?:新会话|新建会话|开始新会话|New session)$/i.test(button.getAttribute('aria-label') ?? '');
+  };
   const watch = (button, seat) => {
     const enter = () => seat.setAttribute('data-iui-entrance-hovered', '');
     const leave = event => {
@@ -91,7 +95,7 @@ export function installEntranceSeats(document, notify, { MutationObserver = glob
     if (stopped) return;
     let changed = false;
     for (const [button, record] of seats) {
-      if (button.isConnected && record.seat.parentElement === button.parentElement) continue;
+      if (button.isConnected && record.seat.parentElement === button.parentElement && isNew(button)) continue;
       record.release(); resize?.unobserve(button); resize?.unobserve(record.seat); button.removeAttribute('data-iui-entrance-wide'); record.seat.remove();
       seats.delete(button); changed = true;
     }

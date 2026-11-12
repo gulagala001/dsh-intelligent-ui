@@ -17,7 +17,7 @@ for (const host of ['rc2', 'alpha1', 'alpha2']) {
   test(`${host} exact native renderer excerpts preserve hooks, disclosure, grouping, images, file mentions and stop through streaming UI transitions`, async () => {
     const page = await browser.newPage(); const errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    await page.setContent('<div id="root"></div><div id="entrance"></div>');
+    await page.setContent('<div><button class="secondary_newSession" aria-label="Web chat">Web chat</button></div><div id="root"></div><div id="entrance"></div>');
     await page.evaluate(version => { window.hostVersion = version; window.minifyNativeNames = true; }, host);
     await page.addScriptTag({ content: script });
     await page.locator('.native-reasoning-toggle').click();
@@ -73,6 +73,7 @@ test('hover chat seats float inside the full native row, preserve actions and ke
   await page.addScriptTag({ content: script }); await page.evaluate(() => window.mountEntrance());
   await page.waitForFunction(() => document.querySelectorAll('.iui-new-session-plus').length === 2);
   assert.equal(await page.locator('.abc_brand + .iui-new-session-seat').count(), 0);
+  assert.equal(await page.locator('.secondary_newSession + .iui-new-session-seat').count(), 0);
   assert.equal(await page.locator('.abc_newSession + .iui-new-session-seat').count(), 1);
   assert.equal((await page.locator('.abc_newSession').boundingBox()).width,nativeWidth,'the original new-session row keeps its full width');
   const wideSeat=page.locator('#sidebar .iui-new-session-seat');

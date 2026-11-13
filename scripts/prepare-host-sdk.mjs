@@ -4,12 +4,12 @@ import { existsSync, globSync, mkdirSync, readFileSync, realpathSync, symlinkSyn
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-export const commit = 'ddac96760b6edf8fa0fe17cbdcf0b512f4c12b2c';
+export const commit = '38a6a5c965aa99ab525161efb7cc5cf1fe62fced';
 export const cacheName = 'dsh-sdk-' + commit.slice(0, 8);
 const root = fileURLToPath(new URL('../', import.meta.url));
 const upstream = 'https://github.com/deepseek-ai/deepseek-harness.git';
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
-const frozen = 'be2834e3ef72341b8874a4b8c5359957449973585f0a49bc4fb4526298bca6a7';
+const frozen = 'c24a38565023f08480f3832a554a676ad7479d36c0868063c85ad66ba6d3e68a';
 const clients = {
   "ui-jobs": [
     "a8604ef9338c337fa9d9fc8e89bee740faa23f0d73b72f1f499e3b36bac71724",
@@ -65,7 +65,7 @@ export function prepareSdk(project = root) {
   const home = resolve(root, '../.local', cacheName);
   mkdirSync(dirname(home), { recursive: true });
   if (!existsSync(home)) {
-    execFileSync('git', ['clone', '--depth=1', '--branch', 'dsh-v0.2.2-rc.2', upstream, home], { stdio: 'inherit' });
+    execFileSync('git', ['clone', '--depth=1', '--branch', 'dsh-v0.2.2-rc.3', upstream, home], { stdio: 'inherit' });
   }
   if (git(home, 'rev-parse', 'HEAD') !== commit || git(home, 'status', '--porcelain', '--untracked-files=no') ||
       digest(readFileSync(join(home, 'pnpm-lock.yaml'))) !== frozen) throw new Error('Host SDK checkout or lock differs from the pinned source');

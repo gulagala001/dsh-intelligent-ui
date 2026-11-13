@@ -5,8 +5,8 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@deepseek-ai/cordis': link:../.local/dsh-sdk-ddac9676/vendor/cordis
-  '@deepseek-ai/schemastery': link:../.local/dsh-sdk-ddac9676/vendor/schemastery
+  '@deepseek-ai/cordis': link:../.local/dsh-sdk-38a6a5c9/vendor/cordis
+  '@deepseek-ai/schemastery': link:../.local/dsh-sdk-38a6a5c9/vendor/schemastery
   '@deepseek-ai/cosmokit': 1.9.0
   '@deepseek-ai/cordis-plugin-group': 1.1.0
   '@deepseek-ai/cordis-plugin-hmr': 1.1.0
@@ -14,33 +14,33 @@ overrides:
   '@deepseek-ai/cordis-plugin-loader': 1.1.0
   '@deepseek-ai/cordis-plugin-logger-console': 1.1.0
   '@deepseek-ai/cordis-plugin-timer': 1.2.0
-  '@deepseek-ai/dsh': link:../.local/dsh-sdk-ddac9676/apps/cli
-  '@deepseek-ai/dsh-client-ui-slots': link:../.local/dsh-sdk-ddac9676/packages/client/ui-slots
-  '@deepseek-ai/dsh-client-ui-renderer': link:../.local/dsh-sdk-ddac9676/packages/client/ui-renderer
+  '@deepseek-ai/dsh': link:../.local/dsh-sdk-38a6a5c9/apps/cli
+  '@deepseek-ai/dsh-client-ui-slots': link:../.local/dsh-sdk-38a6a5c9/packages/client/ui-slots
+  '@deepseek-ai/dsh-client-ui-renderer': link:../.local/dsh-sdk-38a6a5c9/packages/client/ui-renderer
 
 importers:
 
   .:
     dependencies:
       '@deepseek-ai/cordis':
-        specifier: link:../.local/dsh-sdk-ddac9676/vendor/cordis
-        version: link:../.local/dsh-sdk-ddac9676/vendor/cordis
+        specifier: link:../.local/dsh-sdk-38a6a5c9/vendor/cordis
+        version: link:../.local/dsh-sdk-38a6a5c9/vendor/cordis
       '@deepseek-ai/dsh':
-        specifier: link:../.local/dsh-sdk-ddac9676/apps/cli
-        version: link:../.local/dsh-sdk-ddac9676/apps/cli
+        specifier: link:../.local/dsh-sdk-38a6a5c9/apps/cli
+        version: link:../.local/dsh-sdk-38a6a5c9/apps/cli
       '@deepseek-ai/schemastery':
-        specifier: link:../.local/dsh-sdk-ddac9676/vendor/schemastery
-        version: link:../.local/dsh-sdk-ddac9676/vendor/schemastery
+        specifier: link:../.local/dsh-sdk-38a6a5c9/vendor/schemastery
+        version: link:../.local/dsh-sdk-38a6a5c9/vendor/schemastery
       zod:
         specifier: 4.5.4
         version: 4.5.4
     devDependencies:
       '@deepseek-ai/dsh-client-ui-renderer':
-        specifier: link:../.local/dsh-sdk-ddac9676/packages/client/ui-renderer
-        version: link:../.local/dsh-sdk-ddac9676/packages/client/ui-renderer
+        specifier: link:../.local/dsh-sdk-38a6a5c9/packages/client/ui-renderer
+        version: link:../.local/dsh-sdk-38a6a5c9/packages/client/ui-renderer
       '@deepseek-ai/dsh-client-ui-slots':
-        specifier: link:../.local/dsh-sdk-ddac9676/packages/client/ui-slots
-        version: link:../.local/dsh-sdk-ddac9676/packages/client/ui-slots
+        specifier: link:../.local/dsh-sdk-38a6a5c9/packages/client/ui-slots
+        version: link:../.local/dsh-sdk-38a6a5c9/packages/client/ui-slots
       '@openai/apps-sdk-ui':
         specifier: 0.2.2
         version: 0.2.2(@types/react@19.3.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tailwindcss@4.3.3)

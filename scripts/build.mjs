@@ -19,7 +19,7 @@ const lock=parse(await readFile(new URL('../pnpm-lock.yaml',import.meta.url),'ut
 const importer = {...lock.importers['.'].dependencies, ...lock.importers['.'].devDependencies};
 for (const [name, entry] of Object.entries(importer)) {
   if (!entry.version.startsWith('link:')) continue;
-  if (!entry.version.startsWith('link:../.local/dsh-sdk-ddac9676/') || entry.specifier !== entry.version) throw Error('Unexpected source SDK link for ' + name);
+  if (!entry.version.startsWith('link:../.local/dsh-sdk-38a6a5c9/') || entry.specifier !== entry.version) throw Error('Unexpected source SDK link for ' + name);
   const file = new URL('../' + entry.version.slice(5) + '/package.json', import.meta.url);
   const metadata = JSON.parse(await readFile(file));
   if (metadata.name !== name || metadata.version !== pkg.devDependencies[name] || await realpath(file) !== await realpath(require.resolve(name + '/package.json'))) throw Error('Source SDK identity differs for ' + name);

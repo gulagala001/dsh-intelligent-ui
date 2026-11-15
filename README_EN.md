@@ -7,7 +7,7 @@
 <p align="center"><a href="README.md">简体中文</a> · <strong>English</strong></p>
 
 <p align="center">
-  <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases/tag/v0.2.2-rc.3.iui.1.0.18"><img alt="IUI 1.0.18" src="https://img.shields.io/badge/release-1.0.16-0969da?style=flat-square"></a>
+  <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases/tag/v0.2.2-rc.3.iui.1.0.19"><img alt="IUI 1.0.19" src="https://img.shields.io/badge/release-1.0.19-0969da?style=flat-square"></a>
   <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases"><img alt="GitHub total downloads" src="https://img.shields.io/github/downloads/gulagala001/dsh-intelligent-ui/total?style=flat-square&amp;label=GitHub%20downloads&amp;color=0969da"></a>
   <a href="#readme-install"><img alt="DSH 0.2.2-rc.3" src="https://img.shields.io/badge/DSH-0.2.2--rc.3-0969da?style=flat-square"></a>
   <a href="https://github.com/gulagala001/dsh-intelligent-ui/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/gulagala001/dsh-intelligent-ui?style=flat-square&amp;color=0969da"></a>
@@ -41,10 +41,10 @@
 In DSH, open **Plugins → Add plugin** and paste:
 
 ```text
-https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.3.iui.1.0.18/dsh-intelligent-ui-0.2.2-rc.3.iui.1.0.18.tgz
+https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.3.iui.1.0.19/dsh-intelligent-ui-0.2.2-rc.3.iui.1.0.19.tgz
 ```
 
-When your current task finishes, fully restart DSH when prompted. Your settings and conversations stay as they were. For command-line installs, upgrades and removal, see the [installation guide](docs/install_EN.md). Checksums: [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.3.iui.1.0.18/SHA256SUMS).
+When your current task finishes, fully restart DSH when prompted. Your settings and conversations stay as they were. For command-line installs, upgrades and removal, see the [installation guide](docs/install_EN.md). Checksums: [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.3.iui.1.0.19/SHA256SUMS).
 
 ### 2. Try it
 

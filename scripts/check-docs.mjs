@@ -175,6 +175,15 @@ for (const entry of documents.filter(entry => files.includes(entry.path))) {
     if (hedges.length > 2) warnings.push(`${entry.path}: ${hedges.length} disclaimer-style sentences; say what the reader can do instead`);
     // Version facts must match the published release; history blocks may name older releases.
     const facts = raw.replace(history, '').replace(/%20/g, ' ');
+    for (const match of facts.matchAll(/https:\/\/img\.shields\.io\/badge\/release-(?:[^/?#"'<>]*? )?v?(\d+\.\d+\.\d+)-/g)) {
+      if (match[1] !== published?.product) report(entry.path, 'version', match[0], `release badge must show ${published?.product}`);
+    }
+    for (const image of facts.matchAll(/<img\b[^>]*>/g)) {
+      if (!image[0].includes('https://img.shields.io/badge/release-')) continue;
+      const alt = /\balt=["']([^"']*)["']/.exec(image[0]);
+      const version = alt && /\b(\d+\.\d+\.\d+)\b/.exec(alt[1]);
+      if (version && version[1] !== published?.product) report(entry.path, 'version', alt[0], `release badge text must show ${published?.product}`);
+    }
     for (const match of facts.matchAll(releasePath)) {
       if (match[1] !== `v${config.published}` || (match[2] && ![asset, 'SHA256SUMS'].includes(match[2]))) report(entry.path, 'version', match[0], `release link must use v${config.published}/${asset}`);
     }

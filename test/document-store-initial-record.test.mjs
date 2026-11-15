@@ -43,14 +43,14 @@ for (const mismatch of ['session', 'block', 'source', 'sourceRevision', 'revisio
   });
 }
 
-test('hash-delayed seed hydration preserves later local edits and snapshots caller-owned state', async t => {
+test('hash-delayed seed hydration rejects premature edits and snapshots caller-owned state', async t => {
   const initialRecord = await record({ state: { people: 7, untouched: 'approved' } }); let release;
   const hashing = new Promise(resolve => { release = resolve; });
   const store = new DocumentStore(initialRecord.session, initialRecord.block, { read: async () => { throw Error('unexpected GET'); }, hash: () => hashing });
   t.after(() => store.dispose());
-  store.update(source, false, { initialRecord }); store.set('people', 10); initialRecord.state.people = 11; initialRecord.state.untouched = 'mutated';
+  store.update(source, false, { initialRecord }); assert.throws(() => store.set('people', 10), /等待/); assert.throws(() => store.api(() => assert.fail()).action({type:'submit',text:'x'}), /等待/); initialRecord.state.people = 11; initialRecord.state.untouched = 'mutated';
   release(await sourceHash(source)); await ready(store);
-  assert.equal(store.snapshot.state.people, 10); assert.ok(store.dirty.has('people')); assert.equal(store.revision, 7);
+  assert.equal(store.snapshot.state.people, 7); assert.equal(store.dirty.size, 0); assert.equal(store.revision, 7);
   assert.equal(store.snapshot.state.untouched, 'approved', 'later caller mutations cannot change the accepted seed');
 });
 

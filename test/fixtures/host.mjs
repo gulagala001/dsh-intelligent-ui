@@ -1,7 +1,7 @@
 import {createServer} from 'node:http';
 import {spawn,execFileSync} from 'node:child_process';
-import {mkdtemp,mkdir,writeFile,readFile,rm,realpath,lstat,readdir} from 'node:fs/promises';
-import {tmpdir,homedir} from 'node:os';import {join,basename,isAbsolute} from 'node:path';import {fileURLToPath,pathToFileURL} from 'node:url';
+import {mkdtemp,mkdir,writeFile,readFile,rm,realpath,lstat,readdir,symlink} from 'node:fs/promises';
+import {tmpdir,homedir} from 'node:os';import {join,basename,isAbsolute,dirname} from 'node:path';import {fileURLToPath,pathToFileURL} from 'node:url';
 import {once} from 'node:events';import {chromium} from 'playwright';import WebSocket from 'ws';
 import {decodeZstdJSONL} from './zstd-jsonl.mjs';
 const repo=fileURLToPath(new URL('../../',import.meta.url));
@@ -47,6 +47,11 @@ export function applyNativeModelObserver(ctx,config){
 export async function hostFixture(t,{reply='完成。',plugin=true,extraPackages=process.env.IUI_TEST_OMD_SOURCE?[process.env.IUI_TEST_OMD_SOURCE]:process.env.IUI_TEST_OMD_PACKAGE?['file:'+process.env.IUI_TEST_OMD_PACKAGE]:[],pluginFirst=process.env.IUI_TEST_PLUGIN_LAST!=='1',artifacts=false,stateWriteFault=false,modelDefinition={},providerDefinition={},reasoningEffort,nativeModel,nativeSettings={},initializeHome,nativeObserver,redact=value=>String(value)}={}){
   const root=await realpath(await mkdtemp(join(process.env.IUI_TEST_ROOT_BASE??tmpdir(),'iui-host-'))),home=join(root,'home'),cwd=join(root,'workspace');await mkdir(home);await mkdir(cwd);
   const cli=process.env.IUI_TEST_CLI??join(repo,'node_modules/@deepseek-ai/dsh/lib/bin.js'),env={...process.env,HOME:home,USERPROFILE:home,DSH_HOME:home,COREPACK_ENABLE_DOWNLOAD_PROMPT:'0',COREPACK_DEFAULT_TO_LATEST:'0',COREPACK_HOME:process.env.IUI_TEST_COREPACK_HOME??join(homedir(),'.cache/node/corepack')};delete env.DSH_PERMISSION_MODE;
+  if (process.env.IUI_TEST_SOURCE_MATRIX) {
+    for (const key of Object.keys(env)) if (!['PATH','SystemRoot','WINDIR','LANG','LC_ALL','HOME','USERPROFILE','DSH_HOME','COREPACK_DEFAULT_TO_LATEST','COREPACK_ENABLE_DOWNLOAD_PROMPT'].includes(key)) delete env[key];
+    for (const [key,path] of Object.entries({ COREPACK_HOME:'corepack',XDG_CONFIG_HOME:'config',XDG_CACHE_HOME:'cache',XDG_DATA_HOME:'data',XDG_STATE_HOME:'state',PI_CODING_AGENT_DIR:'pi-agent',TMPDIR:'tmp',APPDATA:'config',LOCALAPPDATA:'cache' })) { env[key]=join(root,path); await mkdir(env[key],{recursive:true}); }
+    env.DSH_TELEMETRY_DISABLED='1';
+  }
   let stop,child,tar,log='',base,cookie,browser,page,provider;const requests=[],errors=[],groups=[];
   const faultArm=join(root,'state-write.arm'),faultHits=join(root,'state-write-hits.jsonl'),preload=join(root,'state-write-preload.mjs');
   if(stateWriteFault)await writeFile(preload,`import fs from 'node:fs/promises';\nimport {syncBuiltinESMExports} from 'node:module';\nimport {resolve,relative,dirname,basename,isAbsolute,sep} from 'node:path';\nconst root=${JSON.stringify(root)},arm=${JSON.stringify(faultArm)},hits=${JSON.stringify(faultHits)},rename=fs.rename;let consumed=false;\nfs.rename=async function(from,to){const target=typeof to==='string'?to:'',within=relative(root,target);if(!consumed&&isAbsolute(target)&&resolve(target)===target&&within&&!isAbsolute(within)&&!within.split(sep).includes('..')&&basename(dirname(target))==='state'&&basename(dirname(dirname(target)))==='intelligent-ui'&&/^[a-f0-9]{64}\\.json$/.test(basename(target))&&await fs.realpath(dirname(target))===dirname(target)){try{await fs.unlink(arm);consumed=true;}catch(error){if(error.code!=='ENOENT')throw error;}if(consumed){await fs.appendFile(hits,JSON.stringify({target,temporary:from,code:'EIO',operation:'rename'})+'\\n',{mode:0o600});throw Object.assign(new Error('fixture state write EIO'),{code:'EIO'});}}return rename.call(this,from,to);};syncBuiltinESMExports();\n`,{mode:0o600});
@@ -83,6 +88,15 @@ export async function hostFixture(t,{reply='完成。',plugin=true,extraPackages
     }catch(error){errors.push(redact(error.message));if(!res.headersSent)res.writeHead(500);res.end();}
   });await new Promise(r=>provider.listen(0,'127.0.0.1',r));
   const fixtureSettings={'llm-pi-ai':{providers:{fixture:{...providerDefinition,api:'openai-completions',baseURL:`http://127.0.0.1:${provider.address().port}/v1`,apiKeyEnv:'IUI_FIXTURE',models:[{contextWindow:1000000,maxTokens:16384,input:['text'],...modelDefinition,id:'fixture',name:'交互测试模型'}]}}}};
+  if (process.env.IUI_TEST_SOURCE_MATRIX) {
+    const paths=JSON.parse(process.env.IUI_TEST_SOURCE_MATRIX);
+    if (!Array.isArray(paths) || paths.some(path => !isAbsolute(path)) || nativeModel) throw Error('Source fixtures require local paths and the synthetic provider');
+    const names=await Promise.all(paths.map(async path=>JSON.parse(await readFile(join(path,'package.json'),'utf8')).name));
+    const off={dataDir:join(root,'opencu'),browserEnabled:false,nativeEnabled:false,extensionEnabled:false};
+    const safety=names.includes('oh-my-dsh')?{'oh-my-dsh':{componentAutoSetup:false,codegraphEnabled:false,dreamAutoEnabled:false,projectlessWorkspaceRoot:join(root,'chats')},'omd-opencu':off}:{};
+    if(names.includes('opencu')) safety.opencu=off;
+    nativeSettings={...nativeSettings,...Object.fromEntries(Object.entries(safety).map(([id,value])=>[id,{...nativeSettings[id],...value}]))};
+  }
   const settings={'locale':{preference:'zh'},...(nativeModel?{}:fixtureSettings),...nativeSettings,'agent-default-model':{...(nativeModel??{provider:'fixture',model:'fixture'}),...(reasoningEffort?{reasoningEffort}:{})}};
   await writeFile(join(home,'settings.yaml'),JSON.stringify(settings));await writeFile(join(home,'.credentials.yaml'),JSON.stringify({version:1,refs:{IUI_FIXTURE:'local-test-only'}}),{mode:0o600});
   const initialization=await initializeHome?.({root,home,cwd,nativeObserverEndpoint:`http://127.0.0.1:${provider.address().port}/native-observer`})??{},nativePreloads=initialization.preloadPaths??[];
@@ -96,10 +110,25 @@ export async function hostFixture(t,{reply='完成。',plugin=true,extraPackages
   if(nativeObserver){observerPackage=join(root,'native-observer');await mkdir(observerPackage);await writeFile(join(observerPackage,'package.json'),JSON.stringify({name:'iui-native-model-observer',version:'0.0.0',type:'module',main:'index.mjs',dsh:{bundle:{patch:['./cordis.patch.yml']}}}));await writeFile(join(observerPackage,'index.mjs'),`export const name='iui-native-model-observer';export const inject=['llm'];export const apply=${applyNativeModelObserver.toString()};\n`);await writeFile(join(observerPackage,'cordis.patch.yml'),JSON.stringify([{insert:[{id:'iui-native-model-observer',name:'iui-native-model-observer',config:{endpoint:`http://127.0.0.1:${provider.address().port}/native-observer`,timeoutMs:nativeObserver.timeoutMs??240000}}]}]));}
   const cliRun=args=>execFileSync(process.execPath,[...nativePreloadArgs,cli,...args],{cwd,env,encoding:'utf8',timeout:180000,maxBuffer:12*1024*1024});
   cliRun(['--profile','iui-test','--from-default-profile','web','--dump-config']);
-  if(!pluginFirst)for(const spec of extraPackages)cliRun(['plugin','--profile','iui-test','add',spec]);
-  if(plugin&&process.env.IUI_TEST_PACKAGE){tar=process.env.IUI_TEST_PACKAGE;cliRun(['plugin','--profile','iui-test','add','file:'+tar]);}
-  else if(plugin){const [pack]=JSON.parse(execFileSync('npm',['pack','--ignore-scripts','--json','--pack-destination',root],{cwd:repo,encoding:'utf8'}));tar=join(root,pack.filename);cliRun(['plugin','--profile','iui-test','add','file:'+tar]);}
-  if(pluginFirst)for(const spec of extraPackages)cliRun(['plugin','--profile','iui-test','add',spec]);
+  if (process.env.IUI_TEST_SOURCE_MATRIX) {
+    // Verify locally built sources in an isolated native profile, without resolving registry packages.
+    const profile = join(home,'profiles','iui-test'), manifestPath = join(profile,'package.json');
+    const manifest = JSON.parse(await readFile(manifestPath,'utf8'));
+    const paths = JSON.parse(process.env.IUI_TEST_SOURCE_MATRIX);
+    if (!Array.isArray(paths) || paths.some(path => !isAbsolute(path))) throw Error('Expected absolute source directories');
+    for (const path of paths) {
+      const { name } = JSON.parse(await readFile(join(path,'package.json'),'utf8'));
+      if (!/^(?:@[a-z0-9-]+\/)?[a-z0-9-]+$/.test(name)) throw Error('Invalid bundle name');
+      const link = join(profile,'node_modules',name); await mkdir(dirname(link),{recursive:true});
+      await symlink(await realpath(path),link,'dir'); manifest.dependencies[name]='link:'+path; manifest.dsh.profile.bundles.push(name);
+    }
+    await writeFile(manifestPath,JSON.stringify(manifest));
+  } else {
+    if(!pluginFirst)for(const spec of extraPackages)cliRun(['plugin','--profile','iui-test','add',spec]);
+    if(plugin&&process.env.IUI_TEST_PACKAGE){tar=process.env.IUI_TEST_PACKAGE;cliRun(['plugin','--profile','iui-test','add','file:'+tar]);}
+    else if(plugin){const [pack]=JSON.parse(execFileSync('npm',['pack','--ignore-scripts','--json','--pack-destination',root],{cwd:repo,encoding:'utf8'}));tar=join(root,pack.filename);cliRun(['plugin','--profile','iui-test','add','file:'+tar]);}
+    if(pluginFirst)for(const spec of extraPackages)cliRun(['plugin','--profile','iui-test','add',spec]);
+  }
   if(observerPackage)cliRun(['plugin','--profile','iui-test','add','file:'+observerPackage]);
   stop=async()=>{const target=child;if(!target)return;const alive=()=>target.exitCode===null&&target.signalCode===null;if(process.platform==='win32'){if(!alive())return;const exited=once(target,'exit');try{execFileSync(join(process.env.SystemRoot,'System32','taskkill.exe'),['/PID',String(target.pid),'/T','/F'],{stdio:'ignore',timeout:15000,windowsHide:true});}catch(error){if(alive())throw error;}await exited;return;}const group=groups.find(item=>item.pgid===target.pid);if(!group)return;const signal=name=>{const rows=groupRows(group.pgid);if(!rows.length)return;for(const row of rows)if(group.identities.get(row.pid)!==row.start)throw Error('Unverified fixture process identity before cleanup');process.kill(-group.pgid,name);};sampleGroup(group);signal('SIGTERM');const deadline=Date.now()+5000;while(groupRows(group.pgid).length&&Date.now()<deadline)await new Promise(r=>setTimeout(r,70));if(groupRows(group.pgid).length)signal('SIGKILL');await until(()=>groupRows(group.pgid).length===0,5000);clearInterval(group.timer);};
   const boot=async()=>{log='';child=spawn(process.execPath,[...nativePreloadArgs,...(stateWriteFault?['--import',preloadSpecifier(preload)]:[]),cli,'--profile','iui-test',...(nativePatch?['--patch',nativePatch]:[]),'--no-open','--port','0'],{cwd,env,stdio:['ignore','pipe','pipe'],detached:process.platform!=='win32'});if(process.platform!=='win32'){const group={pgid:child.pid,identities:new Map()};groups.push(group);sampleGroup(group);group.timer=setInterval(()=>{try{sampleGroup(group);}catch(error){errors.push(error.message);clearInterval(group.timer);}},200);group.timer.unref();}child.stdout.on('data',b=>log+=b);child.stderr.on('data',b=>log+=b);const url=await until(()=>{if(child.exitCode!==null)throw Error(redact(log.replace(/token=\S+/g,'token=[redacted]')));return log.match(/http:\/\/127\.0\.0\.1:\d+\/\?token=[\w-]+/)?.[0];},60000);base=new URL(url).origin;const login=await fetch(url,{redirect:'manual'});cookie=login.headers.getSetCookie().map(x=>x.split(';')[0]).join('; ');return url;};

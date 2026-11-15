@@ -110,10 +110,10 @@ createRoot(document.getElementById('root')).render(<IntelligentSurface source={$
  const browser=await chromium.launch({headless:true,executablePath:process.env.CFT_EXECUTABLE||chromium.executablePath(),args:['--use-mock-keychain','--password-store=basic']});
  const page=await browser.newPage({viewport:{width:320,height:844}}),errors=[];page.setDefaultTimeout(5000);page.on('pageerror',error=>errors.push(error.message));
  t.after(async()=>{await page.evaluate(()=>window.atomicTable?.dispose()).catch(()=>{});await browser.close();assert.deepEqual(errors,[]);});
- let record={revision:0,componentsVersion:2,sourceRevision:createHash('sha256').update(source).digest('hex'),state:{records:original,picked}};
+ let record={session:'synthetic-atomic-table',block:'table',protocolVersion:1,revision:1,source,componentsVersion:2,sourceRevision:createHash('sha256').update(source).digest('hex'),state:{records:original,picked}};
  await page.route('**/*',route=>{
   if(new URL(route.request().url()).pathname.includes('/intelligent-ui/api/state')){
-   if(route.request().method()==='POST')record={...route.request().postDataJSON(),revision:record.revision+1};
+   if(route.request().method()==='POST')record={...route.request().postDataJSON(),protocolVersion:1,componentsVersion:record.componentsVersion,revision:record.revision+1};
    return route.fulfill({contentType:'application/json',body:JSON.stringify(record)});
   }
   return route.fulfill({body:'<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><div id="root"></div>'});

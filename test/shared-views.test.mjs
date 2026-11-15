@@ -11,20 +11,20 @@ import {validateState} from '../src/host/storage.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const css=await readFile(join(root,'src/client/styles/surface.css'),'utf8');
 async function fixture(t,source){
-  let record={revision:0,componentsVersion:3,sourceRevision:createHash('sha256').update(source).digest('hex'),state:{}};
+  let record={session:'shared-view',block:'1:1:0:0',protocolVersion:1,revision:1,source,componentsVersion:3,sourceRevision:createHash('sha256').update(source).digest('hex'),state:{}};
   const contents=`import React from 'react';import {createRoot} from 'react-dom/client';import {IntelligentSurface} from './src/client/Surface.jsx';import {acquireDocument,disposeDocuments} from './src/client/document-store.mjs';const source=${JSON.stringify(source)},lease=acquireDocument('shared-view','1:1:0:0');window.shared={store:lease.store,dispose:disposeDocuments};function App(){const [source,setSource]=React.useState(${JSON.stringify(source)});window.shared.replaceSource=setSource;const [expanded,setExpanded]=React.useState(false);return <div style={{display:'flex',gap:24}}><div style={{width:540}}><IntelligentSurface source={source} sessionId="shared-view" blockId="1:1:0:0" onExpand={()=>setExpanded(true)}/></div>{expanded&&<div style={{width:540}}><IntelligentSurface source={source} sessionId="shared-view" blockId="1:1:0:0" expanded/><button onClick={()=>setExpanded(false)}>收回作品</button></div>}</div>}createRoot(document.getElementById('root')).render(<App/>);`;
   const bundle=await build({stdin:{contents,resolveDir:root,loader:'jsx'},bundle:true,format:'iife',platform:'browser',write:false});
   const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});t.after(()=>browser.close());
   const page=await browser.newPage({viewport:{width:1280,height:850},hasTouch:true}),errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.route('http://127.0.0.1:9191/**',async route=>{
     if(new URL(route.request().url()).pathname.includes('/intelligent-ui/api/state')){
-      if(route.request().method()==='POST'){const input=route.request().postDataJSON();validateState(input.state);record={...input,revision:record.revision+1};}
+      if(route.request().method()==='POST'){const input=route.request().postDataJSON();validateState(input.state);record={...input,protocolVersion:1,componentsVersion:record.componentsVersion,revision:record.revision+1};}
       return route.fulfill({contentType:'application/json',body:JSON.stringify(record)});
     }
     return route.fulfill({body:'<!doctype html><meta charset="utf-8"><div id="root"></div>'});
   });
   const open=async()=>{await page.goto('http://127.0.0.1:9191/');await page.addStyleTag({content:css});await page.addScriptTag({content:bundle.outputFiles[0].text});await page.locator('.iui-surface [role="status"]').filter({hasText:'已保存'}).waitFor();};
-  await open();return {page,open,errors,record:()=>record,replace:async source=>{record={revision:0,componentsVersion:3,sourceRevision:createHash('sha256').update(source).digest('hex'),state:{}};await page.evaluate(source=>window.shared.replaceSource(source),source);await page.locator('.iui-surface [role="status"]').filter({hasText:'已保存'}).first().waitFor();}};
+  await open();return {page,open,errors,record:()=>record,replace:async source=>{record={session:'shared-view',block:'1:1:0:0',protocolVersion:1,revision:1,source,componentsVersion:3,sourceRevision:createHash('sha256').update(source).digest('hex'),state:{}};await page.evaluate(source=>window.shared.replaceSource(source),source);await page.locator('.iui-surface [role="status"]').filter({hasText:'已保存'}).first().waitFor();}};
 }
 test('implicit chart filtering and table sorting survive expand, collapse and browser reload',async t=>{
   const source='root = Stack([Chart("line",[{month:"一月",a:2,b:8},{month:"二月",a:7,b:3}],"month",[{key:"a",label:"甲"},{key:"b",label:"乙"}],"双系列"),Table([{key:"value",label:"数值"}],[{value:2},{value:9}],"排序数据")])';

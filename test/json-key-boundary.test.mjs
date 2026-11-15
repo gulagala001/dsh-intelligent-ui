@@ -137,7 +137,7 @@ test('real Surface shows the local key error, preserves settings, and saves the 
   });
   const page = await browser.newPage(), errors = [], writes = [];
   page.on('pageerror', error => errors.push(error.message));
-  let record = { revision: 0, source, sourceRevision: digest(source), componentsVersion: 4, state: {} };
+  let record = { session:'synthetic-json-key-ui',block:'1:1:0:0',protocolVersion:1,revision:1, source, sourceRevision: digest(source), componentsVersion: 4, state: {} };
   await page.route('http://127.0.0.1:9191/**', async route => {
     const request = route.request();
     if (new URL(request.url()).pathname !== '/intelligent-ui/api/state') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><meta charset="utf-8"><div id="root"></div>' });
@@ -145,7 +145,7 @@ test('real Surface shows the local key error, preserves settings, and saves the 
     const input = request.postDataJSON();
     writes.push({ keyLengths: Object.keys(input.state.metadata ?? {}).map(key => key.length), note: input.state.note });
     assert.equal(input.expectedRevision, record.revision);
-    try { record = { ...input, state: validateState(input.state), revision: record.revision + 1, componentsVersion: 4 }; }
+    try { record = { ...input, protocolVersion:1, state: validateState(input.state), revision: record.revision + 1, componentsVersion: 4 }; }
     catch (error) { return route.fulfill({ status: error.statusCode, contentType: 'application/json', body: JSON.stringify({ error: error.message }) }); }
     return route.fulfill({ contentType: 'application/json', body: JSON.stringify(record) });
   });

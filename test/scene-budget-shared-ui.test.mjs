@@ -151,7 +151,12 @@ test('independent simulations retain separate state and clocks across shared vie
 test('actual independent animation work still triggers the page budget', { timeout: 30000 }, async t => {
   const source = `shared = ${JSON.stringify(scene())}\nroot = Grid([${['one', 'two', 'three', 'four'].map(bind => `Simulation(shared,"${bind}","${bind}",[],[{label:"位移",formula:"x"}])`).join(',')}],2)`;
   const f = await fixture(t, source), { page } = f;
-  for (const simulation of await page.locator('.iui-simulation').all()) await simulation.getByRole('button', { name: '播放', exact: true }).click();
+  // Put all four visible clocks in the same accounting window, independently of CI frame rate.
+  await page.setViewportSize({ width: 1600, height: 1800 });
+  await page.clock.setFixedTime(new Date());
+  const starts = page.getByRole('button', { name: '播放', exact: true });
+  assert.equal(await starts.count(), 4);
+  await starts.evaluateAll(buttons => buttons.forEach(button => button.click()));
   await page.getByRole('alert').filter({ hasText: '请暂停部分动画后继续' }).first().waitFor();
   const rejected = await f.snapshot();
   assert.equal(rejected.players.length, 4); assert.ok(rejected.players.some(player => !player.playing));

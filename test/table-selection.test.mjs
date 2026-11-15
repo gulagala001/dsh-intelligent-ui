@@ -38,10 +38,10 @@ async function mount(t, { width = 800, dark = false, surface = false } = {}) {
  t.after(()=>browser.close());
  const page = await browser.newPage({viewport:{width,height:844}}),errors=[];page.setDefaultTimeout(5000);
  page.on('pageerror',error=>errors.push(error.message));t.after(()=>assert.deepEqual(errors,[]));
- let record={revision:0,componentsVersion:3,sourceRevision:createHash('sha256').update(source).digest('hex'),state:{}};
+ let record={session:'synthetic-table',block:'table',protocolVersion:1,revision:1,source,componentsVersion:3,sourceRevision:createHash('sha256').update(source).digest('hex'),state:{}};
  await page.route('**/*',route=>{
   if(new URL(route.request().url()).pathname.includes('/intelligent-ui/api/state')){
-   if(route.request().method()==='POST')record={...route.request().postDataJSON(),revision:record.revision+1};
+   if(route.request().method()==='POST')record={...route.request().postDataJSON(),protocolVersion:1,componentsVersion:record.componentsVersion,revision:record.revision+1};
    return route.fulfill({contentType:'application/json',body:JSON.stringify(record)});
   }
   return route.fulfill({body:'<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><div id="root"></div>'});

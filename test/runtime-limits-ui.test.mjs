@@ -25,7 +25,7 @@ test('real browser Surface explains rejected UTF-8 edits and persists the exact 
   t.after(() => browser.close());
   const page = await browser.newPage(), errors = [], writes = [];
   page.on('pageerror', error => errors.push(error.message));
-  let record = { revision: 0, source, sourceRevision: digest(source), componentsVersion: 4, state: {} };
+  let record = { session:'synthetic-utf8-ui',block:'1:1:0:0',protocolVersion:1,revision:1, source, sourceRevision: digest(source), componentsVersion: 4, state: {} };
   await page.route('http://127.0.0.1:9191/**', async route => {
     const request = route.request();
     if (new URL(request.url()).pathname !== '/intelligent-ui/api/state') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><meta charset="utf-8"><div id="root"></div>' });
@@ -34,7 +34,7 @@ test('real browser Surface explains rejected UTF-8 edits and persists the exact 
     writes.push({ stateBytes, expectedRevision: input.expectedRevision });
     assert.equal(input.source, source);
     assert.equal(input.expectedRevision, record.revision);
-    try { record = { ...input, state: validateState(input.state), componentsVersion: 4, revision: record.revision + 1 }; }
+    try { record = { ...input, protocolVersion:1, state: validateState(input.state), componentsVersion: 4, revision: record.revision + 1 }; }
     catch (error) { return route.fulfill({ status: error.statusCode, contentType: 'application/json', body: JSON.stringify({ error: error.message }) }); }
     return route.fulfill({ contentType: 'application/json', body: JSON.stringify(record) });
   });

@@ -26,7 +26,7 @@ const bundle = compiled.outputFiles[0].text;
 async function fixture(t, source) {
   const browser = await chromium.launch({ headless: true, executablePath: process.env.CFT_EXECUTABLE, args: ['--use-mock-keychain', '--password-store=basic'] });
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } }), errors = [], external = [], writes = [];
-  let record = { source, sourceRevision: digest(source), revision: 0, componentsVersion: 4, state: {} };
+  let record = { source, sourceRevision: digest(source), session:'synthetic-calculator-precision', block:'1:1:0:0', protocolVersion:1, revision: 1, componentsVersion: 4, state: {} };
   t.after(async () => { try { await page.evaluate(() => window.calculatorPrecision?.dispose()); } finally { await browser.close(); } });
   page.on('pageerror', error => errors.push(error.message));
   await page.route('**/*', async route => {
@@ -36,7 +36,7 @@ async function fixture(t, source) {
     if (request.method() === 'POST') {
       const input = request.postDataJSON();
       assert.equal(input.expectedRevision, record.revision);
-      record = { ...input, state: validateState(input.state), revision: record.revision + 1, componentsVersion: 4 };
+      record = { ...input, protocolVersion:1, state: validateState(input.state), revision: record.revision + 1, componentsVersion: 4 };
       writes.push(structuredClone(record.state));
     }
     return route.fulfill({ contentType: 'application/json', body: JSON.stringify(record) });

@@ -93,16 +93,17 @@ test('a receipt acknowledges an equivalent reordered edit without scheduling ano
   await store.save(); assert.equal(f.writes.length, 1);
 });
 
-test('an older journal cannot replace a newer in-memory edit during delayed hydration', async t => {
+test('delayed hydration preserves the journal and admits new edits only after loading', async t => {
   const f = fixture(t), { store } = f, hashing = deferred();
   f.data.set(store.journalKey(source), JSON.stringify({ source, state: { x: 'older-draft' }, dirty: ['x'], revision: 1 }));
   store.hash = () => hashing.promise;
   store.update(source, false);
   t.mock.method(globalThis.sessionStorage, 'setItem', () => { throw Error('synthetic quota failure'); });
-  store.set('x', 'latest-edit');
+  assert.throws(() => store.set('x', 'latest-edit'), /等待/);
   hashing.resolve('hash');
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(store.sourceRevision, 'hash');
+  assert.equal(store.state.x, 'older-draft'); store.set('x', 'latest-edit');
   assert.equal(store.state.x, 'latest-edit'); assert.ok(store.dirty.has('x'));
   await store.save(); assert.equal(f.remote().state.x, 'latest-edit');
 });

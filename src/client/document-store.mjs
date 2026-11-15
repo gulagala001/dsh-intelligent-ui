@@ -156,8 +156,9 @@ export class DocumentStore {
   }
   widget(path,initial){const key=widgetKey(path);return Object.hasOwn(this.state,key)?this.state[key]:initial;}
   setWidget(path,value){return this.setValue(widgetKey(path),value);}
+  get editable(){return !this.disposed&&!!this.document&&!this.snapshot.streaming&&!['loading','load-error','invalid'].includes(this.snapshot.status);}
   setValue(name,value) {
-    if(this.snapshot.streaming||!this.document||this.disposed)throw new UIError('BUSY','等待内容完成后再操作');
+    if(!this.editable)throw new UIError('BUSY','等待内容完成后再操作');
     assertJSON(value);
     const changed=new Set([name]),checked=this.checkTableSelections({...this.state,[name]:value},changed,new Set([name]));
     this.state=checked.state;changed.forEach(key=>this.dirty.add(key));this.writeJournal();this.publish({tree:checked.tree,status:this.conflictRecord?'conflict':'unsaved',error:this.conflictRecord?this.snapshot.error:''});this.scheduleSave();
@@ -173,7 +174,7 @@ export class DocumentStore {
   }
   reset(name){this.set(name,this.defaults[name]??null);}
   action(value,onSubmit) {
-    if(this.snapshot.streaming||this.disposed)throw new UIError('BUSY','等待内容完成后再操作');
+    if(!this.editable)throw new UIError('BUSY','等待内容完成后再操作');
     const actions=Array.isArray(value)?value:[value];if(actions.length>30)throw new UIError('ACTION','动作过多');
     let next={...this.state};const changed=new Set(),explicitBindings=new Set();let submission;
     for(const action of actions){
@@ -212,7 +213,7 @@ export class DocumentStore {
   }
   async save({resolveConflict=false}={}) {
     clearTimeout(this.timer);
-    if(this.disposed||this.snapshot.streaming||!this.sourceRevision||!this.dirty.size||this.writing||this.conflictRecord&&!resolveConflict)return;
+    if(!this.editable||!this.sourceRevision||!this.dirty.size||this.writing||this.conflictRecord&&!resolveConflict)return;
     const ticket=this.generation,source=this.snapshot.source,hash=this.sourceRevision;
     const writing={controller:new AbortController()};this.writing=writing;this.publish({status:'saving'});
     try{
@@ -266,7 +267,7 @@ export class DocumentStore {
   api(onSubmit) {
     const generation=this.generation;
     const current=run=>{if(this.disposed||generation!==this.generation)throw new UIError('SOURCE','作品内容已变化，请等待当前内容完成后再操作');return run();};
-    return {state:this.state,streaming:this.snapshot.streaming,disabled:this.snapshot.streaming||['loading','load-error'].includes(this.snapshot.status),blockId:this.blockId,playback:this.playback,playbackVersion:this.generation,set:(n,v)=>current(()=>this.set(n,v)),widget:(path,initial)=>this.widget(path,initial),setWidget:(path,value)=>current(()=>this.setWidget(path,value)),reset:n=>current(()=>this.reset(n)),action:a=>current(()=>this.action(a,onSubmit)),evaluate:(formula,locals={})=>safeEvaluate(formula,this.state,locals),sceneView:(scene,bind)=>sceneView(scene,this.state[bind])};
+    return {state:this.state,streaming:this.snapshot.streaming,disabled:!this.editable,blockId:this.blockId,playback:this.playback,playbackVersion:this.generation,set:(n,v)=>current(()=>this.set(n,v)),widget:(path,initial)=>this.widget(path,initial),setWidget:(path,value)=>current(()=>this.setWidget(path,value)),reset:n=>current(()=>this.reset(n)),action:a=>current(()=>this.action(a,onSubmit)),evaluate:(formula,locals={})=>safeEvaluate(formula,this.state,locals),sceneView:(scene,bind)=>sceneView(scene,this.state[bind])};
   }
   dispose(){if(this.disposed)return;this.writeJournal();this.playback.reset();clearTimeout(this.timer);this.controller?.abort();this.writing?.controller.abort();this.writing=null;this.disposed=true;this.listeners.clear();}
   journalKey(source){

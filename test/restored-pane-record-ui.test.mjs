@@ -83,7 +83,7 @@ test('an unsaved native GET projection is bound to the Pane request without anot
 test('a failed Pane initial read preserves a backed draft and its retry shares one successful recovery GET', { timeout: 30000 }, async t => {
   const f = await fixture(t, { failInitial: true, failPost: true });
   const key = 'dsh-iui.draft.v1:seeded-session:1:1:0:0:' + digest(source);
-  const raw = JSON.stringify({ source, state: { people: 9 }, dirty: ['people'], revision: 7, componentsVersion: 2 });
+  const raw = JSON.stringify({ source, state: { people: 9 }, dirty: ['people'], revision: 7, conflict: false, componentsVersion: 2 });
   await f.page.evaluate(({ key, raw }) => sessionStorage.setItem(key, raw), { key, raw });
   await f.mount(); await f.page.getByRole('button', { name: '重试', exact: true }).waitFor();
   assert.equal(await f.page.evaluate(key => sessionStorage.getItem(key), key), raw);

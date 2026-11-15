@@ -6,9 +6,11 @@ import {join,delimiter} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync,spawnSync} from 'node:child_process';
 import {parse} from 'yaml';
+import {hostPins} from '../scripts/host-versions.mjs';
+import {cacheName} from '../scripts/prepare-host-sdk.mjs';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
-const hosts=['0.2.1-rc.1','0.2.1-rc.2','0.2.1-rc.3'];
+const host=JSON.parse(await readFile(join(root,'package.json'),'utf8')).engines.dsh;
 // The fixture runs the complete packager; only install is replaced so it cannot fetch dependencies.
 async function fixture(t){
   const base=await realpath(await mkdtemp(join(tmpdir(),'iui-host-package-')));
@@ -16,7 +18,9 @@ async function fixture(t){
   const source=join(base,'source'),builds=join(base,'builds'),out=join(base,'packages'),bin=join(base,'bin');
   for(const dir of [source,builds,out,bin,...['src','scripts','skills','presets','docs','test','node_modules'].map(name=>join(source,name))])await mkdir(dir,{recursive:true});
   for(const name of ['README.md','README_EN.md','LICENSE','CHANGELOG.md','THIRD_PARTY_NOTICES.md','cordis.patch.yml'])await writeFile(join(source,name),'Synthetic public fixture\n');
-  for(const script of ['package-host.mjs','check-public-files.mjs','package-manager.mjs','host-versions.mjs'])await cp(join(root,'scripts',script),join(source,'scripts',script));
+  for(const script of ['package-host.mjs','check-public-files.mjs','package-manager.mjs','host-versions.mjs','prepare-host-sdk.mjs'])await cp(join(root,'scripts',script),join(source,'scripts',script));
+  const sdk=await realpath(join(root,'../.local',cacheName));
+  await mkdir(join(base,'.local'));await symlink(sdk,join(base,'.local',cacheName),'dir');
   await writeFile(join(source,'pnpm-lock.yaml'),'lockfileVersion: "9.0"\n');
   await writeFile(join(source,'pnpm-workspace.yaml'),'overrides: {}\n');
   await symlink(await realpath(join(root,'node_modules/yaml')),join(source,'node_modules/yaml'),'dir');
@@ -25,7 +29,7 @@ async function fixture(t){
   await writeFile(join(source,'scripts/build.mjs'),`import {mkdir,writeFile} from 'node:fs/promises';
 if(process.env.IUI_FIXTURE_FAIL==='build')throw Error('Synthetic build failure');
 await mkdir('lib',{recursive:true});await writeFile('lib/current.js','current');`);
-  await writeFile(join(source,'package.json'),JSON.stringify({name:'iui-package-host-fixture',version:'0.2.1-rc.2.iui.1.0.0',files:['src','lib','presets'],engines:{},devDependencies:{},peerDependencies:{}}));
+  await writeFile(join(source,'package.json'),JSON.stringify({name:'iui-package-host-fixture',version:host+'.iui.1.0.0',files:['src','lib','presets'],engines:{dsh:host},devDependencies:{},peerDependencies:{}}));
   const pnpm=process.env.IUI_PNPM_ENTRY??process.env.npm_execpath;
   assert.ok(pnpm,'run this test with the declared pnpm script');
   const launcher=join(bin,'pnpm.cjs');
@@ -43,7 +47,7 @@ try{process.stdout.write(execFileSync(process.execPath,[${JSON.stringify(pnpm)},
 
 test('fresh host packaging removes deleted source and generated files while preserving unowned old output', {skip:process.platform==='win32'},async t=>{
   const f=await fixture(t);
-  for(const host of hosts){
+  {
     const target=join(f.builds,host);
     await mkdir(join(target,'src'),{recursive:true});await writeFile(join(target,'src/removed-module.mjs'),'old module');
     await writeFile(join(target,'user-data.json'),'preserve unknown old data');
@@ -58,8 +62,8 @@ test('fresh host packaging removes deleted source and generated files while pres
     assert.equal(pkg.version,host+'.iui.1.0.0');
     for(const section of ['peerDependencies','devDependencies']){
       assert.equal(pkg[section]['@deepseek-ai/dsh'],host);
-      assert.equal(pkg[section]['@deepseek-ai/cordis'],'4.0.5');
-      assert.equal(pkg[section]['@deepseek-ai/schemastery'],'3.18.5');
+      assert.equal(pkg[section]['@deepseek-ai/cordis'],hostPins(host).cordis);
+      assert.equal(pkg[section]['@deepseek-ai/schemastery'],hostPins(host).schema);
     }
     const preset=parse(execFileSync('tar',['-xOf',result.package,'package/presets/cordis.patch.yml'],{encoding:'utf8'}));
     assert.equal(preset[0].insert[0].config.plugins[0].config.suffix,undefined);
@@ -73,7 +77,7 @@ test('fresh host packaging removes deleted source and generated files while pres
 });
 
 test('install, build and pack failures keep the last complete host output and package', {skip:process.platform==='win32'},async t=>{
-  const f=await fixture(t),host=hosts[1],initial=f.success(host);
+  const f=await fixture(t),initial=f.success(host);
   const bytes=await readFile(initial.package),pkg=await readFile(join(initial.buildDirectory,'package.json'));
   for(const phase of ['install','build','pack']){
     await writeFile(join(f.source,'src/current.mjs'),phase);
@@ -81,13 +85,13 @@ test('install, build and pack failures keep the last complete host output and pa
     assert.deepEqual(await readFile(initial.package),bytes);
     assert.deepEqual(await readFile(join(initial.buildDirectory,'package.json')),pkg);
     assert.equal(await readFile(join(initial.buildDirectory,'src/current.mjs'),'utf8'),'export const current = true;\n');
-    assert.deepEqual(await readdir(f.builds),[host]);
+    assert.deepEqual((await readdir(f.builds)).sort(),['.local',host].sort());
     assert.ok(!(await readdir(f.out)).some(name=>name.startsWith('.iui-')));
   }
 });
 
 test('unsafe source, filesystem-root, overlapping and linked output paths are rejected', {skip:process.platform==='win32'},async t=>{
-  const f=await fixture(t),host=hosts[1];
+  const f=await fixture(t);
   const cases=[{IUI_BUILD_ROOT:f.source},{IUI_BUILD_ROOT:'/'},{IUI_PACKAGE_OUT:'/'},{IUI_BUILD_ROOT:join(f.source,'src')},{IUI_PACKAGE_OUT:join(f.source,'docs')},{IUI_PACKAGE_OUT:join(f.builds,host)}];
   for(const env of cases){const result=f.run(host,env);assert.notEqual(result.status,0);assert.match(result.stderr,/outputs must be separate/);}
   await rm(join(f.builds,host),{recursive:true,force:true});
@@ -97,7 +101,7 @@ test('unsafe source, filesystem-root, overlapping and linked output paths are re
 });
 
 test('failed package publication rolls back the completed host directory without touching unrelated output', {skip:process.platform==='win32'},async t=>{
-  const f=await fixture(t),host=hosts[1],initial=f.success(host);
+  const f=await fixture(t),initial=f.success(host);
   const original=await readFile(join(initial.buildDirectory,'src/current.mjs'));
   // A directory occupying the package filename makes rename fail after build publication.
   await rm(initial.package);await mkdir(initial.package);await writeFile(join(initial.package,'user-data'),'preserve');
@@ -107,6 +111,6 @@ test('failed package publication rolls back the completed host directory without
   assert.deepEqual(await readFile(join(initial.buildDirectory,'src/current.mjs')),original);
   assert.equal(await readFile(join(initial.package,'user-data'),'utf8'),'preserve');
   assert.equal(await readFile(join(f.builds,'unrelated-host','data'),'utf8'),'unrelated');
-  assert.deepEqual((await readdir(f.builds)).sort(),[host,'unrelated-host'].sort());
+  assert.deepEqual((await readdir(f.builds)).sort(),['.local',host,'unrelated-host'].sort());
   assert.ok(!(await readdir(f.out)).some(name=>name.startsWith('.iui-')));
 });

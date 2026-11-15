@@ -32,8 +32,8 @@ for (const action of ['close-and-retry', 'source-switch']) {
     const page = await browser.newPage(), errors = [], calls = [];
     page.on('pageerror', error => errors.push(error.message));
     let currentSource = sourceA, failRead = false, failWrite = true;
-    const records = new Map([[sourceA, { revision: 0, source: sourceA, sourceRevision: digest(sourceA), componentsVersion: 2, state: {} }],
-      [sourceB, { revision: 0, source: sourceB, sourceRevision: digest(sourceB), componentsVersion: 4, state: {} }]]);
+    const records = new Map([[sourceA, { session:'synthetic-backed-ui',block:'1:1:0:0',protocolVersion:1,revision:1, source: sourceA, sourceRevision: digest(sourceA), componentsVersion: 2, state: {} }],
+      [sourceB, { session:'synthetic-backed-ui',block:'1:1:0:0',protocolVersion:1,revision:1, source: sourceB, sourceRevision: digest(sourceB), componentsVersion: 4, state: {} }]]);
     await page.route('http://127.0.0.1:9191/**', async route => {
       const request = route.request(), url = new URL(request.url());
       if (url.pathname !== '/intelligent-ui/api/state') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><meta charset="utf-8"><div id="root"></div>' });
@@ -43,7 +43,7 @@ for (const action of ['close-and-retry', 'source-switch']) {
       if (failWrite) return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Synthetic write outage' }) });
       assert.equal(input.source, currentSource, 'the current source owns every accepted write');
       assert.equal(input.expectedRevision, current.revision, 'the server independently checks the CAS revision');
-      const next = { ...input, revision: current.revision + 1, componentsVersion: current.componentsVersion };
+      const next = { ...input, protocolVersion:1, revision: current.revision + 1, componentsVersion: current.componentsVersion };
       records.set(currentSource, next);
       return route.fulfill({ contentType: 'application/json', body: JSON.stringify(next) });
     });

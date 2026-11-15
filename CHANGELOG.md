@@ -1,3 +1,33 @@
+# Intelligent UI 1.0.19 · DSH 0.2.2-rc.3
+
+[中文](#zh-1019) · [English](#en-1019)
+
+<a id="zh-1019"></a>
+
+## 中文
+
+### 问题修复
+
+- 作品载入完成后才允许编辑和保存，避免覆盖尚未读到的内容。
+- 作品修改成功而对话投递失败时保留修改，并提示核对对话。
+
+<a id="en-1019"></a>
+
+## English
+
+### Bug fixes
+
+- Editing and saving wait until the document finishes loading.
+- Keeps document edits when conversation delivery fails and prompts you to check the chat.
+
+## 安装 / Installation
+
+DSH **0.2.2-rc.3** · Node.js **24.9.0+**
+
+[固定安装包 / Install package](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.3.iui.1.0.19/dsh-intelligent-ui-0.2.2-rc.3.iui.1.0.19.tgz) · [安装指南 / Installation guide](https://github.com/gulagala001/dsh-intelligent-ui/blob/main/docs/install.md) · [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.3.iui.1.0.19/SHA256SUMS)
+
+---
+
 # Intelligent UI 1.0.18 · DSH 0.2.2-rc.3
 
 [中文](#zh-1018) · [English](#en-1018)

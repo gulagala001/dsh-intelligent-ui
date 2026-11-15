@@ -195,8 +195,14 @@ export class DocumentStore {
       explicitBindings.add(name);
     }
     const checked=this.checkTableSelections(next,changed,explicitBindings);next=checked.state;const tree=checked.tree;
+    if(submission!==undefined&&!onSubmit)throw new UIError('SUBMIT','当前作品不能继续对话');
     if(changed.size){this.state=next;changed.forEach(name=>this.dirty.add(name));this.writeJournal();this.publish({tree,status:this.conflictRecord?'conflict':'unsaved',error:this.conflictRecord?this.snapshot.error:''});this.scheduleSave();}
-    if(submission!==undefined){if(!onSubmit)throw new UIError('SUBMIT','当前作品不能继续对话');return onSubmit(submission);}
+    if(submission!==undefined){
+      if(!changed.size)return onSubmit(submission);
+      const failed=error=>{throw new UIError('SUBMIT',`作品更改已保留，但对话投递未获确认。请先查看对话：${error?.message??error}`);};
+      try{const receipt=onSubmit(submission);return receipt?.then?Promise.resolve(receipt).catch(failed):receipt;}
+      catch(error){failed(error);}
+    }
   }
   scheduleSave(){clearTimeout(this.timer);if(this.sourceRevision&&!this.conflictRecord&&!['conflict','load-error'].includes(this.snapshot.status))this.timer=setTimeout(()=>void this.save(),350);}
   mergeState(remote) {

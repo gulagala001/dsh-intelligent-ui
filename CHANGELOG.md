@@ -1,3 +1,33 @@
+# Intelligent UI 1.0.20 · DSH 0.2.2-rc.3
+
+**未发布 / Unreleased.**
+
+[中文](#zh-1020) · [English](#en-1020)
+
+<a id="zh-1020"></a>
+
+## 中文
+
+### 体验优化
+
+- 会话尚未接纳作品提交时保留原输入。切换面板或重新打开会话后，可以核对回复丢失时作品是否已经保存。
+
+<a id="en-1020"></a>
+
+## English
+
+### Improvements
+
+- Keeps input until the conversation accepts the submission and checks whether document edits were saved when the response was lost.
+
+## 安装 / Installation
+
+DSH **0.2.2-rc.3** · Node.js **24.9.0+**
+
+[固定安装包 / Install package](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.3.iui.1.0.20/dsh-intelligent-ui-0.2.2-rc.3.iui.1.0.20.tgz) · [安装指南 / Installation guide](https://github.com/gulagala001/dsh-intelligent-ui/blob/main/docs/install.md) · [SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.3.iui.1.0.20/SHA256SUMS)
+
+---
+
 # Intelligent UI 1.0.19 · DSH 0.2.2-rc.3
 
 [中文](#zh-1019) · [English](#en-1019)

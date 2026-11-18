@@ -39,14 +39,25 @@ export function creationOptions(ctx, origin) {
 
 function waitForSnapshot(source, accepts, signal, timeoutMs, message) {
   return new Promise((resolve, reject) => {
-    let off = () => {}, timer;
-    const finish = error => { off(); clearTimeout(timer); signal.removeEventListener('abort', abort); error ? reject(error) : resolve(source.getSnapshot()); };
+    let off, settled = false;
+    const finish = (error, value) => {
+      if (settled) return;
+      settled = true; clearTimeout(timer); signal?.removeEventListener('abort', abort); off?.();
+      if (error) reject(error); else resolve(value);
+    };
     const abort = () => finish(signal.reason ?? new Error('操作已取消'));
-    const sync = () => { if (accepts(source.getSnapshot())) finish(); };
-    off = source.subscribe(sync);
-    timer = setTimeout(() => finish(new Error(message)), timeoutMs);
-    signal.addEventListener('abort', abort, { once: true });
-    if (signal.aborted) abort(); else sync();
+    const sync = () => {
+      if (settled) return;
+      try { const value = source.getSnapshot(); if (accepts(value)) finish(null, value); }
+      catch (error) { finish(error); }
+    };
+    const timer = setTimeout(() => finish(new Error(message)), timeoutMs);
+    signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) { abort(); return; }
+    try {
+      off = source.subscribe(sync);
+      if (settled) off(); else sync();
+    } catch (error) { finish(error); }
   });
 }
 
@@ -68,38 +79,16 @@ export async function resolveCreationOptions(ctx, origin, signal, timeoutMs = 10
 }
 
 export function waitForSelection(ctx, sessionId, signal, timeoutMs = 10000, origin) {
-  const source = ctx.uiSession.adapter.current;
-  return new Promise((resolve, reject) => {
-    let unsubscribe = () => {}, timer;
-    const finish = (error) => {
-      unsubscribe(); clearTimeout(timer); signal?.removeEventListener('abort', abort);
-      error ? reject(error) : resolve();
-    };
-    const abort = () => finish(signal.reason ?? new Error('操作已取消'));
-    const sync = () => {
-      const selected = source.getSnapshot().key;
-      if (selected === sessionId) finish();
-      else if (selected !== undefined && selected !== origin) finish(new Error('会话打开未完成，当前页面已切换'));
-    };
-    unsubscribe = source.subscribe(sync);
-    timer = setTimeout(() => finish(new Error('等待会话打开超时')), timeoutMs);
-    signal?.addEventListener('abort', abort, { once: true });
-    if (signal?.aborted) abort(); else sync();
-  });
+  return waitForSnapshot(ctx.uiSession.adapter.current, ({ key }) => {
+    if (key === sessionId) return true;
+    if (key !== undefined && key !== origin) throw new Error('会话打开未完成，当前页面已切换');
+    return false;
+  }, signal, timeoutMs, '等待会话打开超时').then(() => {});
 }
 
 function waitForPreset(binding, signal, timeoutMs) {
-  const source = binding.session.projections.faceOf('agentPreset');
-  return new Promise((resolve, reject) => {
-    let off = () => {}, timer;
-    const finish = error => { off(); clearTimeout(timer); signal.removeEventListener('abort', abort); error ? reject(error) : resolve(); };
-    const abort = () => finish(signal.reason ?? new Error('操作已取消'));
-    const sync = () => { if (source.getSnapshot() === PRESET) finish(); };
-    off = source.subscribe(sync);
-    timer = setTimeout(() => finish(new Error('智能聊天模式尚未生效，未打开会话')), timeoutMs);
-    signal.addEventListener('abort', abort, { once: true });
-    if (signal.aborted) abort(); else sync();
-  });
+  return waitForSnapshot(binding.session.projections.faceOf('agentPreset'), value => value === PRESET,
+    signal, timeoutMs, '智能聊天模式尚未生效，未打开会话');
 }
 
 /** Owns exact Session identities. A UI action can never borrow the current chat by accident. */
@@ -170,10 +159,12 @@ export function createSessionBridge(ctx, { timeoutMs = 10000 } = {}) {
     getSnapshot: () => snapshot,
     create() {
       if (creating) return creating;
-      const attempt = start();
-      creating = attempt.finally(() => { if (creating === managed) creating = undefined; });
-      const managed = creating;
-      return managed;
+      const receipt = Promise.withResolvers();
+      creating = receipt.promise;
+      const finished = () => { if (creating === receipt.promise) creating = undefined; };
+      creating.then(finished, finished);
+      start().then(receipt.resolve, receipt.reject);
+      return receipt.promise;
     },
     submit(sessionId, blockId, text, options = {}) {
       return submit(sessionId, blockId, text, options);
@@ -234,7 +225,8 @@ export function createSessionBridge(ctx, { timeoutMs = 10000 } = {}) {
         if (!isVisible(sessionId) || ctx.sessions.binding(sessionId) !== reference.binding || session.getSnapshot().removed) throw new Error('回答所属会话已变更');
         const submission = session.beginSubmission({ mode: 'queue', text, attachments: prepared.attachments });
         try {
-          refusal(await session.prompt([{ type: 'text', text }, ...prepared.content], 'queue', signal, submission.requestId), '提交失败');
+          const receipt = refusal(await session.prompt([{ type: 'text', text }, ...prepared.content], 'queue', signal, submission.requestId), '提交失败');
+          if (receipt?.accepted !== true) throw new Error('无法确认宿主已接受本次提交，请核对当前会话');
         } catch (error) { submission.abandon(); throw error; }
       });
       const managed = operation.finally(() => {

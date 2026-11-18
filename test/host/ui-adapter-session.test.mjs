@@ -288,3 +288,17 @@ test('native prompt refusal abandons its echo and allows a later retry', async (
   await assert.rejects(bridge.submit('origin', '1:0:0:0', 'retry'), /prompt refused/);
   assert.equal(f.calls.filter(row => row[0] === 'prompt').length, 2); bridge.dispose();
 });
+
+test('native waits release synchronous subscriptions and a busy observer joins the same creation', async () => {
+  const f=fixture(), bridge=createSessionBridge(f.ctx), current=f.ctx.uiSession.adapter.current;
+  const subscribe=current.subscribe;current.subscribe=fn=>{const off=subscribe(fn);fn();return off;};
+  let joined;bridge.subscribe(()=>{if(bridge.getSnapshot().busy && !joined)joined=bridge.create();});
+  const created=bridge.create();assert.equal(created,joined);assert.equal(await created,'new');
+  assert.equal(f.calls.filter(([name])=>name==='create').length,1);assert.equal(current.listeners.size,0);bridge.dispose();
+});
+test('a successful RPC envelope without native prompt admission never completes the action', async () => {
+  const pending=gate(), f=fixture({prompt:pending}), bridge=createSessionBridge(f.ctx);
+  const result=bridge.submit('origin','1:1:1:1','answer');
+  pending.resolve({ok:true,value:{accepted:false}});
+  await assert.rejects(result,/无法确认/);assert.equal(f.calls.filter(([name])=>name==='abandon').length,1);bridge.dispose();
+});

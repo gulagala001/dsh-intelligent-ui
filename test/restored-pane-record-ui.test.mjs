@@ -91,7 +91,8 @@ test('a failed Pane initial read preserves a backed draft and its retry shares o
   await f.page.getByRole('button', { name: '重试保存', exact: true }).waitFor();
   assert.equal(f.calls.filter(method => method === 'GET').length, 2, 'one failed Pane GET and one shared successful GET');
   assert.equal(await f.page.locator('output').textContent(), '9');
-  assert.equal(await f.page.evaluate(key => sessionStorage.getItem(key), key), raw);
+  const { attempt, ...draft } = JSON.parse(await f.page.evaluate(key => sessionStorage.getItem(key), key));
+  assert.deepEqual(draft, JSON.parse(raw)); assert.equal(attempt.revision, 7); assert.match(attempt.digest, /^[a-f0-9]{64}$/);
   f.enableWrites(); await f.page.getByRole('button', { name: '重试保存', exact: true }).click();
   await f.page.getByRole('status').filter({ hasText: '已保存' }).waitFor();
   assert.equal(f.record().state.people, 9); assert.equal(f.record().componentsVersion, 2);

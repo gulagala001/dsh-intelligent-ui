@@ -143,3 +143,18 @@ test('a valid receipt incompatible with a later edit preserves the usable draft 
   assert.equal(restored.snapshot.status, 'saved'); assert.equal(restored.snapshot.tree.props.columns, 5);
   assert.deepEqual(f.remote().state, { a: 4, b: 1 });
 });
+
+test('a lost POST receipt is reconciled by the next read, including after reopening with later edits', async t => {
+  const f=fixture(t), store=f.store;
+  await ready(store);
+  const original=store.request;
+  store.request=async (...args)=>{const receipt=await original(...args);if(args[2])throw Error('lost response');return receipt;};
+  store.set('x','submitted');await store.save();
+  assert.equal(store.snapshot.status,'save-error');
+  assert.equal(f.writes.length,1);await store.save();
+  assert.equal(store.snapshot.status,'saved');assert.equal(f.writes.length,1);
+  store.set('x','second');await store.save();store.set('x','later');store.dispose();
+  const reopened=f.make();await ready(reopened,source,'unsaved');await reopened.save();
+  assert.equal(reopened.snapshot.status,'saved');assert.equal(f.writes.length,3);
+  assert.equal(f.remote().state.x,'later');
+});

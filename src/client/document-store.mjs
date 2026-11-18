@@ -25,6 +25,17 @@ function sameJSONValue(left,right) {
   const keys=Object.keys(left);
   return keys.length===Object.keys(right).length&&keys.every(key=>Object.hasOwn(right,key)&&sameJSONValue(left[key],right[key]));
 }
+// A journal stores a small witness of the submitted document, including when
+// a later local edit has already replaced the submitted value in the draft.
+function stateDigest(state) {
+  const ordered = (_key, value) => value && typeof value === 'object' && !Array.isArray(value)
+    ? Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]])) : value;
+  return identityDigest(JSON.stringify(state, ordered));
+}
+function confirmsAttempt(record, attempt) {
+  return attempt && record.persisted !== false && record.revision === attempt.revision + 1
+    && stateDigest(record.state) === attempt.digest;
+}
 function validRecord(record,session,block,projected=false) {
   if(!record||typeof record!=='object'||Array.isArray(record)||Object.hasOwn(record,'error')
     ||record.protocolVersion!==protocolVersion||!readableComponentsVersions.includes(record.componentsVersion??1)
@@ -96,13 +107,14 @@ export class DocumentStore {
       // A cancel may legally finish the old gesture before its API retires.
       // Keep that draft under its old source, never merge it into the new one.
       if(this.dirty.size){
-        const draft={source:this.snapshot.source,state:structuredClone(this.state),dirty:[...this.dirty],revision:this.revision,conflict:Boolean(this.conflictRecord),componentsVersion:this.snapshot.componentsVersion??1};
+        const draft={source:this.snapshot.source,state:structuredClone(this.state),dirty:[...this.dirty],attempt:this.attempt,revision:this.revision,conflict:Boolean(this.conflictRecord),componentsVersion:this.snapshot.componentsVersion??1};
         this.previousDraftPersisted=this.writeJournal();this.previousDraft=draft;
         if(this.previousDraftPersisted)this.unbackedDrafts.delete(draft.source);else this.unbackedDrafts.set(draft.source,draft);
       }
       this.journalError='';
       this.incomingDraft=incomingDraft;this.state=incomingDraft?structuredClone(incomingDraft.state):{};this.defaults={};this.dirty=new Set(incomingDraft?.dirty??[]);this.revision=incomingDraft?.revision??0;this.conflictRecord=null;
     }
+    this.attempt=null;
     try {
       this.document=compile(source,{streaming});
       let tree=evaluateDocument(this.document,this.state);
@@ -145,7 +157,7 @@ export class DocumentStore {
         this.writeJournal();return;
       }
       this.state=next;
-      if(draft){for(const name of this.dirty)if(record.persisted!==false&&sameJSONValue(Object.hasOwn(record.state,name)?record.state[name]:this.defaults[name],this.state[name]))this.dirty.delete(name);if(this.dirty.size&&(draft.revision!==record.revision||draft.conflict))this.conflictRecord=record;}
+      if(draft){for(const name of this.dirty)if(record.persisted!==false&&sameJSONValue(Object.hasOwn(record.state,name)?record.state[name]:this.defaults[name],this.state[name]))this.dirty.delete(name);if(this.dirty.size&&!confirmsAttempt(record,draft.attempt)&&(draft.revision!==record.revision||draft.conflict))this.conflictRecord=record;}
       this.publish({tree,componentsVersion:record.componentsVersion??1,status:this.conflictRecord?'conflict':this.dirty.size?'unsaved':record.persisted===false?'default':'saved',error:this.conflictRecord?'其他地方已修改设置。你的草稿已恢复，确认后可以合并保存。':''});
       if(this.dirty.size&&!this.conflictRecord)this.scheduleSave();
     }catch(error){if(error.name!=='AbortError'&&!this.disposed&&ticket===this.generation)this.publish({status:'load-error',error:'设置读取失败：'+error.message});}
@@ -226,7 +238,12 @@ export class DocumentStore {
         if(current.sourceRevision!==hash)throw new UIError('SOURCE','作品内容已变化，请重新打开');
         assertJSON(current.state);this.reloadBeforeSave=false;
         this.revision=current.revision;
-        if(current.persisted!==false&&current.revision!==knownRevision){
+        const confirmed=confirmsAttempt(current,this.attempt);
+        this.attempt=null;
+        if(confirmed){
+          for(const name of this.dirty)if(sameJSONValue(current.state[name],this.state[name]))this.dirty.delete(name);
+        }
+        if(!confirmed&&current.persisted!==false&&current.revision!==knownRevision){
           this.conflictRecord=current;
           this.publish({status:'conflict',error:'另一处修改了设置。你的操作已保留，可确认后保存。'});return;
         }
@@ -234,15 +251,21 @@ export class DocumentStore {
         this.conflictRecord=current;
         const tree=evaluateDocument(this.document,next);
         this.state=next;this.conflictRecord=null;
+        if(!this.dirty.size){
+          this.writeJournal();
+          this.publish({tree,componentsVersion:current.componentsVersion??this.snapshot.componentsVersion,status:'saved',error:''});return;
+        }
         this.publish({tree,componentsVersion:current.componentsVersion??this.snapshot.componentsVersion});
       }
       const state=structuredClone(this.conflictRecord?this.mergeState(this.conflictRecord.state):this.state),names=new Set(this.dirty);
       // Local and remote edits can be valid separately but incompatible together.
       // Validate that combination before replacing the durable record.
       if(this.conflictRecord)evaluateDocument(this.document,state);
+      this.attempt={revision:this.revision,digest:stateDigest(state)};
+      this.writeJournal();
       const record=await this.request(this.sessionId,this.blockId,{session:this.sessionId,block:this.blockId,expectedRevision:this.revision,sourceRevision:hash,source,state},writing.controller.signal);
       if(this.disposed||ticket!==this.generation)return;
-      this.revision=record.revision;this.conflictRecord=record;
+      this.attempt=null;this.revision=record.revision;this.conflictRecord=record;
       // A delayed receipt acknowledges only the exact values it wrote.
       for(const name of names)if(sameJSONValue(this.state[name],state[name]))this.dirty.delete(name);
       // The dirty set owns edit intent, including reselecting an unchanged value.
@@ -253,11 +276,13 @@ export class DocumentStore {
     }catch(error){
       if(!this.disposed&&ticket===this.generation){
         if(error.status===409&&error.record&&error.record.sourceRevision===this.sourceRevision&&(error.record.source===undefined||error.record.source===this.snapshot.source)){
-          this.revision=error.record.revision;this.conflictRecord=error.record;
+          this.attempt=null;this.revision=error.record.revision;this.conflictRecord=error.record;
           this.publish({status:'conflict',error:'另一处修改了设置。你的操作已保留，可确认后保存。'});
         }else{
           if(error.status===409){this.conflictRecord=null;this.reloadBeforeSave=true;}
-          this.publish({status:this.conflictRecord?'conflict':'save-error',error:'设置尚未保存：'+error.message});
+          const uncertain=this.attempt && (!error.status||error.status<300||error.status>=500);
+          if(uncertain){this.conflictRecord=null;this.reloadBeforeSave=true;}
+          this.publish({status:this.conflictRecord?'conflict':'save-error',error:(uncertain?'保存结果待核实：':'设置尚未保存：')+error.message});
         }
         this.writeJournal();
       }
@@ -288,7 +313,7 @@ export class DocumentStore {
         }
         this.journalError='';return true;
       }
-      const value=JSON.stringify({source,state:this.state,dirty:[...this.dirty],revision:this.revision,conflict:Boolean(this.conflictRecord),componentsVersion:this.snapshot.componentsVersion??1});if(value.length>300000)throw new UIError('JOURNAL','本地草稿过大');storage.setItem(key,value);this.unbackedDrafts.delete(source);this.journalError='';return true;
+      const value=JSON.stringify({source,state:this.state,dirty:[...this.dirty],attempt:this.attempt,revision:this.revision,conflict:Boolean(this.conflictRecord),componentsVersion:this.snapshot.componentsVersion??1});if(value.length>300000)throw new UIError('JOURNAL','本地草稿过大');storage.setItem(key,value);this.unbackedDrafts.delete(source);this.journalError='';return true;
     }catch{this.journalError='本地草稿暂时无法备份，请保持页面打开并重试保存。';if(!this.disposed)this.publish();return false;}
   }
   restoreJournal(source){

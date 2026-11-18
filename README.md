@@ -7,7 +7,7 @@
 <p align="center"><strong>简体中文</strong> · <a href="README_EN.md">English</a></p>
 
 <p align="center">
-  <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases/tag/v0.2.2-rc.3.iui.1.0.19"><img alt="IUI 1.0.19" src="https://img.shields.io/badge/release-1.0.19-0969da?style=flat-square"></a>
+  <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases/tag/v0.2.2-rc.3.iui.1.0.20"><img alt="IUI 1.0.20" src="https://img.shields.io/badge/release-1.0.20-0969da?style=flat-square"></a>
   <a href="https://github.com/gulagala001/dsh-intelligent-ui/releases"><img alt="GitHub 下载量" src="https://img.shields.io/github/downloads/gulagala001/dsh-intelligent-ui/total?style=flat-square&amp;label=GitHub%20downloads&amp;color=0969da"></a>
   <a href="#readme-install"><img alt="DSH 0.2.2-rc.3" src="https://img.shields.io/badge/DSH-0.2.2--rc.3-0969da?style=flat-square"></a>
   <a href="https://github.com/gulagala001/dsh-intelligent-ui/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/gulagala001/dsh-intelligent-ui?style=flat-square&amp;color=0969da"></a>
@@ -41,10 +41,10 @@
 在 DSH 里打开 **插件 → ＋ 添加插件**，粘贴：
 
 ```text
-https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.3.iui.1.0.19/dsh-intelligent-ui-0.2.2-rc.3.iui.1.0.19.tgz
+https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.3.iui.1.0.20/dsh-intelligent-ui-0.2.2-rc.3.iui.1.0.20.tgz
 ```
 
-等手头的任务跑完，按提示完整重启 DSH，原来的设置和会话都还在。命令行安装、升级和卸载见[安装指南](docs/install.md)，校验文件：[SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.3.iui.1.0.19/SHA256SUMS)。
+等手头的任务跑完，按提示完整重启 DSH，原来的设置和会话都还在。命令行安装、升级和卸载见[安装指南](docs/install.md)，校验文件：[SHA256SUMS](https://github.com/gulagala001/dsh-intelligent-ui/releases/download/v0.2.2-rc.3.iui.1.0.20/SHA256SUMS)。
 
 ### 2. 先试一件事
 

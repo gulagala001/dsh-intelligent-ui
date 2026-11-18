@@ -1,7 +1,5 @@
 # Intelligent UI 1.0.20 · DSH 0.2.2-rc.3
 
-**未发布 / Unreleased.**
-
 [中文](#zh-1020) · [English](#en-1020)
 
 <a id="zh-1020"></a>
